@@ -203,6 +203,8 @@ export type TurnEvent =
       /** 0..1 how volatile he is. */
       tension: number;
       rationale?: Rationale;
+      /** Rolling memory for the live agent. Empty when nothing has been said. */
+      memory?: string;
     }
   | {
       type: 'line';

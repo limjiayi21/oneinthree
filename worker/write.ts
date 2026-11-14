@@ -18,6 +18,7 @@
  * drops to the authored line bank.
  */
 import type { Emotion, ManStance, WomanStrategy, WorldContext } from '../shared/types';
+import { memoryBlock, type ConversationMemory } from './memory';
 import { PROMPT_BRIEF } from './research';
 
 export const LINE_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
@@ -218,6 +219,7 @@ export interface WomanLineInput {
   avoidThoughts: string[];
   /** Two numbers in [0, 1) that pick the angle and the thought topic (from the session's seeded RNG). */
   dice: [number, number];
+  memory?: ConversationMemory;
 }
 
 const pickBy = <T>(list: T[], roll: number): T => list[Math.min(list.length - 1, Math.floor(roll * list.length))];
@@ -246,13 +248,14 @@ export function womanUserPrompt(i: WomanLineInput): string {
       ? `SHE JUST SAID, answer this and nothing else: "${i.herWords.slice(0, 240)}" (${STRATEGY_NOTE[i.strategy]})`
       : `SHE JUST, and she did not speak: ${EVENT_NOTE[i.event] ?? 'said nothing'}`;
   const parts = [
+    memoryBlock(i.memory),
     `HE NOW: ${brief.does}. One way he might do it: he ${angle}.`,
     `HIS MOOD: ${i.emotion}`,
     `WHERE: ${where.join(' ')}`,
     `RECENT:\n${i.recent.slice(-5).join('\n') || '(nothing yet)'}`,
     she,
     `THOUGHT ABOUT: ${topic}`,
-  ];
+  ].filter(Boolean);
   if (i.avoidLines.length) parts.push(`HE HAS ALREADY SAID (say something different): ${i.avoidLines.slice(-4).join(' / ')}`);
   if (i.avoidThoughts.length) parts.push(`SHE HAS ALREADY THOUGHT (think something different): ${i.avoidThoughts.slice(-4).join(' / ')}`);
   return parts.join('\n');
@@ -329,6 +332,7 @@ export interface BystanderLineInput {
   avoidLines: string[];
   /** One number in [0, 1) per cue, from the session's seeded RNG, to pick an angle. */
   dice: number[];
+  memory?: ConversationMemory;
 }
 
 export function bystanderUserPrompt(i: BystanderLineInput): string {
@@ -339,7 +343,7 @@ export function bystanderUserPrompt(i: BystanderLineInput): string {
   });
   if (i.wantThought) write.push('"thought": her private thought right now.');
   const keys = [...i.cues.map((c) => c.key), ...(i.wantThought ? ['thought'] : [])];
-  const parts = [did, `RECENT:\n${i.recent.slice(-5).join('\n') || '(nothing yet)'}`, `WRITE, in this order:\n${write.join('\n')}`];
+  const parts = [memoryBlock(i.memory), did, `RECENT:\n${i.recent.slice(-5).join('\n') || '(nothing yet)'}`, `WRITE, in this order:\n${write.join('\n')}`].filter(Boolean);
   if (i.avoidLines.length) parts.push(`ALREADY SAID (say something different): ${i.avoidLines.slice(-4).join(' / ')}`);
   parts.push(`Reply with JSON only: {${keys.map((k) => `"${k}": "..."`).join(', ')}}`);
   return parts.join('\n');
