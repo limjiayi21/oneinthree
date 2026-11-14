@@ -47,11 +47,12 @@ let LENGTH = 30;
 /**
  * The film:
  *   1. the walk:   black + montage, then clip A under "For you, that was a simulation…"
- *   2. the stats:  66%, 44%, "1 in 3" and 25%, back to back with no gap, each on
+ *   2. the stats:  66%, 44% and 25%, back to back with no gap, each on
  *                  its own shot with only its own card (a hard cut to the next),
  *                  heartbeat and follower rising underneath
  *   3. a beat of silence, then clip E (the push-in across the road): "But sometimes,
- *                  someone is there.", then "This time, you're the one. What would you do?"
+ *                  someone is there to help.", then "This time, you're the one. What would
+ *                  you do?" on screen only, read in silence
  * Every time, including the film's length, is worked out from the narration in plan().
  */
 const TEMPO = 1.03; // narration speed-up (pitch kept): close to natural
@@ -63,7 +64,7 @@ const SHOTS = {
   D: { file: 'edit/D.mp4', from: 0 }, // the empty street, rain
   B: { file: 'edit/B.mp4', from: 0 }, // keys (the calm 4 s of the clip, slowed)
   C: { file: 'video/C-veo.mp4', from: 0, maxSource: 3 }, // the shadow; after 3 s the light cuts out and strobes
-  E: { file: 'edit/E.mp4', from: 0 }, // the push-in from across the road (road visible throughout)
+  E: { file: 'edit/E.mp4', from: 0, maxSource: 8 }, // the push-in from across the road (road visible throughout); 8 s long
 };
 /** Clip A is 8 s long: the opening uses it at normal speed, the 66% shot the rest of it, slowed. */
 const A_LENGTH = 8;
@@ -73,11 +74,11 @@ const OPENING = { file: 'narration-1-female.mp3', text: 'For you, that was a sim
 const STATS = [
   { file: 'narration-stat-66-female.mp3', shot: 'A2', id: 'ssh2018_public_66', short: 'of women in the US have been sexually harassed in public.' },
   { file: 'narration-stat-44-female.mp3', shot: 'B', id: 'yougov_keys_44', short: 'of women in the UK hold their keys ready to defend themselves.' },
-  { file: 'narration-stat-34-female.mp3', shot: 'C', id: 'ssh2018_followed_34', short: 'women in the US have been followed.' },
   { file: 'narration-stat-25-female.mp3', shot: 'D', id: 'loreal_helped_25', short: 'of people harassed in public say someone helped.' },
 ];
-const SOMEONE = { file: 'narration-3-female.mp3', text: 'But sometimes, someone is there.' };
-const HOOK = { file: 'narration-hook-female.mp3', text: 'This time, you’re the one. What would you do?' };
+const SOMEONE = { file: 'narration-someone-help-female.mp3', text: 'But sometimes, someone is there to help.' };
+/** The closing line is not spoken: it is left on screen, in silence, to be read. */
+const HOOK = { text: 'This time, you’re the one. What would you do?', readFor: 4.2 };
 
 /** Target loudness (LUFS) of each source before mixing, as measured with ebur128. */
 const NARRATION_LUFS = -16;
@@ -120,8 +121,8 @@ function plan() {
   const cut = frame(stats[stats.length - 1].until + 0.06); // the bed stops dead; a beat of silence
   const eAt = cut;
   const someone = line(SOMEONE, cut + 0.75);
-  const hook = line(HOOK, someone.until + 0.5);
-  LENGTH = frame(hook.until + 1.4);
+  const hook = { ...HOOK, at: frame(someone.until + 0.6) };
+  LENGTH = frame(hook.at + HOOK.readFor);
   TIMES = { opening, stats, cut, eAt, someone, hook };
 
   // ---- picture. xf: the crossfade into that scene (1 frame = a hard cut).
@@ -171,24 +172,25 @@ function plan() {
   // ---- sound
   const s0 = stats[0].at;
   const bAt = SCENES.find((x) => x.name === 'B').at;
-  const cAt = SCENES.find((x) => x.name === 'C').at;
+  const bIdx = SCENES.findIndex((x) => x.name === 'B');
+  const afterB = SCENES[bIdx + 1].at;
   const stop = 0.03; // the hard stop before the push-in
   AUDIO = [
     { file: 'montage-5s.wav', at: 0, until: 5, keep: true }, // already mixed and cut at 4.8 s
     { file: 'sfx-ambience.mp3', at: 5, until: cut, loop: true, lufs: -34, fadeIn: XF, fadeOut: stop },
     { file: 'sfx-footsteps.mp3', at: 5, until: cut, loop: true, lufs: -30, fadeIn: XF, fadeOut: stop },
     { file: 'music.mp3', at: 5, until: cut, lufs: NARRATION_LUFS - MUSIC_BELOW, fadeIn: 0.5, fadeOut: stop },
-    { file: 'sfx-keys.mp3', at: bAt, until: Math.min(cAt + 0.3, bAt + 6), lufs: -28, fadeIn: 0.1, fadeOut: 0.3 },
+    { file: 'sfx-keys.mp3', at: bAt, until: Math.min(afterB + 0.3, bAt + 6), lufs: -28, fadeIn: 0.1, fadeOut: 0.3 },
     // Building under the stats: the follower closing in and her heartbeat speeding up (loop if the stats run long).
     { file: 'sfx-follower.mp3', at: s0, until: cut, loop: true, from: 0, lufs: -28, ramp: [0.3, 1.1], fadeIn: 0.6, fadeOut: stop },
     { file: 'sfx-heartbeat.mp3', at: s0, until: cut, loop: true, from: 0, lufs: -24, ramp: [0.3, 1.15], fadeIn: 0.6, fadeOut: stop },
     // After the beat: the street comes back quietly with the push-in, music rising a little.
-    { file: 'sfx-ambience.mp3', at: eAt + 0.5, until: LENGTH, loop: true, lufs: -36, fadeIn: 1 },
-    { file: 'music.mp3', at: eAt + 0.5, until: LENGTH, from: Math.max(0, cut - 5), lufs: NARRATION_LUFS - MUSIC_BELOW, rise: { from: eAt + 1.5, to: eAt + 3.5, db: 4 }, fadeIn: 1.2 },
+    // ...and fades away as the closing line appears, so it is read in silence.
+    { file: 'sfx-ambience.mp3', at: eAt + 0.5, until: hook.at + 1.2, loop: true, lufs: -36, fadeIn: 1, fadeOut: 1.4 },
+    { file: 'music.mp3', at: eAt + 0.5, until: hook.at + 1.2, from: Math.max(0, cut - 5), lufs: NARRATION_LUFS - MUSIC_BELOW, rise: { from: eAt + 1.5, to: eAt + 3.5, db: 4 }, fadeIn: 1.2, fadeOut: 1.4 },
     { wav: opening.wav, at: opening.at, lufs: NARRATION_LUFS },
     ...stats.map((l) => ({ wav: l.wav, at: l.at, lufs: NARRATION_LUFS })),
     { wav: someone.wav, at: someone.at, lufs: NARRATION_LUFS },
-    { wav: hook.wav, at: hook.at, lufs: NARRATION_LUFS },
   ];
 }
 
@@ -437,7 +439,8 @@ mkdirSync(build, { recursive: true });
 plan();
 console.log('narration:');
 const T = TIMES;
-for (const l of [T.opening, ...T.stats, T.someone, T.hook]) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
+console.log(`  closing line on screen (silent) from ${T.hook.at.toFixed(2)} s`);
+for (const l of [T.opening, ...T.stats, T.someone]) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
 console.log(`silence at ${T.cut.toFixed(2)} s; push-in from ${T.eAt.toFixed(2)} s; film length ${LENGTH.toFixed(2)} s`);
 console.log(`shots: ${SCENES.map((s) => `${s.name} ${s.at.toFixed(2)}-${(s.at + s.slot).toFixed(2)}`).join(', ')}`);
 console.log(`text track -> ${writeVtt()}`);

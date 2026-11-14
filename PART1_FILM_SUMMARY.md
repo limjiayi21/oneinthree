@@ -5,28 +5,29 @@ Branch `part1-film` (local only, not pushed or deployed), rebased onto `main` at
 
 ## What was built
 
-**A narrated film of about 36 seconds that plays when Part 1 ends**, in place
+**A narrated film of about 33 seconds that plays when Part 1 ends**, in place
 of Part 1's debrief. It is a plain film: no question, no slider, nothing to answer.
 
 | Time | Picture | Sound and on-screen text |
 |---|---|---|
 | 0:00–0:05 | Black | Catcall montage (7 of the man's lines, panned, building up, heartbeat under it), cut to silence at 4.8 s |
 | 0:05–0:10.7 | Clip A: her walk | "For you, that was a simulation. For many women, it's an ordinary walk home." (also as a caption) |
-| 0:10.7–0:28.2 | **The stats, back to back with no gap**, a hard cut to a new shot on each: the rest of her walk (66%), keys (44%), the shadow (1 in 3), the empty street (25%) | Each stat spoken in full, one straight after another, and shown on its own shot with only its own card (lower-third style), switching on the cut. Heartbeat and the follower's footsteps rise underneath. |
-| 0:28.2 | A beat of silence; clip E fades in | |
-| 0:29–0:36.2 | Clip E: the push-in past the figure across the road | "But sometimes, someone is there." (caption), then "This time, you're the one. What would you do?" spoken and shown large in the centre as the picture fades to black |
+| 0:10.7–0:24.8 | **Three stats, back to back with no gap**, each on its own shot with only its own card: the rest of her walk (66%), keys (44%), the empty street (25%) | Each stat spoken in full, one straight after another, the card switching on the cut. Heartbeat and the follower's footsteps rise underneath. |
+| 0:24.8 | A beat of silence; clip E fades in | |
+| 0:25.5–0:33.1 | Clip E: the push-in past the figure across the road | "But sometimes, someone is there to help." (spoken and as a caption). Then "This time, you're the one. What would you do?" appears large in the centre, **not spoken**: the sound fades to complete silence while it is read, and the picture fades to black. |
 
 - **Sound:** her footsteps, keys, ambience and a quiet music bed (20 dB under the
   narration) until the beat of silence; then the street and the music return
-  quietly with the push-in. Mixed to -16 LUFS.
+  quietly with the push-in, and fade to silence under the closing line. Mixed to
+  -16 LUFS.
 - **On screen:** each stat card shows the number, the full wording from
   `content/evidence.json` and a source line (publisher and year).
 - **Spoken stats are short forms.** The 44% figure is from a UK YouGov survey,
   so the spoken line says "In the UK".
 - **The figure across the road** is the bystander (warm grey), as designed: it
   is the "someone" who is there, and "you're the one" makes it the player.
-- **No flashes.** Clip C's light cuts out at about 3 s and then strobes; the film
-  uses only its calm first 3 seconds (slowed 1.15×). The only brightness jumps
+- **No flashes.** Clip C (the shadow, whose light cut out and strobed) is no
+  longer used, along with the "more than 1 in 3" stat. The only brightness jumps
   are the deliberate hard cuts between stats.
 - **Narration speed:** 3% faster than recorded (pitch kept), i.e. natural.
 
@@ -59,9 +60,9 @@ were downloaded from Google Fonts into `film/assets/fonts/`.
 
 | File | Size | In git |
 |---|---|---|
-| `public/film/part1-film.mp4` (H.264 crf 26, AAC 128k, faststart, 1280×720, 24 fps, 36.2 s) | 5.4 MB | yes |
+| `public/film/part1-film.mp4` (H.264 crf 26, AAC 128k, faststart, 1280×720, 24 fps, 33.1 s) | 5.0 MB | yes |
 | `public/film/part1-film.vtt` | 1 KB | yes |
-| `film/assets/part1-film-master.mp4` (crf 14) | 30 MB | no |
+| `film/assets/part1-film-master.mp4` (crf 14) | 27 MB | no |
 | `film/assets/` (all raw media) | 290 MB | no; backed up to `~/oneinthree-film-assets-backup/` |
 
 Scripts (in git): `film/scripts/assemble-film.mjs` (builds the film),
@@ -70,8 +71,8 @@ Scripts (in git): `film/scripts/assemble-film.mjs` (builds the film),
 
 ## Credits
 
-This round: 205 ElevenLabs credits (the five new narration lines). Whole film
-so far: about 82,000.
+Narration for the film: 233 ElevenLabs credits (seven new lines, 28 of them
+for "someone is there to help"). Whole film so far: about 82,000.
 
 ## Commands
 
@@ -95,7 +96,7 @@ npm run build && npm test              # both pass (81 tests)
    browser leaves full screen and the film should pause; Space resumes.
 2. **Sound.** Headphones on: the montage builds and cuts to silence; the
    stats should come one straight after another, every word clear; then the
-   beat of silence; the hook is not cut off at the end.
+   beat of silence; the closing line should sit in silence.
 3. **The full flow.** Play Part 1 to the end (not `skip=part1`): the film should
    appear with no debrief first, and the Part 2 intro should show
    "See full details", which opens the Part 1 debrief and returns.

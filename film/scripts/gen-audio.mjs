@@ -56,6 +56,7 @@ const FILM_LINES = [
   { name: 'stat-34', text: 'More than one in three women in the US have been followed.' }, // ssh2018_followed_34
   { name: 'stat-25', text: 'Only twenty-five percent of people harassed in public say someone helped.' }, // loreal_helped_25
   { name: 'hook', text: 'This time, you’re the one. What would you do?' },
+  { name: 'someone-help', text: 'But sometimes, someone is there to help.' },
 ];
 const FILM_VOICE = 'female';
 
