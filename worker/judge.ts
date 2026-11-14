@@ -31,6 +31,7 @@
  */
 import type { Emotion, ManAction, ManDecision, ManStance, Pov, WorldContext } from '../shared/types';
 import { clampSuggestedExpression } from '../shared/expression';
+import { FIRM_BYSTANDER_RULE } from './research';
 
 export const JUDGE_BUDGET_MS = 400;
 export const WORKERS_JUDGE_MODEL = '@cf/google/gemma-4-26b-a4b-it';
@@ -394,7 +395,7 @@ export function composeBeat(seeded: SeededBeat, reading: TurnReading | null, sce
   const bystander = scene.bystanderIntervened || reading.bystander >= 0.55;
   if (firm && bystander && stance !== 'gone') {
     stance = 'back_off';
-    rule = 'A firm boundary with a bystander makes him back off.';
+    rule = FIRM_BYSTANDER_RULE;
   }
   if (stance === 'escalate' && seeded.stance !== 'escalate') {
     stance = seeded.stance === 'intimidate' || seeded.stance === 'hostile' ? seeded.stance : 'hostile';

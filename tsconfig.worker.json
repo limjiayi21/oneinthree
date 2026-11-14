@@ -13,6 +13,6 @@
     "skipLibCheck": true,
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["worker", "shared", "content/*.json"],
+  "include": ["worker", "shared", "content/*.json", "data/*.json"],
   "exclude": ["worker/**/*.test.ts"]
 }

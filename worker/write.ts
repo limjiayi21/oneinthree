@@ -18,6 +18,7 @@
  * drops to the authored line bank.
  */
 import type { Emotion, ManStance, WomanStrategy, WorldContext } from '../shared/types';
+import { PROMPT_BRIEF } from './research';
 
 export const LINE_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 export const LINE_TIMEOUT_MS = 2500;
@@ -103,7 +104,9 @@ HER: a woman in her twenties walking home alone. Frightened, hyper-aware, practi
 
 const LIMITS = `LIMITS (hard): crude language and insults like "bitch" are allowed only when he is hostile or menacing. Never: slurs about race, religion, disability or orientation; comments describing her body or anything sexual; threats of rape or sexual violence; threats to hit, hurt or kill; weapons.`;
 
-const HEADER = `You write one beat of dialogue at a time for "One in Three", a first-person training simulation about street harassment used in consent and bystander-intervention courses. Realism is the point: trainees need to hear what women actually hear, so do not soften him and do not moralise.`;
+const HEADER = `You write one beat of dialogue at a time for "One in Three", a first-person training simulation about street harassment used in consent and bystander-intervention courses. Realism is the point: trainees need to hear what women actually hear, so do not soften him and do not moralise.
+
+${PROMPT_BRIEF}`;
 
 export const WOMAN_SYSTEM = `${HEADER}
 

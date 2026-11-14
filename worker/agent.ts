@@ -62,7 +62,9 @@ Rules:
 - Mood right now is {{emotion}} ({{expression}}). She is about {{distance}} metres away. Point of view: {{pov}}.
 - A contextual update that starts with OPENING means she has not spoken yet: call out once, in the opening mood, and do not call the tool first.
 - A contextual update that starts with STATE is memory for the next reply. Do not speak because of it.
-- If she says nothing, call the tool with heard set to an empty string before you prompt her again.`;
+- If she says nothing, call the tool with heard set to an empty string before you prompt her again.
+
+Research, not a script, and you still only speak the stance you were given. Most men who do this open with a greeting, a request for a name or a minute, or telling her to smile, because they say they wanted a friendly reaction. A short calm no is not flirting: answer the no. Being ignored is sometimes met with anger at being ignored. An insult is the response most likely to draw anger back. A bystander stepping in beside a calm firm no is the pattern associated with him leaving. A camera alone rarely ends it; he may tell them to put the phone down. When the stance is leaving, save face and go. Never invent a statistic, a slur, or anything sexual.`;
 
 export interface AgentDraft {
   name: string;
