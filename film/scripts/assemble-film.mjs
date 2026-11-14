@@ -73,7 +73,7 @@ const OPENING = { file: 'narration-1-female.mp3', text: 'For you, that was a sim
 /** The stats, in order. short: the on-screen phrase (the words she says); the full wording is in the text track. */
 const STATS = [
   { file: 'narration-stat-66-female.mp3', shot: 'A2', id: 'ssh2018_public_66', short: 'of women in the US have been sexually harassed in public.' },
-  { file: 'narration-stat-44-female.mp3', shot: 'B', id: 'yougov_keys_44', short: 'of women in the UK hold their keys ready to defend themselves.' },
+  { file: 'narration-stat-44-female.mp3', shot: 'B', id: 'yougov_keys_44', short: 'of women in the UK hold their keys ready to defend themselves.', corner: 'tr' }, // top right: the hand fills the lower left
   { file: 'narration-stat-25-female.mp3', shot: 'D', id: 'loreal_helped_25', short: 'of people harassed in public say someone helped.' },
 ];
 const SOMEONE = { file: 'narration-someone-help-female.mp3', text: 'But sometimes, someone is there to help.' };
@@ -118,7 +118,7 @@ function plan() {
     stats.push(l);
     t = l.until + STAT_GAP;
   }
-  const cut = frame(stats[stats.length - 1].until + 0.06); // the bed stops dead; a beat of silence
+  const cut = frame(stats[stats.length - 1].until + 0.06); // end of the stats: the push-in fades in
   const eAt = cut;
   const someone = line(SOMEONE, cut + 0.75);
   const hook = { ...HOOK, at: frame(someone.until + 0.6) };
@@ -146,11 +146,15 @@ function plan() {
   layer('band-opening', { kind: 'band' }, opening.at + 0.2, stats[0].at - 0.05);
   layer('caption-opening', { kind: 'caption', text: OPENING.text }, opening.at + 0.2, stats[0].at - 0.05);
   // The stats: each on its own shot with only its own card (number, full wording, source), switching on the cut.
-  layer('band-stats', { kind: 'band' }, stats[0].at - 0.1, cut, 0.2, 0.25);
+  // A card in the corner gets a soft corner shade instead of the lower-third band.
   stats.forEach((l, i) => {
     const last = i + 1 === stats.length;
+    const from = l.at - 0.05;
     const until = last ? cut : stats[i + 1].at - 0.05;
-    layer(`stat-${l.id}`, { kind: 'stat', id: l.id }, l.at - 0.05, until, i === 0 ? 0.2 : 0.12, last ? 0.25 : 0.06);
+    const fadeIn = i === 0 ? 0.2 : 0.06;
+    const fadeOut = last ? 0.25 : 0.06;
+    layer(l.corner ? `shade-${l.corner}` : `band-${l.id}`, l.corner ? { kind: 'shade', corner: l.corner } : { kind: 'band' }, from, until, fadeIn, fadeOut);
+    layer(`stat-${l.id}`, { kind: 'stat', id: l.id, corner: l.corner }, from, until, i === 0 ? 0.2 : 0.12, fadeOut);
   });
   layer('band-someone', { kind: 'band' }, someone.at - 0.1, hook.at - 0.1);
   layer('caption-someone', { kind: 'caption', text: SOMEONE.text }, someone.at - 0.1, hook.at - 0.1);
@@ -174,20 +178,20 @@ function plan() {
   const bAt = SCENES.find((x) => x.name === 'B').at;
   const bIdx = SCENES.findIndex((x) => x.name === 'B');
   const afterB = SCENES[bIdx + 1].at;
-  const stop = 0.03; // the hard stop before the push-in
+  // After the last stat nothing stops dead: her steps, the follower and the heartbeat ease out over a second,
+  // and the city and the music carry on into the push-in, fading away under "someone is there to help".
+  const ease = 1.0;
+  const away = someone.until + 0.2;
+  const awayFade = away - someone.at;
   AUDIO = [
     { file: 'montage-5s.wav', at: 0, until: 5, keep: true }, // already mixed and cut at 4.8 s
-    { file: 'sfx-ambience.mp3', at: 5, until: cut, loop: true, lufs: -34, fadeIn: XF, fadeOut: stop },
-    { file: 'sfx-footsteps.mp3', at: 5, until: cut, loop: true, lufs: -30, fadeIn: XF, fadeOut: stop },
-    { file: 'music.mp3', at: 5, until: cut, lufs: NARRATION_LUFS - MUSIC_BELOW, fadeIn: 0.5, fadeOut: stop },
+    { file: 'sfx-ambience.mp3', at: 5, until: away, loop: true, lufs: -34, fadeIn: XF, fadeOut: awayFade },
+    { file: 'music.mp3', at: 5, until: away, lufs: NARRATION_LUFS - MUSIC_BELOW, fadeIn: 0.5, fadeOut: awayFade },
+    { file: 'sfx-footsteps.mp3', at: 5, until: cut + ease, loop: true, lufs: -30, fadeIn: XF, fadeOut: ease },
     { file: 'sfx-keys.mp3', at: bAt, until: Math.min(afterB + 0.3, bAt + 6), lufs: -28, fadeIn: 0.1, fadeOut: 0.3 },
     // Building under the stats: the follower closing in and her heartbeat speeding up (loop if the stats run long).
-    { file: 'sfx-follower.mp3', at: s0, until: cut, loop: true, from: 0, lufs: -28, ramp: [0.3, 1.1], fadeIn: 0.6, fadeOut: stop },
-    { file: 'sfx-heartbeat.mp3', at: s0, until: cut, loop: true, from: 0, lufs: -24, ramp: [0.3, 1.15], fadeIn: 0.6, fadeOut: stop },
-    // After the beat: the street comes back quietly with the push-in, music rising a little.
-    // ...and fades away as the closing line appears, so it is read in silence.
-    { file: 'sfx-ambience.mp3', at: eAt + 0.5, until: hook.at + 1.2, loop: true, lufs: -36, fadeIn: 1, fadeOut: 1.4 },
-    { file: 'music.mp3', at: eAt + 0.5, until: hook.at + 1.2, from: Math.max(0, cut - 5), lufs: NARRATION_LUFS - MUSIC_BELOW, rise: { from: eAt + 1.5, to: eAt + 3.5, db: 4 }, fadeIn: 1.2, fadeOut: 1.4 },
+    { file: 'sfx-follower.mp3', at: s0, until: cut + ease, loop: true, from: 0, lufs: -28, ramp: [0.3, 1.1], fadeIn: 0.6, fadeOut: ease },
+    { file: 'sfx-heartbeat.mp3', at: s0, until: cut + ease, loop: true, from: 0, lufs: -24, ramp: [0.3, 1.15], fadeIn: 0.6, fadeOut: ease },
     { wav: opening.wav, at: opening.at, lufs: NARRATION_LUFS },
     ...stats.map((l) => ({ wav: l.wav, at: l.at, lufs: NARRATION_LUFS })),
     { wav: someone.wav, at: someone.at, lufs: NARRATION_LUFS },
@@ -271,6 +275,9 @@ html,body{margin:0;width:${W}px;height:${H}px;background:transparent;overflow:hi
 .solo .num{font:300 96px/1 var(--serif);margin:0 0 18px}
 .solo .txt{font:400 26px/1.4 var(--sans);margin:0;max-width:780px;text-wrap:balance}
 .solo .src{font:400 14px/1.4 var(--sans);color:var(--ink-2);margin:16px 0 0}
+.stat.tr{left:auto;right:${LAYOUT.side}px;top:60px;max-width:600px;text-align:right}
+.stat.tr .txt{text-wrap:balance}
+.shade{position:absolute;inset:0;background:radial-gradient(ellipse 60% 55% at 100% 0%,rgba(var(--bg),.62) 0%,rgba(var(--bg),.38) 50%,rgba(var(--bg),0) 100%)}
 .closing{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   color:var(--ink);font:400 50px/1.15 var(--serif);text-align:center;padding:0 ${LAYOUT.side}px;
   text-shadow:0 2px 24px rgba(0,0,0,.55);
@@ -280,6 +287,7 @@ html,body{margin:0;width:${W}px;height:${H}px;background:transparent;overflow:hi
 function cardHtml(card) {
   let body = '';
   if (card.kind === 'band') body = `<div class="band${card.tall ? ' tall' : ''}"></div>`;
+  else if (card.kind === 'shade') body = `<div class="shade ${esc(card.corner)}"></div>`;
   else if (card.kind === 'stack') {
     body = `<div class="stack">${card.rows
       .map((r, i) => {
@@ -295,7 +303,7 @@ function cardHtml(card) {
   else if (card.kind === 'closing') body = `<div class="closing">${esc(card.text)}</div>`;
   else {
     const s = stat(card.id);
-    body = `<div class="stat"><p class="num">${esc(s.headline)}</p><p class="txt">${esc(s.text)}</p><p class="src">Source: ${esc(s.source)}</p></div>`;
+    body = `<div class="stat${card.corner ? ` ${esc(card.corner)}` : ''}"><p class="num">${esc(s.headline)}</p><p class="txt">${esc(s.text)}</p><p class="src">Source: ${esc(s.source)}</p></div>`;
   }
   return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${body}</body></html>`;
 }
@@ -394,7 +402,7 @@ function buildFilm(mixWav) {
   const layers = LAYERS;
   const pngs = {};
   layers.forEach((L, i) => {
-    const key = L.card.kind === 'band' ? `band${L.card.tall ? '-tall' : ''}` : L.name;
+    const key = L.card.kind === 'band' ? `band${L.card.tall ? '-tall' : ''}` : L.card.kind === 'shade' ? `shade-${L.card.corner}` : L.name;
     const png = (pngs[key] ??= renderCard(key, L.card));
     const dur = L.until - L.at;
     inputs.push('-loop', '1', '-framerate', String(FPS), '-t', dur.toFixed(3), '-i', png);
@@ -441,7 +449,7 @@ console.log('narration:');
 const T = TIMES;
 console.log(`  closing line on screen (silent) from ${T.hook.at.toFixed(2)} s`);
 for (const l of [T.opening, ...T.stats, T.someone]) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
-console.log(`silence at ${T.cut.toFixed(2)} s; push-in from ${T.eAt.toFixed(2)} s; film length ${LENGTH.toFixed(2)} s`);
+console.log(`stats end ${T.cut.toFixed(2)} s; push-in from ${T.eAt.toFixed(2)} s; film length ${LENGTH.toFixed(2)} s`);
 console.log(`shots: ${SCENES.map((s) => `${s.name} ${s.at.toFixed(2)}-${(s.at + s.slot).toFixed(2)}`).join(', ')}`);
 console.log(`text track -> ${writeVtt()}`);
 if (process.argv.includes('--vtt-only')) process.exit(0);

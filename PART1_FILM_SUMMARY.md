@@ -12,14 +12,14 @@ of Part 1's debrief. It is a plain film: no question, no slider, nothing to answ
 |---|---|---|
 | 0:00–0:05 | Black | Catcall montage (7 of the man's lines, panned, building up, heartbeat under it), cut to silence at 4.8 s |
 | 0:05–0:10.7 | Clip A: her walk | "For you, that was a simulation. For many women, it's an ordinary walk home." (also as a caption) |
-| 0:10.7–0:24.8 | **Three stats, back to back with no gap**, each on its own shot with only its own card: the rest of her walk (66%), keys (44%), the empty street (25%) | Each stat spoken in full, one straight after another, the card switching on the cut. Heartbeat and the follower's footsteps rise underneath. |
-| 0:24.8 | A beat of silence; clip E fades in | |
-| 0:25.5–0:33.1 | Clip E: the push-in past the figure across the road | "But sometimes, someone is there to help." (spoken and as a caption). Then "This time, you're the one. What would you do?" appears large in the centre, **not spoken**: the sound fades to complete silence while it is read, and the picture fades to black. |
+| 0:10.7–0:24.8 | **Three stats, back to back with no gap**, each on its own shot with only its own card: the rest of her walk (66%), keys (44%, card in the top-right corner, clear of the hand), the empty street (25%) | Each stat spoken in full, one straight after another, the card switching on the cut. Heartbeat and the follower's footsteps rise underneath. |
+| 0:24.8 | Clip E fades in | Her footsteps, the follower and the heartbeat ease out over a second; the city noise and music carry on |
+| 0:25.5–0:33.1 | Clip E: the push-in past the figure across the road | "But sometimes, someone is there to help." (spoken and as a caption), with the city noise fading away under it. Then "This time, you're the one. What would you do?" appears large in the centre, **not spoken**, in complete silence, and the picture fades to black. |
 
-- **Sound:** her footsteps, keys, ambience and a quiet music bed (20 dB under the
-  narration) until the beat of silence; then the street and the music return
-  quietly with the push-in, and fade to silence under the closing line. Mixed to
-  -16 LUFS.
+- **Sound:** her footsteps, keys, city ambience and a quiet music bed (20 dB under
+  the narration). Nothing stops dead: after the last stat her steps, the
+  follower and the heartbeat ease out, and the city and music carry on into the
+  last shot, fading out under "someone is there to help". Mixed to -16 LUFS.
 - **On screen:** each stat card shows the number, the full wording from
   `content/evidence.json` and a source line (publisher and year).
 - **Spoken stats are short forms.** The 44% figure is from a UK YouGov survey,
@@ -95,8 +95,9 @@ npm run build && npm test              # both pass (81 tests)
    presses do not count as a user gesture.) Press Esc in full screen: the
    browser leaves full screen and the film should pause; Space resumes.
 2. **Sound.** Headphones on: the montage builds and cuts to silence; the
-   stats should come one straight after another, every word clear; then the
-   beat of silence; the closing line should sit in silence.
+   stats should come one straight after another, every word clear; no dropout
+   after the 25% stat; the city fades under "someone is there to help"; the
+   closing line sits in silence.
 3. **The full flow.** Play Part 1 to the end (not `skip=part1`): the film should
    appear with no debrief first, and the Part 2 intro should show
    "See full details", which opens the Part 1 debrief and returns.
