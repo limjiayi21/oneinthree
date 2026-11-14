@@ -66,15 +66,20 @@ export const VOICES: Record<VoiceRole, VoiceSpec> = {
 };
 
 const MAN_EMOTION: Partial<Record<Emotion, string>> = {
-  friendly: 'friendly, flirty',
-  smirk: 'cocky, smirking',
-  leer: 'slow, leering',
-  mocking: 'mocking, sneering',
-  annoyed: 'annoyed, defensive',
-  angry: 'angry',
-  contempt: 'contemptuous, dismissive',
-  sheepish: 'backing down, muttering',
-  surprised: 'caught off guard',
+  neutral: 'calm',
+  friendly: 'calm, warm',
+  smirk: 'calm, smug',
+  determined: 'calm, firm',
+  leer: 'irritated, slow',
+  mocking: 'irritated, mocking',
+  annoyed: 'irritated',
+  angry: 'irritated, angry',
+  contempt: 'irritated, dismissive',
+  sheepish: 'nervous, backing down',
+  afraid: 'nervous',
+  worried: 'nervous',
+  surprised: 'nervous, caught off guard',
+  relieved: 'calm, relieved',
 };
 
 const MAN_DELIVERY: Record<Delivery, string> = {
@@ -149,8 +154,9 @@ export function buildTts(
 ): TtsRequest {
   const voice = VOICES[role];
   const tag = audioTag(role, emotion, delivery);
-  // A shouted line stays less stable (wider range); a low or whispered one a little steadier.
-  const stability = delivery === 'shout' ? Math.max(0.25, voice.settings.stability - 0.1) : voice.settings.stability;
+  // Irritated faces sit lower and less stable. Calm faces sit steadier. A shout opens the range further.
+  const tone = /irritated/.test(tag) ? 0.24 : /nervous/.test(tag) ? 0.42 : 0.52;
+  const stability = delivery === 'shout' ? Math.max(0.2, tone - 0.08) : tone;
   const previous = previousText?.replace(/\s+/g, ' ').trim().slice(0, 240);
   return {
     voiceId: voice.id,

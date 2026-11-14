@@ -71,6 +71,7 @@ describe('live-voice contract', () => {
     const parsed = JSON.parse(allowed.result) as { stance: string; say: string };
     expect(parsed.stance).toBe('back_off');
     expect(parsed.say).toMatch(/No slurs/);
+    expect(parsed.say).toMatch(/\[nervous\]/);
   });
 });
 
