@@ -53,6 +53,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   man.setPose(P.harasserSpot, Math.PI / 2);
   man.human.setPosture('lean_wall');
   man.human.setEmotion('neutral', 0.4);
+  kit.onAgentMouth = (level) => man.human.setTalking(level);
+  kit.onAgentFace = (emotion, intensity) => man.human.setEmotion(emotion, intensity);
   man.human.playGesture('check_phone');
 
   const clerk: Npc = createNpc(
@@ -199,7 +201,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     const seconds = 7.5 - 3 * tension + Math.random() * 1.5;
     const turnAtArm = kit.turnCount;
     cancelSilence = kit.after(seconds, () => {
-      if (kit.ended || manGone || kit.turnInFlight || kit.turnCount !== turnAtArm || deps.mic.recording) return;
+      if (kit.ended || manGone || kit.agentLive || kit.turnInFlight || kit.turnCount !== turnAtArm || deps.mic.recording) return;
       kit.event('silence');
     });
   }
@@ -378,7 +380,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         kit.refreshMic();
         hud.objective('Get home.');
         kit.event('begin');
-        kit.after(3.5, () => hud.hint('Hold SPACE to speak.  Or say nothing.', 8000));
+        kit.after(3.5, () => hud.hint(kit.agentLive ? 'Live voice. Speak normally. L switches back.' : 'Hold SPACE to speak.  L for a live voice.  Or say nothing.', 8000));
       }
     }
 

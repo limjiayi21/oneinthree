@@ -32,6 +32,26 @@ export async function createSession(req: CreateSessionRequest): Promise<CreateSe
   );
 }
 
+export async function getAgentSession(sessionId: string): Promise<{ signedUrl: string; dynamicVariables: Record<string, string> } | null> {
+  try {
+    const res = await fetch(API.agent(sessionId));
+    if (!res.ok) return null;
+    const body = (await res.json()) as { signedUrl?: string; dynamicVariables?: Record<string, string> };
+    if (!body.signedUrl) return null;
+    return { signedUrl: body.signedUrl, dynamicVariables: body.dynamicVariables ?? {} };
+  } catch {
+    return null;
+  }
+}
+
+export function postAgentLine(sessionId: string, text: string): void {
+  void fetch(API.agentLine(sessionId), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ speaker: 'man', text }),
+  }).catch(() => {});
+}
+
 export async function getSummary(sessionId: string): Promise<SummaryData> {
   return json<SummaryData>(await fetch(API.summary(sessionId)));
 }

@@ -3,13 +3,12 @@
  *
  * The stance machine has already decided what he does. This module only
  * chooses how his face looks while he does it. A suggested emotion (from the
- * line writer, or anywhere else) is accepted only when it is in the allowlist
- * for that stance, so a model cannot put a smile on a grab or a defeated face
- * on a threat. The face rig and the voice tags both consume the existing
- * Emotion union; the coarse label is the one a training debrief can name.
+ * line writer, or the live-voice agent) is accepted only when it is in the
+ * allowlist for that stance, so a model cannot put a smile on a grab or a
+ * defeated face on a threat. Shared so the browser can clamp an agent tag
+ * without importing the Worker.
  */
-import type { Emotion, ManStance } from '../../shared/types';
-import type { Address } from './address';
+import type { Emotion, ManStance } from './types';
 
 export type FaceExpression = 'neutral' | 'smug' | 'angry' | 'nervous' | 'confused' | 'defeated';
 
@@ -22,7 +21,8 @@ export interface ExpressionDecision {
 
 export interface ExpressionInput {
   stance: ManStance;
-  move: Address;
+  /** A woman strategy, a bystander tactic, or an Address such as 'firm' or 'police'. */
+  move: string;
   /** 0..1 how volatile he is right now. */
   tension: number;
   /** 0..1 accumulated frustration. */
@@ -70,7 +70,7 @@ function isEmotion(value: string | null | undefined): value is Emotion {
   return !!value && value in COARSE;
 }
 
-function bias(stance: ManStance, move: Address, frustration: number): Emotion[] {
+function bias(stance: ManStance, move: string, frustration: number): Emotion[] {
   if (stance === 'escalate') return ['angry'];
   if (stance === 'intimidate') return ['angry', 'contempt'];
   if (stance === 'hostile') return move === 'hostile' ? ['angry', 'angry', 'contempt'] : ['angry', 'mocking', 'contempt'];
@@ -98,6 +98,24 @@ function bias(stance: ManStance, move: Address, frustration: number): Emotion[] 
 
 export function coarseExpression(emotion: Emotion): FaceExpression {
   return COARSE[emotion];
+}
+
+const STABLE_RNG: ExpressionInput['rng'] = { pick: (items) => items[0] };
+
+/**
+ * The agent's expression tag, kept only when this stance allows it.
+ * Otherwise the first legal emotion for the stance. Does not draw from the
+ * session seed, so a live-voice tag cannot reshuffle the decision model.
+ */
+export function clampSuggestedExpression(stance: ManStance, suggested: string | null | undefined, tension = 0.5, frustration = 0.2): ExpressionDecision {
+  return decideExpression({
+    stance,
+    move: 'unclear',
+    tension,
+    frustration,
+    rng: STABLE_RNG,
+    suggested: suggested ?? null,
+  });
 }
 
 export function decideExpression(input: ExpressionInput): ExpressionDecision {

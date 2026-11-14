@@ -5,3 +5,21 @@
 #
 # Production: npx wrangler secret put ELEVENLABS_API_KEY
 ELEVENLABS_API_KEY=
+
+# Live voice (optional). Create the agent with `npm run agent:create` after the
+# key is set, then paste the printed id here. Without it, L stays on the
+# push-to-talk pipeline (speech-to-text, the line model, text-to-speech).
+# Production: npx wrangler secret put ELEVENLABS_AGENT_ID
+ELEVENLABS_AGENT_ID=
+
+# Optional. Default is gemini-3.5-flash (the low-latency Gemini ElevenLabs
+# routes live calls onto). gemini-4-argon is the larger Gemini.
+# ELEVENLABS_AGENT_LLM=gemini-3.5-flash
+
+# Who judges the next stance and face. Unset uses Workers AI (no extra key)
+# and falls back to the seeded model if that call fails or exceeds 400ms.
+# DECISION_PROVIDER=seeded forces the built-in model.
+# DECISION_PROVIDER=typesafe   and TYPESAFE_API_KEY=
+# DECISION_PROVIDER=openai     and OPENAI_API_KEY=
+# DECISION_PROVIDER=gemini     and GEMINI_API_KEY=   (Google AI Studio / MLH credits)
+# The browser never sees these keys.

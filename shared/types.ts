@@ -236,6 +236,8 @@ export interface HealthResponse {
   ok: boolean;
   voice: boolean;
   ai: boolean;
+  /** True when the Worker can mint an ElevenLabs Agent signed URL. */
+  agent?: boolean;
 }
 
 export interface TimelineEntry {
@@ -293,5 +295,7 @@ export const API = {
   health: '/api/health',
   session: '/api/session',
   turn: (id: string) => `/api/session/${id}/turn`,
+  agent: (id: string) => `/api/session/${id}/agent`,
+  agentLine: (id: string) => `/api/session/${id}/agent-line`,
   summary: (id: string) => `/api/session/${id}/summary`,
 } as const;

@@ -125,6 +125,7 @@ export function createHud(root: HTMLElement): Hud {
       h('span', { class: 'oit-mic-r' }),
     ),
     h('div', { class: 'oit-mic-face', 'data-face': 'missed' }, h('span', { class: 'oit-mic-l' }), h('span', null, "Didn't catch that"), h('span', { class: 'oit-mic-r' })),
+    h('div', { class: 'oit-mic-face', 'data-face': 'live' }, h('span', { class: 'oit-mic-l' }, 'Live voice'), h('span', null, 'Listening…'), h('span', { class: 'oit-mic-r' }, 'L to stop')),
     h('div', { class: 'oit-mic-face', 'data-face': 'unavailable' }, h('span', { class: 'oit-mic-l' }, 'Press'), keycap('T'), h('span', { class: 'oit-mic-r' }, 'to type instead')),
   );
   const micStatus = h('div', { class: 'oit-sr', role: 'status' });
@@ -309,6 +310,9 @@ export function createHud(root: HTMLElement): Hud {
       micStatus.textContent = 'Listening.';
     } else if (state === 'thinking') {
       micStatus.textContent = 'Transcribing.';
+    } else if (state === 'live') {
+      micEl.classList.remove('is-compact');
+      micStatus.textContent = 'Live voice. Speak normally. Press L to go back to push-to-talk.';
     } else if (state === 'missed') {
       micEl.classList.remove('is-compact');
       micStatus.textContent = "Didn't catch that.";

@@ -12,9 +12,11 @@
     "deploy": "npm run build && wrangler deploy",
     "set-key": "sh scripts/set-key.sh",
     "gen:voice": "node scripts/gen-voice.mjs",
-    "gen:sfx": "node scripts/gen-sfx.mjs"
+    "gen:sfx": "node scripts/gen-sfx.mjs",
+    "agent:create": "node scripts/create-agent.mjs"
   },
   "dependencies": {
+    "@elevenlabs/client": "^1.36.1",
     "three": "^0.187.0"
   },
   "devDependencies": {

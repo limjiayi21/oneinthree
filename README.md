@@ -43,6 +43,35 @@ The VM this was built on has no microphone and no ElevenLabs key, so this part i
 6. Press H and speak without holding Space. Press H again to go back to push-to-talk.
 7. If the key is missing or speech-to-text fails, the subtitle still shows and the indicator says Didn't catch that. Press T to type the same line and confirm he answers it.
 
+## Live voice (ElevenLabs Agent)
+
+Press L during a scene for a phone-style call: the ElevenLabs Agent owns the microphone, turn-taking, and barge-in. The seeded stance model still decides what he does. His face uses the emotion the agent reports, clamped to what that stance is allowed to show. The older speech-to-text, line model, and text-to-speech path stays in place; press L again to return to it. `?agent=1` starts the call when the encounter does.
+
+The agent uses Gemini 3.5 Flash (`gemini-3.5-flash`), the low-latency Gemini ElevenLabs moves live conversations onto from 15 November 2026, and Chris on Eleven v4 Turbo with expressive mode. `gemini-4-argon` is the larger Gemini if you want it instead.
+
+```bash
+# key already in .dev.vars
+npm run agent:create
+# prints ELEVENLABS_AGENT_ID=agent_...
+# paste that line into .dev.vars, then restart npm run dev
+```
+
+In the dashboard the same agent is "One in Three — Dex": LLM Gemini 3.5 Flash, TTS Eleven v4 Turbo, expressive mode on, authentication required. The browser only receives a signed websocket URL from `GET /api/session/:id/agent`. The API key never leaves the Worker.
+
+## Who picks his next move
+
+The default judge is Cloudflare Workers AI, the binding the project already has, so it needs no extra key. It starts in parallel with the line writer and has about 400 ms. If that call fails, returns an enum that is not allowed, or is slow, the seeded stance machine in `worker/model/` is what the trainee sees. Set `DECISION_PROVIDER=seeded` to skip the judge. TypeSafe, OpenAI, and Gemini are optional and each needs its own key.
+
+| `DECISION_PROVIDER` | Key | Request |
+|---|---|---|
+| unset | none | Workers AI, `@cf/google/gemma-4-26b-a4b-it`, JSON schema. No extra key. The binding is the one the project already uses. |
+| `seeded` | none | no network call |
+| `typesafe` | `TYPESAFE_API_KEY` | `POST https://api.typesafe.ai/v1/systemone` with model `jev-1.14.0`. Yes/no questions use `noul`. Choice and score use the System One shapes in the [TypeSafe docs](https://docs.typesafe.ai/api/system-one). |
+| `openai` | `OPENAI_API_KEY` | `POST https://api.openai.com/v1/decisions` with model `gpt-6-luna` and predicate, choice, and score questions. [Decisions guide](https://developers.openai.com/api/docs/guides/decisions). |
+| `gemini` | `GEMINI_API_KEY` | `POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent` with header `x-goog-api-key` and a JSON schema. A Google AI Studio key, including free MLH Gemini credits. |
+
+Each call asks whether she set a firm boundary, her tone, whether a bystander stepped in, his next stance, his expression, and how heated the beat is. Code then applies the training rules: a firm boundary together with a bystander makes him back off, and the provider cannot choose a physical escalation the seeded model did not already reach. The expression is clamped to the faces that stance is allowed to wear, then handed to the line writer and, in live voice, to the agent. The keys stay in `.dev.vars` or as Worker secrets.
+
 ## How a turn works
 
 1. The browser records a push-to-talk clip and posts it to the Worker.
