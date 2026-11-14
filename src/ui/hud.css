@@ -890,8 +890,7 @@
 .oit-choice-panel {
   width: min(46rem, 100%);
 }
-.oit-choice-prompt,
-.oit-feedback-text {
+.oit-choice-prompt {
   margin: 0 0 18px;
   color: var(--oit-ink);
   font: 400 clamp(21px, 2.5vh, 27px)/1.3 var(--oit-serif);
@@ -949,22 +948,190 @@
   min-width: 20px;
   font-size: 10px;
 }
-.oit-feedback-ref {
-  margin: -6px 0 18px;
-  color: var(--oit-ink-2);
-  font: 400 15px/1.5 var(--oit-sans);
-}
 .oit-choice-actions {
   display: flex;
   gap: 12px;
 }
 
+/* The frozen scene: dimmed, with an optional pool of light around one person. */
+.oit-freeze {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(4, 5, 7, 0.58);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.oit-freeze.has-spot {
+  background: radial-gradient(
+    circle at var(--sx, 50%) var(--sy, 45%),
+    rgba(4, 5, 7, 0) 0,
+    rgba(4, 5, 7, 0) var(--sr, 16vh),
+    rgba(4, 5, 7, 0.72) calc(var(--sr, 16vh) * 2.3)
+  );
+}
+.oit-freeze.is-on {
+  opacity: 1;
+}
+
+.oit-choice-caption {
+  margin: 0 0 10px;
+  color: var(--oit-ink-2);
+  font: italic 400 clamp(17px, 2vh, 21px)/1.4 var(--oit-serif);
+}
+.oit-choice-caption.is-lead {
+  margin-bottom: 16px;
+  color: var(--oit-ink);
+  font-size: clamp(21px, 2.5vh, 27px);
+}
+
+/* The player's own inner voice: labelled, sans, in the player's colour. Her thoughts stay serif and unlabelled. */
+.oit-inner {
+  margin: 0 0 18px;
+  padding-left: 14px;
+  border-left: 2px solid var(--oit-you);
+}
+.oit-inner-k,
+.oit-sub[data-speaker='self'] .oit-sub-who {
+  margin: 0 0 4px;
+  color: var(--oit-you);
+  font: 600 11px/1.2 var(--oit-sans);
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+.oit-inner-line {
+  margin: 0;
+  color: var(--oit-ink-2);
+  font: italic 400 16px/1.5 var(--oit-sans);
+}
+.oit-sub[data-speaker='self'] .oit-sub-who {
+  font-size: 0.54em;
+}
+.oit-sub[data-speaker='self'] .oit-sub-text {
+  color: var(--oit-ink-2);
+  font-style: italic;
+  font-weight: 400;
+}
+.oit-sub[data-speaker='self'] .oit-sub-box {
+  border-left: 2px solid var(--oit-you);
+}
+
+/* The strip that names what just happened. */
+.oit-strip {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  justify-content: center;
+  padding: 18px 24px 22px;
+  border-top: 1px solid var(--oit-line-2);
+  background: rgba(7, 8, 11, 0.95);
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.24s ease, transform 0.24s var(--oit-ease);
+}
+.oit-strip.is-on {
+  opacity: 1;
+  transform: none;
+}
+.oit-strip:not(.is-on) {
+  pointer-events: none;
+}
+.oit-strip-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 32px;
+  width: min(60rem, 100%);
+}
+.oit-strip-main {
+  flex: 1 1 28rem;
+  min-width: 0;
+}
+.oit-strip-concept {
+  margin: 0 0 6px;
+  color: var(--oit-accent);
+  font: 600 12px/1.2 var(--oit-sans);
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+.oit-strip-sentence {
+  margin: 0;
+  color: var(--oit-ink);
+  font: 400 clamp(18px, 2.2vh, 23px)/1.38 var(--oit-serif);
+  text-wrap: pretty;
+}
+.oit-strip-stats {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+}
+.oit-strip-stat,
+.oit-strip-credit {
+  margin: 0;
+  color: var(--oit-ink-2);
+  font: 400 14px/1.5 var(--oit-sans);
+}
+.oit-strip-num {
+  color: var(--oit-ink);
+  font-weight: 600;
+}
+.oit-strip-srcwrap {
+  color: var(--oit-ink-3);
+  white-space: nowrap;
+}
+.oit-strip-credit {
+  margin-top: 8px;
+  color: var(--oit-ink-3);
+  font-size: 13px;
+}
+span.oit-strip-src {
+  color: inherit;
+}
+a.oit-strip-src {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--oit-line-2);
+  text-underline-offset: 0.25em;
+}
+.oit-root .oit-strip-src:focus-visible {
+  outline: 2px solid var(--oit-accent);
+  outline-offset: 2px;
+}
+.oit-strip-btn {
+  gap: 10px;
+}
+.oit-strip-btn .oit-key {
+  height: 20px;
+  min-width: 20px;
+  border-color: rgba(11, 12, 16, 0.4);
+  background: rgba(11, 12, 16, 0.06);
+  color: inherit;
+  font-size: 10px;
+}
+.oit-strip-actions {
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .oit-strip-srcwrap {
+    white-space: normal;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .oit-choice {
+  .oit-choice,
+  .oit-strip {
     transform: none;
     transition: opacity 0.2s ease;
   }
   .oit-choice-opt {
+    transition: none;
+  }
+  .oit-freeze {
     transition: none;
   }
 }

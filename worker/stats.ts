@@ -18,7 +18,8 @@ const GUIDED = guidedJson as unknown as GuidedData;
 
 /** moment id -> the choice ids it allows. */
 const GUIDED_CHOICES: Record<string, Set<string>> = Object.fromEntries(GUIDED.moments.map((m) => [m.id, new Set(m.choices.map((c) => c.id))]));
-export const GUIDED_MOMENT_IDS = GUIDED.moments.map((m) => m.id);
+/** The moments with a column in the playthroughs table (migrations/0001_playthroughs.sql). */
+export const GUIDED_MOMENT_IDS = GUIDED.moments.map((m) => m.id).filter((id) => ['m1', 'm2', 'm3'].includes(id));
 
 const OUTCOMES: OutcomeKind[] = [
   'he_left',

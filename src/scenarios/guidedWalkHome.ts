@@ -1,40 +1,74 @@
 /**
- * Guided replay of Part 2: the same street, the same cast and the same
- * scripted beats, but the scene freezes at three moments and asks what the
- * player would do. Outcomes are fixed by content/guided.json: no microphone,
- * no live model, no decision-model rolls, and no session on the server.
+ * The teaching replay of Part 2: the same street, cast and scripted beats,
+ * frozen at the five moments in content/guided.json. Every moment follows the
+ * same four beats:
  *
- * A choice that is not the best one plays its short consequence, shows one
- * line of feedback, and rewinds to the same moment. The replay never ends on
- * a failure. The camera is driven here (the player does not walk), so the
- * whole thing works from the keyboard alone, without pointer lock.
+ *   1. Freeze  the scene clock stops and the screen dims (with a pool of light
+ *              around one person where the moment asks for a spotlight)
+ *   2. Choose  the prompt, the player's inner voice, three choices
+ *   3. Play    the chosen lines and what the bodies do
+ *   4. Name it a strip with the concept, one sentence, and a stat with its source
+ *
+ * Choices rated weaker or backfires play out, show their strip, then rewind to
+ * the same moment. The replay never ends on a failure. Outcomes are fixed by
+ * the file: no microphone, no live model, no decision-model rolls, no session.
+ *
+ * The camera is driven here (the player does not walk), so the whole replay
+ * works from the keyboard alone, without pointer lock.
  */
 import * as THREE from 'three';
 import type { Npc } from '../contracts';
 import type { Emotion } from '../../shared/types';
-import type { GuidedChoice, GuidedData, GuidedLine, GuidedMoment } from '../../shared/content';
+import {
+  CONTINUES,
+  conceptCitation,
+  stripStatIds,
+  type GuidedChoice,
+  type GuidedData,
+  type GuidedLine,
+  type GuidedMoment,
+} from '../../shared/content';
 import guidedJson from '../../content/guided.json';
 import { createPlayer } from '../player/player';
 import { createHuman } from '../characters/human';
 import { createNpc } from '../characters/npc';
 import { yawOf } from '../player/mathx';
 import { reducedMotion } from '../ui/dom';
+import { bundledEvidence, resolveSources, resolveStats, safeUrl } from '../ui/evidence';
 import { SCRIPT, SceneKit, voUrl, type SceneDeps } from './common';
 
 export const GUIDED = guidedJson as unknown as GuidedData;
 
 export interface GuidedResult {
   exited: boolean;
-  /** The first choice picked at each moment, by moment id: e.g. { m1: 'm1_wait', m2: 'm2_delegate', m3: 'm3_delay' }. */
+  /** The first choice picked at each moment, by moment id: e.g. { m1: 'm1_phone', m2: 'm2_my_business', ... }. */
   firstChoices: Record<string, string>;
-  /** The best choices, in order, for the end screen. */
-  used: Array<{ name: string; what: string }>;
 }
 
 class Exit extends Error {}
 
 const estimate = (text: string) => Math.max(1.6, text.length * 0.062);
 const v = (x: number, z: number) => new THREE.Vector3(x, 0, z);
+
+/** Strip content for the HUD: the concept credit and stats resolved from evidence.json. */
+function stripFor(choice: GuidedChoice, data: GuidedData) {
+  const concept = choice.strip.conceptId ? data.concepts.find((c) => c.id === choice.strip.conceptId) : undefined;
+  const stats = resolveStats(bundledEvidence, stripStatIds(choice.strip)).map((stat) => {
+    const source = resolveSources(bundledEvidence, [stat.sourceId])[0];
+    const name = source ? source.publisher || source.title : '';
+    return {
+      headline: stat.headline,
+      text: stat.text,
+      source: { label: source && Number.isFinite(source.year) ? `${name}, ${source.year}` : name, url: safeUrl(source?.url) ?? undefined },
+    };
+  });
+  return {
+    concept: choice.strip.concept,
+    sentence: choice.strip.sentence,
+    credit: concept ? { text: conceptCitation(concept), url: safeUrl(concept.url) ?? undefined } : undefined,
+    stats,
+  };
+}
 
 export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = GUIDED): Promise<GuidedResult> {
   // Never pointer lock here: nothing needs the mouse.
@@ -74,10 +108,14 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
 
   let manGone = false;
   let manFocus: 'woman' | 'player' = 'woman';
+  /** Before he calls out he is on his phone, glancing up at her. */
+  let manOnPhone = true;
   let filming = false;
   let exited = false;
   let pausing = false;
-  /** Aborts the open choice / feedback panel when Esc is pressed, so the pause dialog can take focus. */
+  /** She looks round for help until this scene time. */
+  let womanLooksUntil = -1;
+  /** Aborts the open choice or strip when Esc is pressed, so the pause dialog can take focus. */
   let panelAbort: AbortController | null = null;
 
   const eye = new THREE.Vector3();
@@ -91,11 +129,17 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
   /* ------------------------------------------------------------- camera */
 
   // Where the player should stand and what they should look at. The camera eases toward both.
-  let camGoal: () => THREE.Vector3 = () => v(woman.position.x - 1.0, woman.position.z + 4.6);
-  let lookGoal: () => THREE.Vector3 = () =>
-    manGone ? woman.human.getHeadPosition(womanHead) : woman.human.getHeadPosition(womanHead).lerp(man.human.getHeadPosition(manHead), 0.5);
+  const FOLLOW_FAR = { dx: -1.0, dz: 6.5 };
+  const FOLLOW_CLOSE = { dx: -0.9, dz: 4.2 };
+  let camGoal: () => THREE.Vector3 = () => v(woman.position.x + FOLLOW_FAR.dx, woman.position.z + FOLLOW_FAR.dz);
+  let lookGoal: () => THREE.Vector3 = () => sceneLook();
   const camPos = new THREE.Vector3();
   let camYaw = 0;
+
+  function sceneLook(): THREE.Vector3 {
+    if (manGone || !man.human.root.visible) return woman.human.getHeadPosition(womanHead);
+    return woman.human.getHeadPosition(womanHead).lerp(man.human.getHeadPosition(manHead), 0.5);
+  }
 
   function placeCamera(pos: THREE.Vector3): void {
     camPos.copy(pos);
@@ -104,18 +148,15 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
     player.setPose(camPos, camYaw);
   }
 
-  const follow = () => {
-    camGoal = () => v(woman.position.x - 1.0, woman.position.z + 4.6);
+  const follow = (gap: { dx: number; dz: number }) => {
+    camGoal = () => v(woman.position.x + gap.dx, woman.position.z + gap.dz);
   };
   const holdHere = () => {
     const here = camPos.clone();
     camGoal = () => here;
   };
   const lookAtScene = () => {
-    lookGoal = () =>
-      manGone || !man.human.root.visible
-        ? woman.human.getHeadPosition(womanHead)
-        : woman.human.getHeadPosition(womanHead).lerp(man.human.getHeadPosition(manHead), 0.5);
+    lookGoal = sceneLook;
   };
 
   // With reduced motion the camera cuts to each new position instead of gliding there.
@@ -135,8 +176,8 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
     player.setPose(camPos, camYaw);
 
     player.getEyePosition(eye);
-    if (!manGone) man.human.setGaze(manFocus === 'player' ? eye : woman.human.getHeadPosition(womanHead));
-    if (manGone) woman.human.setGaze(eye);
+    if (!manGone) man.human.setGaze(manFocus === 'player' ? eye : manOnPhone ? null : woman.human.getHeadPosition(womanHead));
+    if (manGone || kit.time < womanLooksUntil) woman.human.setGaze(eye);
     else if (woman.behaviour === 'idle' || woman.behaviour === 'backAway') woman.human.setGaze(man.human.getHeadPosition(manHead));
     else woman.human.setGaze(null);
   });
@@ -199,6 +240,12 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
     return r;
   }
 
+  /** Scene-time wait until `done()` is true, or `limit` seconds have passed. */
+  async function waitUntil(done: () => boolean, limit: number): Promise<void> {
+    const t0 = kit.time;
+    while (!done() && kit.time - t0 < limit) await wait(0.1);
+  }
+
   /* ------------------------------------------------------- lines and bodies */
 
   const npcFor = (speaker: GuidedLine['speaker']): Npc | null => (speaker === 'man' ? man : speaker === 'woman' ? woman : speaker === 'clerk' ? clerk : null);
@@ -220,7 +267,8 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
         await wait(estimate(line.text));
         return;
       case 'self':
-        kit.thinkText(line.text, '', 0.15);
+        // The player's own inner voice: a labelled subtitle, never her floating thought.
+        hud.subtitle('self', line.text, (estimate(line.text) + 1) * 1000);
         await wait(estimate(line.text));
         return;
       case 'thought':
@@ -247,9 +295,6 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
     }
   }
 
-  const MAN_BEFORE = new Set(['turn_on_player', 'close_in', 'block_path', 'walk_alongside']);
-  const WOMAN_BEFORE = new Set(['freeze', 'step_back', 'hurry']);
-
   function manLeaves(): void {
     if (manGone) return;
     manGone = true;
@@ -262,26 +307,45 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
     kit.serverFear = Math.min(kit.serverFear, 0.12);
   }
 
+  /** He spots her and calls out once she is close, as in Part 2's opening. */
+  async function callOut(): Promise<void> {
+    await waitUntil(() => woman.distanceTo(man.position) < 7, 30);
+    manOnPhone = false;
+    man.human.setPosture('relaxed');
+    man.human.playGesture('beckon');
+    man.setBehaviour({ type: 'idle', face: womanPos });
+    woman.human.setEmotion('worried', 0.5);
+    kit.serverFear = 0.12;
+  }
+
+  const MAN_BEFORE = new Set<GuidedChoice['manAction']>(['call_out', 'turn_on_player', 'close_in', 'block_path', 'walk_alongside', 'argue']);
+  const WOMAN_BEFORE = new Set<GuidedChoice['womanAction']>(['freeze', 'step_back', 'hurry', 'keep_walking', 'look_around']);
+
   async function applyMan(action: GuidedChoice['manAction']): Promise<void> {
-    if (manGone && action !== 'stay') return;
-    const emotion: Record<GuidedChoice['manAction'], Emotion> = {
+    if (action === 'none' || (manGone && action !== 'stay')) return;
+    const emotion: Record<Exclude<GuidedChoice['manAction'], 'none'>, Emotion> = {
       stay: 'smirk',
+      call_out: 'smirk',
       leave: 'sheepish',
       walk_alongside: 'smirk',
       block_path: 'annoyed',
       close_in: 'angry',
       turn_on_player: 'angry',
-      glare_then_leave: 'angry',
+      argue: 'annoyed',
     };
     if (!manGone) man.human.setEmotion(emotion[action], 0.85);
     switch (action) {
       case 'stay':
         if (!manGone) man.setBehaviour({ type: 'idle', face: manFocus === 'player' ? () => player.position : womanPos });
         break;
+      case 'call_out':
+        await callOut();
+        break;
       case 'leave':
         manLeaves();
         break;
       case 'walk_alongside':
+        manOnPhone = false;
         man.human.setPosture('relaxed');
         man.setBehaviour({ type: 'walkAlongside', target: womanPos, targetForward: womanFwd, side: 'left', gap: 1.0 });
         break;
@@ -303,17 +367,19 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
         man.setBehaviour({ type: 'closeIn', target: () => player.position, gap: 1.4, speed: 1.6 });
         kit.scare(0.35);
         break;
-      case 'glare_then_leave':
+      case 'argue':
+        // He squares up to the player but stays where he is, between her and her way home.
         manFocus = 'player';
+        man.human.playGesture('shrug');
         man.setBehaviour({ type: 'idle', face: () => player.position });
-        await wait(1.3);
-        manLeaves();
         break;
     }
   }
 
   function applyWoman(action: GuidedChoice['womanAction']): void {
     switch (action) {
+      case 'none':
+        break;
       case 'stay':
         woman.setBehaviour({ type: 'idle', face: manGone ? () => player.position : manPos });
         break;
@@ -322,7 +388,13 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
         break;
       case 'hurry':
         woman.human.setEmotion('afraid', 0.6);
-        woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.9 });
+        woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.85 });
+        break;
+      case 'look_around':
+        // Still walking, she glances back down the street for anyone who might help.
+        woman.human.setEmotion('afraid', 0.6);
+        woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.6 });
+        womanLooksUntil = kit.time + 2.2;
         break;
       case 'freeze':
         woman.human.setEmotion('afraid', 0.8);
@@ -359,33 +431,56 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
     if (on) audio.play('phone_camera_start', { volume: 0.6 });
   }
 
-  /** How the player moves for a choice, from what it is. */
-  async function movePlayer(choice: GuidedChoice): Promise<void> {
-    if (choice.filming) {
-      if (manGone) holdHere();
-      else {
-        // Across the road, out of reach and out of it.
-        const z = woman.position.z + 3.5;
-        camGoal = () => v(-5.8, z);
-        await wait(2.2);
+  /** How the player moves for a choice. Returns what to undo once the lines are done. */
+  async function movePlayer(choice: GuidedChoice): Promise<(() => Promise<void>) | null> {
+    switch (choice.player) {
+      case 'follow_close':
+        follow(FOLLOW_CLOSE);
+        lookAtScene();
+        return null;
+      case 'phone': {
+        // Head down: you stop, and she walks on.
+        holdHere();
+        player.setPhoneRaised(true);
+        // Eyes on the screen in your hand: the gaze drops to the pavement just ahead.
+        const down = camPos.clone().add(new THREE.Vector3(-Math.sin(camYaw) * 0.9, 0.2, -Math.cos(camYaw) * 0.9));
+        player.glanceAt(down, 5.5, 0.85);
+        return async () => {
+          player.setPhoneRaised(false);
+          lookAtScene();
+          await wait(1.4);
+        };
       }
-      setFilming(true);
-      return;
-    }
-    switch (choice.tactic) {
-      case 'Distract':
-      case 'Delay':
+      case 'cross': {
+        // Over to the far sidewalk, hanging back.
+        const z = camPos.z;
+        camGoal = () => v(-5.8, Math.max(z, woman.position.z + 9));
+        lookAtScene();
+        return null;
+      }
+      case 'hang_back':
+        holdHere();
+        lookAtScene();
+        return null;
+      case 'watch_clerk':
+        // You look to the shop. He is behind the counter and does not move.
+        holdHere();
+        lookGoal = () => clerk.human.getHeadPosition(clerkHead);
+        await wait(2.0);
+        lookAtScene();
+        return null;
+      case 'to_her':
         // Walk up beside her, on the side away from him.
         camGoal = () => v(woman.position.x + 0.9, woman.position.z + 1.6);
         lookGoal = () => woman.human.getHeadPosition(womanHead);
         await wait(1.6);
-        return;
-      case 'Direct':
+        return null;
+      case 'to_him':
         camGoal = () => v((woman.position.x + man.position.x) / 2 - 0.6, Math.max(woman.position.z, man.position.z) + 2.0);
         lookGoal = () => man.human.getHeadPosition(manHead);
-        await wait(1.6);
-        return;
-      case 'Delegate': {
+        await wait(1.2);
+        return null;
+      case 'to_shop': {
         // Into the shop doorway, facing the shopkeeper.
         await step(hud.fade(true, 450));
         const door = P.shopDoor;
@@ -393,34 +488,48 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
         placeCamera(v(door.x - 1.3, door.z + 1.4));
         holdHere();
         await step(hud.fade(false, 450));
-        return;
+        return null;
       }
+      case 'film':
+        holdHere();
+        lookAtScene();
+        setFilming(true);
+        return null;
       default:
         holdHere();
-        return;
+        return null;
     }
   }
 
-  /** Play a choice's consequence: player movement, lines, and both bodies. */
+  /** Beat 3: play a choice out. Player movement, lines, and both bodies. */
   async function playChoice(choice: GuidedChoice): Promise<void> {
-    kit.paused = false;
     clerkLines = 0;
-    await movePlayer(choice);
+    const undo = await movePlayer(choice);
     const manSpeaks = choice.lines.some((l) => l.speaker === 'man');
     const womanSpeaks = choice.lines.some((l) => l.speaker === 'woman');
     let manDone = false;
     let womanDone = false;
     const lastManIndex = choice.lines.map((l) => l.speaker).lastIndexOf('man');
 
+    // Bodies with nothing to say react straight away.
+    if (!womanSpeaks) {
+      womanDone = true;
+      applyWoman(choice.womanAction);
+    }
+    if (!manSpeaks) {
+      manDone = true;
+      await applyMan(choice.manAction);
+    }
+
     for (let i = 0; i < choice.lines.length; i++) {
       const line = choice.lines[i]!;
-      if (line.speaker === 'man' && !manDone && MAN_BEFORE.has(choice.manAction)) {
-        manDone = true;
-        void applyMan(choice.manAction).catch(() => undefined);
-      }
       if (line.speaker === 'woman' && !womanDone && WOMAN_BEFORE.has(choice.womanAction)) {
         womanDone = true;
         applyWoman(choice.womanAction);
+      }
+      if (line.speaker === 'man' && !manDone && MAN_BEFORE.has(choice.manAction)) {
+        manDone = true;
+        await applyMan(choice.manAction);
       }
       await playLine(line);
       if (line.speaker === 'woman' && !womanDone) {
@@ -431,19 +540,11 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
         manDone = true;
         await applyMan(choice.manAction);
       }
-      // Bodies that have nothing to say still react, after the first line.
-      if (i === 0 && !womanSpeaks && !womanDone) {
-        womanDone = true;
-        applyWoman(choice.womanAction);
-      }
-      if (i === 0 && !manSpeaks && !manDone) {
-        manDone = true;
-        await applyMan(choice.manAction);
-      }
       await wait(0.35);
     }
-    // When he walks off, let him get clear before the feedback.
-    await wait(choice.manAction === 'leave' || choice.manAction === 'glare_then_leave' ? 2.8 : 1.4);
+    if (undo) await undo();
+    // When he walks off, let him get clear before the strip.
+    await wait(choice.manAction === 'leave' ? 2.6 : choice.lines.length ? 1.2 : 1.6);
   }
 
   /* ----------------------------------------------------------- staging */
@@ -454,105 +555,182 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
     cam: THREE.Vector3;
   }
   const snapshots = new Map<string, Snapshot>();
+  const snapshot = (id: string) => snapshots.set(id, { man: man.position.clone(), woman: woman.position.clone(), cam: camPos.clone() });
 
   function resetBodies(): void {
     kit.deps.audio.stopAllSpeech();
     hud.clearSubtitle();
+    hud.thought('');
     setFilming(false);
+    player.setPhoneRaised(false);
     manGone = false;
     manFocus = 'woman';
+    womanLooksUntil = -1;
     man.human.setVisible(true);
     woman.human.setVisible(true);
     man.human.setPosture('relaxed');
     woman.human.setPosture('guarded');
+    woman.human.setEmotion('worried', 0.5);
     clerk.setPose(P.clerkSpot, Math.PI / 2);
     clerk.setBehaviour({ type: 'idle' });
     clerk.human.setEmotion('neutral', 0.3);
     lookAtScene();
   }
 
-  /** Put everyone where the moment begins, then play its lead-in line. */
-  async function stage(moment: GuidedMoment): Promise<void> {
+  /** Moment 1: the start of Part 2. She walks; he is under the scaffolding on his phone. */
+  async function stageStart(): Promise<void> {
     resetBodies();
-    if (moment.id === 'm1') {
-      const s = snapshots.get('m1')!;
-      woman.setPose(s.woman, 0);
-      man.setPose(s.man, yawOf(s.woman.x - s.man.x, s.woman.z - s.man.z));
-      woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.35 });
-      man.setBehaviour({ type: 'walkAlongside', target: womanPos, targetForward: womanFwd, side: 'left', gap: 1.0 });
-      woman.human.setEmotion('worried', 0.5);
-      follow();
-      placeCamera(s.cam);
-      kit.serverFear = 0.12;
-      kit.paused = false;
-      await sayScripted(man, 'b_m2');
-    } else if (moment.id === 'm2') {
-      const her = v(6.6, -66);
-      const him = v(6.5, -67.2);
-      woman.setPose(her, 0);
-      man.setPose(him, Math.PI);
-      woman.setBehaviour({ type: 'idle', face: manPos });
-      man.setBehaviour({ type: 'block', target: womanPos, targetForward: womanFwd, gap: 1.1 });
-      woman.human.setEmotion('afraid', 0.6);
-      woman.human.playGesture('clutch_bag');
-      camGoal = () => v(5.4, -61);
-      placeCamera(v(5.4, -61));
-      kit.serverFear = 0.25;
-      kit.paused = false;
-      await wait(0.4);
-      man.human.playGesture('shrug');
-      await sayScripted(man, 'b_m4');
-    } else {
-      // He has gone. She has not moved yet.
-      manGone = true;
-      man.human.setVisible(false);
-      man.setPose(P.nearCorner, 0);
-      man.setBehaviour({ type: 'idle' });
-      const her = v(6.6, -66);
-      woman.setPose(her, Math.PI);
-      woman.setBehaviour({ type: 'idle', face: () => player.position });
-      woman.human.setEmotion('afraid', 0.55);
-      woman.human.setPosture('guarded');
-      lookGoal = () => woman.human.getHeadPosition(womanHead);
-      camGoal = () => v(5.7, -62.6);
-      placeCamera(v(5.7, -62.6));
-      kit.serverFear = 0.1;
-      kit.paused = false;
-      await wait(0.8);
-    }
+    manOnPhone = true;
+    man.setPose(P.harasserSpot, Math.PI / 2);
+    man.setBehaviour({ type: 'idle' });
+    man.human.setPosture('lean_wall');
+    man.human.setEmotion('neutral', 0.3);
+    man.human.playGesture('check_phone');
+    woman.setPose(P.womanStartBystander, 0);
+    woman.human.setEmotion('neutral', 0.3);
+    follow(FOLLOW_FAR);
+    lookAtScene();
+    placeCamera(v(P.womanStartBystander.x + FOLLOW_FAR.dx, P.womanStartBystander.z + FOLLOW_FAR.dz));
+    kit.serverFear = 0;
   }
 
-  /** First pass through Part 2's opening, up to "I'm talking to you", as scripted in bystanderWalkHome.ts. */
-  async function playOpening(): Promise<void> {
-    while (woman.distanceTo(man.position) >= 7) await wait(0.1);
-    man.human.setPosture('relaxed');
-    man.human.setGaze(woman.human.getHeadPosition(womanHead));
-    man.human.playGesture('beckon');
-    woman.human.setEmotion('worried', 0.5);
-    kit.serverFear = 0.12;
-    const callOut = sayScripted(man, 'b_m1');
-    await wait(1.9);
-    kit.think('b_t1', { quiet: true, intensity: 0.5 });
-    await wait(1.7);
-    man.setBehaviour({ type: 'walkAlongside', target: womanPos, targetForward: womanFwd, side: 'left', gap: 1.0 });
-    await wait(2.0);
-    await callOut;
-    await sayScripted(man, 'b_m2');
-    snapshots.set('m1', { man: man.position.clone(), woman: woman.position.clone(), cam: camPos.clone() });
+  /**
+   * Put everyone where the moment begins and play up to its freeze point.
+   * `rewind` is true when coming back after a weaker choice.
+   */
+  async function stage(moment: GuidedMoment, rewind: boolean): Promise<void> {
+    switch (moment.id) {
+      case 'm1': {
+        await stageStart();
+        kit.paused = false;
+        woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.35 });
+        await wait(2.4);
+        // He looks up from his phone and watches her come.
+        man.human.setEmotion('smirk', 0.5);
+        manOnPhone = false;
+        await wait(1.4);
+        return;
+      }
+      case 'm2': {
+        if (rewind) {
+          const s = snapshots.get('m2')!;
+          resetBodies();
+          manOnPhone = false;
+          woman.setPose(s.woman, 0);
+          man.setPose(s.man, yawOf(s.woman.x - s.man.x, s.woman.z - s.man.z));
+          man.setBehaviour({ type: 'idle', face: womanPos });
+          woman.human.setEmotion('worried', 0.5);
+          follow(FOLLOW_CLOSE);
+          placeCamera(s.cam);
+          kit.serverFear = 0.12;
+          kit.paused = false;
+          woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.35 });
+          await sayScripted(man, 'b_m1');
+        }
+        // Eyes down, a faster pace.
+        woman.human.setEmotion('worried', 0.65);
+        woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.6 });
+        await wait(0.5);
+        if (!rewind) snapshot('m2');
+        return;
+      }
+      case 'm3': {
+        if (rewind) {
+          const s = snapshots.get('m3')!;
+          resetBodies();
+          manOnPhone = false;
+          woman.setPose(s.woman, 0);
+          man.setPose(s.man, 0);
+          woman.human.setEmotion('worried', 0.6);
+          follow(FOLLOW_CLOSE);
+          placeCamera(s.cam);
+          kit.serverFear = 0.15;
+          kit.paused = false;
+        }
+        woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.5 });
+        await applyMan('walk_alongside');
+        if (!rewind) await wait(1.6);
+        await sayScripted(man, 'b_m2');
+        if (!rewind) snapshot('m3');
+        return;
+      }
+      case 'm4': {
+        resetBodies();
+        manOnPhone = false;
+        const her = v(6.6, -66);
+        const him = v(6.5, -67.2);
+        woman.setPose(her, 0);
+        man.setPose(him, Math.PI);
+        woman.setBehaviour({ type: 'idle', face: manPos });
+        man.setBehaviour({ type: 'block', target: womanPos, targetForward: womanFwd, gap: 1.1 });
+        woman.human.setEmotion('afraid', 0.6);
+        woman.human.playGesture('clutch_bag');
+        // A few steps away: close enough to speak.
+        camGoal = () => v(5.6, -62.6);
+        placeCamera(v(5.6, -62.6));
+        kit.serverFear = 0.25;
+        kit.paused = false;
+        await wait(0.4);
+        man.human.playGesture('shrug');
+        await sayScripted(man, 'b_m4');
+        return;
+      }
+      default: {
+        // He has gone. She has not moved yet.
+        resetBodies();
+        manGone = true;
+        man.human.setVisible(false);
+        man.setPose(P.nearCorner, 0);
+        man.setBehaviour({ type: 'idle' });
+        const her = v(6.6, -66);
+        woman.setPose(her, Math.PI);
+        woman.setBehaviour({ type: 'idle', face: () => player.position });
+        woman.human.setEmotion('afraid', 0.55);
+        woman.human.setPosture('guarded');
+        lookGoal = () => woman.human.getHeadPosition(womanHead);
+        camGoal = () => v(5.7, -62.6);
+        placeCamera(v(5.7, -62.6));
+        kit.serverFear = 0.1;
+        kit.paused = false;
+        await wait(0.8);
+      }
+    }
   }
 
   /* ------------------------------------------------------------- moments */
 
-  const result: GuidedResult = { exited: false, firstChoices: {}, used: [] };
+  /** Where a person's head is on screen, as fractions of the viewport; null if off screen. */
+  function onScreen(npc: Npc): { x: number; y: number } | null {
+    const p = npc.human.getHeadPosition(new THREE.Vector3());
+    p.y -= 0.35; // centre the pool on the upper body, not the crown
+    engine.camera.updateMatrixWorld();
+    p.project(engine.camera);
+    if (p.z > 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1) return null;
+    return { x: (p.x + 1) / 2, y: (1 - p.y) / 2 };
+  }
 
-  /** Ask, play the consequence, give feedback; rewind until the best choice. The scene is already staged. */
+  /** Beat 1: stop the clock and dim the screen, keeping a pool of light on the spotlit person. */
+  function freezeScene(moment: GuidedMoment): void {
+    kit.paused = true;
+    const who = moment.spotlight === 'woman' ? woman : moment.spotlight === 'man' ? man : null;
+    const spot = who ? onScreen(who) : null;
+    hud.freeze(spot ? { spot: { ...spot, r: 0.17 } } : {});
+  }
+
+  const result: GuidedResult = { exited: false, firstChoices: {} };
+
+  /** The four beats, rewinding until a choice that continues. The scene is already staged at the freeze point. */
   async function runMoment(moment: GuidedMoment): Promise<void> {
     const tried = new Set<string>();
     for (;;) {
-      kit.paused = true;
+      // 1. Freeze
+      freezeScene(moment);
+      // 2. Choose
       const index = await ask((signal) =>
         hud.choice({
+          caption: moment.caption,
           prompt: moment.prompt,
+          innerVoice: moment.innerVoice,
           options: moment.choices.map((c) => ({ label: c.text, note: tried.has(c.id) ? '(tried)' : undefined })),
           signal,
         }),
@@ -561,25 +739,25 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
       if (!(moment.id in result.firstChoices)) result.firstChoices[moment.id] = choice.id;
       tried.add(choice.id);
 
+      // 3. Play it out
+      hud.freeze(null);
+      kit.paused = false;
       await playChoice(choice);
+
+      // 4. Name it
       kit.paused = true;
-      const best = choice.rating === 'best';
-      await ask((signal) =>
-        hud.feedback({
-          text: choice.feedback,
-          action: best ? 'Continue' : 'Back to the same moment',
-          signal,
-        }),
-      );
-      if (best) {
-        result.used.push({ name: choice.tactic, what: choice.text });
-        return;
-      }
+      const goesOn = CONTINUES.has(choice.rating);
+      const strip = stripFor(choice, data);
+      await ask((signal) => hud.strip({ ...strip, action: goesOn ? 'Continue' : 'Back to the same moment', signal }));
+      if (goesOn) return;
+
       // Rewind: over black, back to where the moment began.
       kit.paused = false;
       await step(hud.fade(true, 500));
-      await stage(moment);
+      if (moment.lead) await step(hud.card(moment.lead, undefined, 2600));
+      const restage = stage(moment, true);
       await step(hud.fade(false, 500));
+      await restage;
     }
   }
 
@@ -587,43 +765,40 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
 
   /* ---------------------------------------------------------------- run */
 
-  man.setPose(P.harasserSpot, Math.PI / 2);
-  man.human.setPosture('lean_wall');
-  man.human.playGesture('check_phone');
-  woman.setPose(P.womanStartBystander, 0);
-  woman.human.setPosture('guarded');
-  woman.human.setEmotion('neutral', 0.3);
-  clerk.setPose(P.clerkSpot, Math.PI / 2);
-  placeCamera(v(P.womanStartBystander.x - 1.1, P.womanStartBystander.z + 6));
-
   hud.setVisible(true);
   await hud.fade(true, 0);
+  await stageStart();
   audio.startAmbience();
 
   try {
-    await step(hud.card('Guided replay', 'The same moment again. This time it will stop and ask what you would do.', 3800));
-    await step(hud.fade(false, 1600));
-    woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.35 });
-    await playOpening();
+    await step(hud.card('Learn how to help', 'The same street again. It will stop at five moments and ask what you would do.', 3800));
+    const fadeIn = step(hud.fade(false, 1200));
 
     const moments = data.moments;
     for (let i = 0; i < moments.length; i++) {
       const moment = moments[i]!;
+      // m2 and m3 follow straight on from the moment before; the others start over black.
+      const flows = moment.id === 'm2' || moment.id === 'm3';
       if (i === 0) {
-        await runMoment(moment);
-        continue;
+        const staging = stage(moment, false);
+        await fadeIn;
+        await staging;
+      } else if (flows) {
+        kit.paused = false;
+        await stage(moment, false);
+      } else {
+        kit.paused = false;
+        await step(hud.fade(true, 700));
+        if (moment.lead) await step(hud.card(moment.lead, undefined, 3600));
+        const staging = stage(moment, false);
+        await step(hud.fade(false, 700));
+        await staging;
       }
-      // A moment the script cannot reach from the last one starts over black, with a line saying so.
-      kit.paused = false;
-      await step(hud.fade(true, 700));
-      if (moment.lead) await step(hud.card(moment.lead, undefined, 3600));
-      await stage(moment);
-      await step(hud.fade(false, 700));
       await runMoment(moment);
     }
 
     kit.paused = false;
-    await step(hud.fade(true, 1800));
+    await step(hud.fade(true, 1600));
     audio.stopAmbience(2);
   } catch (err) {
     if (!(err instanceof Exit)) throw err;
@@ -633,6 +808,7 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
   window.removeEventListener('keydown', onEsc);
   // Set from closures, so the compiler cannot see it may be non-null here.
   (panelAbort as AbortController | null)?.abort();
+  hud.freeze(null);
   await hud.fade(true, 300);
   setFilming(false);
   player.setPhoneRaised(false);

@@ -222,13 +222,30 @@ function hudPanel(): void {
       button('askText', () => void hud.askText('Say something…').then((t) => log(`askText() resolved: ${JSON.stringify(t)}`))),
       button('pause', () => void hud.pause().then((c) => log(`pause() resolved: ${c}`))),
       button('choice', () => {
-        const m = GUIDED.moments[0]!;
-        void hud.choice({ prompt: m.prompt, options: m.choices.map((c, i) => ({ label: c.text, note: i === 1 ? '(tried)' : undefined })) }).then((i) => log(`choice() resolved: ${i}`));
+        const m = GUIDED.moments[1]!;
+        void hud
+          .choice({ caption: m.caption, prompt: m.prompt, innerVoice: m.innerVoice, options: m.choices.map((c, i) => ({ label: c.text, note: i === 1 ? '(tried)' : undefined })) })
+          .then((i) => log(`choice() resolved: ${i}`));
       }),
-      button('feedback', () => {
-        const c = GUIDED.moments[0]!.choices[1]!;
-        void hud.feedback({ text: c.feedback, reference: 'See the question “Why does nobody do anything?”', action: 'Back to the same moment' }).then(() => log('feedback() resolved'));
+      button('freeze', () => hud.freeze({})),
+      button('freeze spot', () => hud.freeze({ spot: { x: 0.55, y: 0.45, r: 0.17 } })),
+      button('unfreeze', () => hud.freeze(null)),
+      button('strip', () => {
+        const c = GUIDED.moments[1]!.choices[0]!;
+        void hud
+          .strip({
+            concept: c.strip.concept,
+            sentence: c.strip.sentence,
+            credit: { text: 'Bibb Latané & John Darley, The Unresponsive Bystander, 1970' },
+            stats: [
+              { headline: 'In 9 of 10', text: 'public conflicts recorded by street cameras in the UK, the Netherlands and South Africa, at least one bystander did something to help.', source: { label: 'American Psychologist, 2020', url: 'https://pubmed.ncbi.nlm.nih.gov/31157529/' } },
+              { headline: 'Only 25%', text: 'of people who experienced sexual harassment in public spaces say someone helped them.', source: { label: "L'Oreal Paris via PR Newswire, 2020" } },
+            ],
+            action: 'Continue',
+          })
+          .then(() => log('strip() resolved'));
       }),
+      button('you think', () => hud.subtitle('self', 'At least I am getting it on video.')),
       button('visible off', () => hud.setVisible(false)),
       button('visible on', () => hud.setVisible(true)),
     );
@@ -360,8 +377,7 @@ async function run(): Promise<void> {
     }
 
     case 'guided-end': {
-      const used = GUIDED.moments.map((m) => m.choices.find((c) => c.rating === 'best')!).map((c) => ({ name: c.tactic, what: c.text }));
-      await screens.guidedEnd({ used, closing: GUIDED.closing });
+      await screens.guidedEnd({ used: [], closing: GUIDED.recap.closing });
       log('guidedEnd() resolved');
       return;
     }

@@ -21,9 +21,12 @@ import type { Hud, MicState } from '../contracts';
 import type { PhoneLink } from '../net/phoneLink';
 import { add, clamp, clamp01, ensureFonts, h, keycap, nextId, reducedMotion, reflow, splitKeyPrompt, trapFocus, withKeycaps } from './dom';
 
-type Speaker = 'man' | 'woman' | 'you' | 'clerk';
+/** 'self' is the player's own inner voice, labelled "You think:". Her thoughts use thought() instead. */
+type Speaker = 'man' | 'woman' | 'you' | 'clerk' | 'self';
 
-const SPEAKER_LABEL: Record<Speaker, string> = { man: 'Man', woman: 'Woman', you: 'You', clerk: 'Clerk' };
+const SPEAKER_LABEL: Record<Speaker, string> = { man: 'Man', woman: 'Woman', you: 'You', clerk: 'Clerk', self: 'You think:' };
+/** The same labels for screen readers, punctuated to read naturally. */
+const SPEAKER_SPOKEN: Record<Speaker, string> = { man: 'Man:', woman: 'Woman:', you: 'You:', clerk: 'Clerk:', self: 'You think:' };
 
 /** Longest run of text that still fits on two subtitle lines at every supported width. */
 const SUBTITLE_CHUNK = 104;
@@ -133,6 +136,9 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
 
   const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, reticleEl, promptEl, hintEl, micEl, micStatus, phoneEl);
 
+  /** Guided replay: dims the frozen scene, optionally leaving a pool of light around one person. */
+  const freezeEl = h('div', { class: 'oit-freeze', 'aria-hidden': 'true' });
+
   const fadeEl = h('div', { class: 'oit-fade', 'aria-hidden': 'true' });
 
   const thoughtZone = h('div', { class: 'oit-thought-zone', 'aria-hidden': 'true' });
@@ -145,7 +151,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
 
   const overlayLayer = h('div', { class: 'oit-hud-over' });
 
-  add(root, worldLayer, fadeEl, textLayer, overlayLayer);
+  add(root, worldLayer, freezeEl, fadeEl, textLayer, overlayLayer);
 
   /* ------------------------------------------------------------- subtitle */
 
@@ -173,7 +179,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
 
     subEl.dataset.speaker = who;
     subWho.textContent = SPEAKER_LABEL[who];
-    subLive.textContent = `${SPEAKER_LABEL[who]}: ${pages.join(' ')}`;
+    subLive.textContent = `${SPEAKER_SPOKEN[who]} ${pages.join(' ')}`;
 
     let at = 0;
     pages.forEach((page, index) => {
@@ -525,7 +531,42 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
 
   const aborted = (): DOMException => new DOMException('The panel was closed.', 'AbortError');
 
-  function choice(opts: { prompt: string; options: Array<{ label: string; note?: string }>; signal?: AbortSignal }): Promise<number> {
+  function freeze(opts: { spot?: { x: number; y: number; r?: number } } | null): void {
+    if (!opts) {
+      freezeEl.classList.remove('is-on', 'has-spot');
+      return;
+    }
+    if (opts.spot) {
+      // x and y are fractions of the viewport; r is the radius of the bright pool as a fraction of its height.
+      freezeEl.style.setProperty('--sx', `${(clamp01(opts.spot.x) * 100).toFixed(2)}%`);
+      freezeEl.style.setProperty('--sy', `${(clamp01(opts.spot.y) * 100).toFixed(2)}%`);
+      freezeEl.style.setProperty('--sr', `${((opts.spot.r ?? 0.16) * 100).toFixed(2)}vh`);
+      freezeEl.classList.add('has-spot');
+    } else {
+      freezeEl.classList.remove('has-spot');
+    }
+    freezeEl.classList.add('is-on');
+  }
+
+  /** The player's own inner voice inside a panel: labelled, and styled apart from her thoughts. */
+  function innerVoice(lines: string[] | undefined): HTMLElement | null {
+    const clean = (lines ?? []).map((l) => l.trim()).filter(Boolean);
+    if (clean.length === 0) return null;
+    return h(
+      'div',
+      { class: 'oit-inner' },
+      h('p', { class: 'oit-inner-k' }, 'You think:'),
+      clean.map((line) => h('p', { class: 'oit-inner-line' }, line)),
+    );
+  }
+
+  function choice(opts: {
+    prompt?: string;
+    caption?: string;
+    innerVoice?: string[];
+    options: Array<{ label: string; note?: string }>;
+    signal?: AbortSignal;
+  }): Promise<number> {
     clearSubtitle();
     const titleId = nextId('oit-choice');
     const buttons = opts.options.map((option, index) =>
@@ -536,13 +577,17 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
         h('span', { class: 'oit-choice-text' }, option.label, option.note ? h('span', { class: 'oit-choice-note' }, ` ${option.note}`) : null),
       ),
     );
+    // The heading is the prompt; a moment with only a caption is labelled by the caption.
+    const labelledByCaption = !opts.prompt && !!opts.caption;
     const el = h(
       'div',
       { class: 'oit-choice', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
       h(
         'div',
         { class: 'oit-choice-panel' },
-        h('p', { class: 'oit-choice-prompt', id: titleId }, opts.prompt),
+        opts.caption ? h('p', { class: `oit-choice-caption${labelledByCaption ? ' is-lead' : ''}`, id: labelledByCaption ? titleId : null }, opts.caption) : null,
+        opts.prompt ? h('p', { class: 'oit-choice-prompt', id: titleId }, opts.prompt) : null,
+        innerVoice(opts.innerVoice),
         h('div', { class: 'oit-choice-list', role: 'group', 'aria-label': 'Your options' }, buttons),
         h('p', { class: 'oit-choice-keys', 'aria-hidden': 'true' }, 'Press ', keycap('1'), keycap('2'), keycap('3'), ' or choose with ', keycap('Tab'), ' and ', keycap('Enter')),
       ),
@@ -579,18 +624,45 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     });
   }
 
-  function feedback(opts: { text: string; reference?: string; action: string; signal?: AbortSignal }): Promise<void> {
-    const textId = nextId('oit-feedback');
-    const button = h('button', { class: 'oit-btn oit-btn--primary', type: 'button' }, opts.action);
+  function strip(opts: {
+    concept: string;
+    sentence: string;
+    credit?: { text: string; url?: string };
+    stats?: Array<{ headline: string; text: string; source: { label: string; url?: string } }>;
+    action: string;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    const titleId = nextId('oit-strip');
+    const textId = nextId('oit-strip-text');
+    const button = h('button', { class: 'oit-btn oit-btn--primary oit-strip-btn', type: 'button' }, opts.action, ' ', keycap('Enter'));
+    const link = (label: string, url: string | undefined): HTMLElement =>
+      url
+        ? h('a', { class: 'oit-strip-src', href: url, target: '_blank', rel: 'noopener noreferrer' }, label, h('span', { class: 'oit-sr' }, ' (opens in a new tab)'))
+        : h('span', { class: 'oit-strip-src' }, label);
+    const stats = (opts.stats ?? []).map((stat) =>
+      h(
+        'p',
+        { class: 'oit-strip-stat' },
+        h('strong', { class: 'oit-strip-num' }, stat.headline),
+        ` ${stat.text} `,
+        h('span', { class: 'oit-strip-srcwrap' }, 'Source: ', link(stat.source.label, stat.source.url)),
+      ),
+    );
     const el = h(
       'div',
-      { class: 'oit-choice oit-choice--feedback', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': textId },
+      { class: 'oit-strip', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId, 'aria-describedby': textId },
       h(
         'div',
-        { class: 'oit-choice-panel' },
-        h('p', { class: 'oit-feedback-text', id: textId }, opts.text),
-        opts.reference ? h('p', { class: 'oit-feedback-ref' }, opts.reference) : null,
-        h('div', { class: 'oit-choice-actions' }, button),
+        { class: 'oit-strip-panel' },
+        h(
+          'div',
+          { class: 'oit-strip-main' },
+          h('h2', { class: 'oit-strip-concept', id: titleId }, opts.concept),
+          h('p', { class: 'oit-strip-sentence', id: textId }, opts.sentence),
+          stats.length ? h('div', { class: 'oit-strip-stats' }, stats) : null,
+          opts.credit ? h('p', { class: 'oit-strip-credit' }, 'Idea: ', link(opts.credit.text, opts.credit.url)) : null,
+        ),
+        h('div', { class: 'oit-strip-actions' }, button),
       ),
     );
     return new Promise<void>((resolve, reject) => {
@@ -599,13 +671,24 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
         return;
       }
       let done = false;
-      const close = openPanel(el, button);
-      button.addEventListener('click', () => {
+      const go = (): void => {
         if (done) return;
         done = true;
         close();
         resolve();
-      });
+      };
+      // Enter continues from anywhere in the strip except a source link, which it opens.
+      const onKey = (e: KeyboardEvent): void => {
+        if (e.key !== 'Enter' || e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
+        const target = e.target as HTMLElement | null;
+        if (target?.closest('a')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        go();
+      };
+      button.addEventListener('click', go);
+      window.addEventListener('keydown', onKey, true);
+      const close = openPanel(el, button, () => window.removeEventListener('keydown', onKey, true));
       opts.signal?.addEventListener('abort', () => {
         if (done) return;
         done = true;
@@ -687,6 +770,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     window.clearInterval(filmInterval);
     worldLayer.remove();
     fadeEl.remove();
+    freezeEl.remove();
     textLayer.remove();
     overlayLayer.remove();
     root.classList.remove('oit-root', 'oit-hud', 'is-hidden', 'is-asking', 'is-choosing');
@@ -709,8 +793,9 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     prompt,
     askText,
     pause,
+    freeze,
     choice,
-    feedback,
+    strip,
     dispose,
   };
 }

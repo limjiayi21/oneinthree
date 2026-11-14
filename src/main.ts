@@ -172,7 +172,7 @@ async function main(): Promise<void> {
       const guided = await runGuidedWalkHome(deps);
       hud.setVisible(false);
       if (part2?.sessionId && Object.keys(guided.firstChoices).length) void postGuided(part2.sessionId, guided.firstChoices, part2.outcome);
-      if (!guided.exited) await screens.guidedEnd({ used: guided.used, closing: GUIDED.closing });
+      if (!guided.exited) await screens.guidedEnd({ used: [], closing: GUIDED.recap.closing });
     }
 
     audio.stopAmbience(1);
