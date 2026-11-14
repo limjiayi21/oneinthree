@@ -7,7 +7,7 @@
  * teaching-replay moments.
  * No transcripts, no spoken or typed words, no audio.
  *
- * Schema: migrations/0001_playthroughs.sql, then 0002_teaching_replay.sql. Logging is best effort: if the
+ * Schema: migrations/0001_playthroughs.sql, then 0003_teaching_replay.sql. Logging is best effort: if the
  * DB binding is missing or a write fails, the simulation carries on.
  */
 import guidedJson from '../content/guided.json';
@@ -19,7 +19,7 @@ const GUIDED = guidedJson as unknown as GuidedData;
 
 /** moment id -> the choice ids it allows. */
 const GUIDED_CHOICES: Record<string, Set<string>> = Object.fromEntries(GUIDED.moments.map((m) => [m.id, new Set(m.choices.map((c) => c.id))]));
-/** One column per moment in the playthroughs table (migrations/0001 and 0002). content.test checks these match content/guided.json. */
+/** One column per moment in the playthroughs table (migrations/0001 and 0003). content.test checks these match content/guided.json. */
 export const GUIDED_MOMENT_IDS = ['m1', 'm2', 'm3', 'm4', 'm5'] as const;
 type MomentId = (typeof GUIDED_MOMENT_IDS)[number];
 
