@@ -39,7 +39,8 @@ import {
   type BystanderRead,
   type WomanRead,
 } from './read';
-import { transcribe } from './stt';
+import { addressOf, addressOfBystander, groundedLine } from './model/address';
+import { MAX_CLIP_BYTES, transcribe } from './stt';
 import { buildSummary } from './summary';
 import { LiveAudio, startTts, type AudioSpec } from './tts';
 import { voUrl, type Delivery } from './voices';
@@ -120,7 +121,6 @@ interface LineJob {
 /** How long `done` will wait for the first audio byte so the turn can report it. */
 const AUDIO_WAIT_MS = 1500;
 const MAX_LIVE_AUDIO = 24;
-const MAX_CLIP_BYTES = 4 * 1024 * 1024;
 
 const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 
@@ -150,6 +150,8 @@ export class SessionDO extends DurableObject<Env> {
   private s: Persisted | null = null;
   private audio = new Map<string, LiveAudio>();
   private queue: Promise<void> = Promise.resolve();
+  /** Last spoken line, so the next TTS request can stitch prosody. Not persisted. */
+  private lastSpoken = '';
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -235,9 +237,12 @@ export class SessionDO extends DurableObject<Env> {
   private speak(lineId: string, spec: AudioSpec): { url: string; live: LiveAudio | null } {
     const key = this.env.ELEVENLABS_API_KEY;
     if (!key || !this.s) return { url: '', live: null };
-    this.ctx.storage.sql.exec('INSERT INTO audio (id, spec) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET spec = excluded.spec', lineId, JSON.stringify(spec));
-    const live = startTts(key, spec);
+    const previousText = spec.role === 'thought' ? undefined : this.lastSpoken || undefined;
+    const full: AudioSpec = { ...spec, previousText };
+    this.ctx.storage.sql.exec('INSERT INTO audio (id, spec) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET spec = excluded.spec', lineId, JSON.stringify(full));
+    const live = startTts(key, full);
     this.remember(lineId, live);
+    if (spec.role !== 'thought' && spec.text.trim()) this.lastSpoken = spec.text.trim();
     return { url: `/api/session/${this.s.meta.id}/audio/${lineId}`, live };
   }
 
@@ -446,6 +451,18 @@ export class SessionDO extends DurableObject<Env> {
       this.log({ kind: 'decision', t, turn, man: d, fear: out.fear, tension: out.tension, rationale: out.rationale, drivers: out.drivers });
 
       const thoughtEmotion: Emotion = d.stance === 'back_off' ? 'worried' : out.fear >= 0.6 ? 'afraid' : 'worried';
+      const thoughtFromBank = () => this.emitBankThought(s, pickBank('woman', d.stance, copy, s.usedBank), out.fear, turn, t, emit);
+      /** A line that answers what she actually said, in the stance already chosen. False when there is nothing to answer. */
+      const sayGrounded = (): boolean => {
+        if (event !== 'speech' || !text) return false;
+        const line = groundedLine({ stance: d.stance, move: addressOf(out.strategy, text), text, avoid: s.hisLines, rng: copy });
+        if (!line) return false;
+        ms.groundedLine = 1;
+        const voiced = this.speak(`m${turn}`, { role: 'man', text: line, emotion: d.emotion, delivery: out.delivery });
+        emit({ type: 'line', speaker: 'man', text: line, audioUrl: voiced.url, emotion: d.emotion, delivery: out.delivery });
+        this.noteLine(s, 'man', line, 'bank', turn, t);
+        return true;
+      };
       const fromBank = (fallback: boolean) => {
         const entry = pickBank('woman', d.stance, copy, s.usedBank);
         if (fallback) ms.fallbackLine = 1;
@@ -457,9 +474,15 @@ export class SessionDO extends DurableObject<Env> {
       if (!out.speak) {
         // He says nothing this beat (he is only trailing her): she still reacts.
         if (d.stance === 'follow') fromBank(false);
-      } else if (FIXED_COPY_STANCES.includes(d.stance) || !this.env.AI) {
+      } else if (FIXED_COPY_STANCES.includes(d.stance)) {
         // Pre-rendered on purpose: the opening answers 'begin' with no latency, and the moment of escalation is fixed copy.
-        fromBank(!this.env.AI && !FIXED_COPY_STANCES.includes(d.stance));
+        fromBank(false);
+      } else if (!this.env.AI) {
+        // No line model: still answer the words she used, in the stance the machine picked.
+        if (sayGrounded()) {
+          ms.fallbackLine = 1;
+          thoughtFromBank();
+        } else fromBank(true);
       } else {
         if (early) ms.spec = 1;
         const job = early ?? this.startWomanLine(s, d, out.strategy, event, text, ctx, copy);
@@ -484,7 +507,12 @@ export class SessionDO extends DurableObject<Env> {
           if (res.attempts > 1) ms.hedged = 1;
           if (!('thought' in res.fields)) this.emitBankThought(s, pickBank('woman', d.stance, copy, s.usedBank), out.fear, turn, t, emit);
         } catch {
-          if (!wrote) fromBank(true);
+          if (!wrote) {
+            if (sayGrounded()) {
+              ms.fallbackLine = 1;
+              thoughtFromBank();
+            } else fromBank(true);
+          }
         }
         const live = lineAudio as LiveAudio | null;
         if (live) {
@@ -649,6 +677,23 @@ export class SessionDO extends DurableObject<Env> {
     let lastEntry: BankEntry | null = null;
 
     const bankCue = (cue: LineCue) => {
+      if (cue.speaker === 'man' && event === 'speech' && text) {
+        const line = groundedLine({
+          stance: out.man?.stance ?? 'hostile',
+          move: addressOfBystander(out.strategy, text),
+          text,
+          avoid: s.hisLines,
+          rng: copy,
+        });
+        if (line) {
+          ms.groundedLine = 1;
+          const voiced = this.speak(`m${turn}`, { role: 'man', text: line, emotion: cue.emotion, delivery: cue.delivery });
+          emit({ type: 'line', speaker: 'man', text: line, audioUrl: voiced.url, emotion: cue.emotion, delivery: cue.delivery });
+          this.noteLine(s, 'man', line, 'bank', turn, t);
+          done.add(cue);
+          return;
+        }
+      }
       const entry = pickBank('bystander', cue.situation, copy, s.usedBank);
       lastEntry = entry;
       this.emitBankLine(s, entry, cue.speaker as 'man' | 'woman', cue.emotion, cue.delivery, turn, t, emit);

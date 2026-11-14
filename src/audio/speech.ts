@@ -167,6 +167,7 @@ export class Speech {
       el.onerror = line.finish;
       this.lines.add(line);
       el.src = url;
+      if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
       const p = el.play();
       if (p && typeof p.catch === 'function') p.catch(line.finish);
     } catch (err) {

@@ -122,15 +122,36 @@ export function audioTag(role: VoiceRole, emotion: Emotion, delivery: Delivery):
 export interface TtsRequest {
   voiceId: string;
   url: string;
-  body: { text: string; model_id: string; voice_settings: { stability: number; similarity_boost: number } };
+  body: {
+    text: string;
+    model_id: string;
+    voice_settings: { stability: number; similarity_boost: number };
+    /** Previous spoken line, for prosody. Omitted on the first line of a scene. */
+    previous_text?: string;
+  };
 }
 
-/** The exact request both the Worker and the generation script send for a line. */
-export function buildTts(role: VoiceRole, text: string, emotion: Emotion, delivery: Delivery, model: string = TTS_LIVE_MODEL): TtsRequest {
+/**
+ * The exact request both the Worker and the generation script send for a line.
+ *
+ * `POST /v1/text-to-speech/{voice_id}/stream?output_format=mp3_44100_128`
+ * with `model_id` `eleven_v4_turbo` (acts on audio tags, ~100 ms to first byte).
+ * `previous_text` is the documented stitching field; it is sent only when the
+ * scene already has a line, and it is never a substitute for the current text.
+ */
+export function buildTts(
+  role: VoiceRole,
+  text: string,
+  emotion: Emotion,
+  delivery: Delivery,
+  model: string = TTS_LIVE_MODEL,
+  previousText?: string,
+): TtsRequest {
   const voice = VOICES[role];
   const tag = audioTag(role, emotion, delivery);
   // A shouted line stays less stable (wider range); a low or whispered one a little steadier.
   const stability = delivery === 'shout' ? Math.max(0.25, voice.settings.stability - 0.1) : voice.settings.stability;
+  const previous = previousText?.replace(/\s+/g, ' ').trim().slice(0, 240);
   return {
     voiceId: voice.id,
     url: `https://api.elevenlabs.io/v1/text-to-speech/${voice.id}/stream?output_format=${TTS_OUTPUT_FORMAT}`,
@@ -138,6 +159,7 @@ export function buildTts(role: VoiceRole, text: string, emotion: Emotion, delive
       text: tag ? `${tag} ${text}` : text,
       model_id: model,
       voice_settings: { stability, similarity_boost: voice.settings.similarity_boost },
+      ...(previous ? { previous_text: previous } : {}),
     },
   };
 }

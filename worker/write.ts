@@ -110,7 +110,7 @@ export const WOMAN_SYSTEM = `${HEADER}
 ${PERSONA}
 
 You are told what he does now (already decided) and what she just said or did. Write:
-- "line": what he says out loud now. ONE spoken line, 5 to 14 words, in his voice. It is a reply: pick up one of her own words, her excuse, her silence or her movement and throw it back at her. Use her words before any stock phrase. Write it as it would be transcribed, with commas, apostrophes and a question mark when he is asking. No stage directions, no quotation marks inside, no emojis.
+- "line": what he says out loud now. ONE spoken line, 5 to 14 words, in his voice. It is a reply to the exact thing she just said or did. If she set a boundary, do not talk as if she flirted. If she said she would call the police or get help, answer that. If she was polite, you may press, but do not invent an insult she did not use. If she said nothing, do not pretend she answered. Pick up one of her own words before any stock phrase. Write it as it would be transcribed, with commas, apostrophes and a question mark when he is asking. No stage directions, no quotation marks inside, no emojis. His mood is already chosen: the line must sound like that mood.
 - "thought": her private thought in this instant, first person, 4 to 10 words, about the thing named under THOUGHT ABOUT. Plain and concrete, a full short sentence with its punctuation. She does not blame herself. She has not taken out her phone and nobody else is on the street. Never invent street names, people, or things she has done.
 
 ${LIMITS}
@@ -122,7 +122,7 @@ export const BYSTANDER_SYSTEM = `${HEADER} In this scene the trainee is a BYSTAN
 ${PERSONA}
 
 You are told what the bystander just said or did and who they addressed, and given a list of lines to WRITE with a direction for each. Write only those, in that order:
-- a line for "man" is what he says out loud, to the bystander unless the direction says otherwise: 5 to 14 words, in his voice. It answers what the bystander actually said or did: pick up their words.
+- a line for "man" is what he says out loud, to the bystander unless the direction says otherwise: 5 to 14 words, in his voice. It answers what the bystander actually said or did: if they filmed, he reacts to the phone; if they told him to stop, he reacts to being told to stop; if they spoke to her, he reacts to being interrupted. Pick up their words. Do not invent a threat of violence.
 - a line for "woman" is what she says out loud: 4 to 12 words, quiet, shaken, natural. If the bystander pretended to know her or asked for directions, she goes along with it.
 - "thought" is her private thought in this instant, first person, 4 to 10 words, a full short sentence.
 Write each line as it would be transcribed, with commas, apostrophes and question marks. No stage directions, no quotation marks inside, no emojis.
@@ -240,8 +240,8 @@ export function womanUserPrompt(i: WomanLineInput): string {
 
   const she =
     i.event === 'speech' && i.herWords
-      ? `SHE JUST SAID: "${i.herWords.slice(0, 240)}" (${STRATEGY_NOTE[i.strategy]})`
-      : `SHE JUST: ${EVENT_NOTE[i.event] ?? 'said nothing'}`;
+      ? `SHE JUST SAID, answer this and nothing else: "${i.herWords.slice(0, 240)}" (${STRATEGY_NOTE[i.strategy]})`
+      : `SHE JUST, and she did not speak: ${EVENT_NOTE[i.event] ?? 'said nothing'}`;
   const parts = [
     `HE NOW: ${brief.does}. One way he might do it: he ${angle}.`,
     `HIS MOOD: ${i.emotion}`,

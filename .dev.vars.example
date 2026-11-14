@@ -1,0 +1,7 @@
+# Copy this file to .dev.vars (gitignored) and paste your ElevenLabs API key.
+# The Worker reads ELEVENLABS_API_KEY. The browser never sees it.
+#   cp .dev.vars.example .dev.vars
+# or: npm run set-key
+#
+# Production: npx wrangler secret put ELEVENLABS_API_KEY
+ELEVENLABS_API_KEY=

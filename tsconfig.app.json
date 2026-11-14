@@ -15,5 +15,6 @@
     "skipLibCheck": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "shared", "content/*.json"]
+  "include": ["src", "shared", "content/*.json"],
+  "exclude": ["src/**/*.test.ts"]
 }

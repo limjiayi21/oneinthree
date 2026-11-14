@@ -8,17 +8,17 @@ Every "she did X, he did Y" probability behind these numbers is an assumption: n
 
 | Her response (every exchange) | He gave up, home alone | Home, still followed | Took refuge | Physical escalation | He turned verbally hostile | Close-range menace | Followed or blocked | Stayed verbal only | Exchanges (mean) | Encounter seconds (mean / max) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| mixed | 94.9% | 3.7% | 0.0% | 1.3% | 36.6% | 6.0% | 24.7% | 74.4% | 2.6 | 40 / 104 |
-| ignore | 96.4% | 2.7% | 0.0% | 1.0% | 29.5% | 3.5% | 26.1% | 73.4% | 2.3 | 39 / 106 |
-| polite_deflect | 92.8% | 6.1% | 0.0% | 1.1% | 24.1% | 4.4% | 37.1% | 62.4% | 2.9 | 43 / 110 |
-| firm_boundary | 93.2% | 4.8% | 0.0% | 2.0% | 46.4% | 3.9% | 16.4% | 82.1% | 2.5 | 39 / 97 |
-| hostile | 71.7% | 20.4% | 0.0% | 7.9% | 76.3% | 30.9% | 14.4% | 78.7% | 3.9 | 50 / 100 |
-| excuse | 95.2% | 4.0% | 0.0% | 0.9% | 22.6% | 3.9% | 35.1% | 64.3% | 2.6 | 41 / 109 |
-| threaten_attention | 96.6% | 2.2% | 0.0% | 1.3% | 34.5% | 5.2% | 17.1% | 81.9% | 2.1 | 37 / 105 |
-| engage | 95.6% | 3.5% | 0.0% | 0.9% | 20.7% | 4.1% | 8.7% | 90.5% | 6.0 | 71 / 218 |
-| plead | 94.6% | 4.4% | 0.0% | 1.0% | 23.0% | 8.5% | 35.5% | 63.8% | 2.7 | 41 / 109 |
-| shop | 17.9% | 0.0% | 82.1% | 0.0% | 20.3% | 1.5% | 19.6% | 80.4% | 1.3 | 22 / 31 |
-| stand_still | 99.1% | 0.0% | 0.0% | 0.9% | 29.2% | 3.6% | 6.2% | 92.9% | 2.4 | 31 / 138 |
+| mixed | 94.8% | 3.6% | 0.0% | 1.5% | 36.6% | 6.0% | 25.2% | 73.7% | 2.5 | 40 / 104 |
+| ignore | 96.3% | 2.8% | 0.0% | 0.9% | 29.7% | 3.6% | 26.6% | 72.9% | 2.4 | 39 / 106 |
+| polite_deflect | 93.4% | 5.7% | 0.0% | 0.9% | 23.6% | 4.4% | 37.1% | 62.3% | 2.9 | 43 / 109 |
+| firm_boundary | 93.1% | 4.8% | 0.0% | 2.1% | 47.0% | 3.9% | 16.6% | 81.8% | 2.5 | 39 / 102 |
+| hostile | 71.8% | 20.2% | 0.0% | 8.0% | 76.4% | 30.8% | 14.4% | 78.6% | 3.9 | 50 / 101 |
+| excuse | 95.2% | 4.1% | 0.0% | 0.7% | 22.2% | 4.0% | 35.5% | 64.0% | 2.6 | 41 / 109 |
+| threaten_attention | 96.7% | 2.1% | 0.0% | 1.2% | 34.8% | 5.3% | 17.0% | 82.0% | 2.1 | 37 / 103 |
+| engage | 95.5% | 3.6% | 0.0% | 0.9% | 20.8% | 4.0% | 8.6% | 90.7% | 6.0 | 71 / 220 |
+| plead | 94.7% | 4.5% | 0.0% | 0.9% | 22.6% | 8.6% | 35.8% | 63.7% | 2.7 | 42 / 109 |
+| shop | 17.9% | 0.0% | 82.1% | 0.0% | 20.3% | 1.4% | 19.7% | 80.3% | 1.3 | 22 / 31 |
+| stand_still | 99.1% | 0.0% | 0.0% | 0.9% | 28.8% | 3.5% | 6.3% | 92.9% | 2.4 | 30 / 131 |
 
 "shop" = says nothing, then walks into the shop after two or three exchanges. "stand_still" = never moves and never speaks (tests the time limit). Physical escalation for the realistic mix must stay inside 0..0.05 (base.physical_escalation_per_run, basis: assumption); "stayed verbal only" (no following, blocking or contact) must stay inside the range of base.encounter_stays_verbal_only.
 
@@ -44,12 +44,12 @@ Exact (not sampled): the disposition-weighted distribution of his reaction to he
 | What the bystander does | He left | She got away | Escalated at bystander | Nobody intervened: she escaped | Nobody intervened: escalated | First reaction: stops / turns on bystander / brushes off | He ever turned on the bystander |
 |---|---|---|---|---|---|---|---|
 | nothing | 0.0% | 0.0% | 0.0% | 96.8% | 3.2% | 0.0% / 0.0% / 0.0% | 0.0% |
-| distract | 66.9% | 32.9% | 0.1% | 0.0% | 0.0% | 66.0% / 5.5% / 28.5% | 5.5% |
-| direct | 70.7% | 28.9% | 0.4% | 0.0% | 0.0% | 66.0% / 24.0% / 10.0% | 24.0% |
-| direct_then_checks_in | 70.7% | 28.9% | 0.4% | 0.0% | 0.0% | 66.0% / 24.0% / 10.0% | 24.0% |
-| aggressive | 48.2% | 45.9% | 5.9% | 0.0% | 0.0% | 45.0% / 45.0% / 10.0% | 60.1% |
-| delegate | 89.9% | 10.0% | 0.1% | 0.0% | 0.0% | 55.9% / 5.0% / 39.1% | 5.0% |
-| film_close | 11.1% | 49.6% | 0.2% | 38.0% | 1.1% | 15.1% / 20.0% / 64.9% | 12.2% |
-| stand_between | 68.7% | 31.0% | 0.3% | 0.0% | 0.0% | 66.0% / 15.2% / 18.8% | 15.2% |
+| distract | 67.0% | 32.9% | 0.1% | 0.0% | 0.0% | 66.0% / 5.5% / 28.5% | 5.5% |
+| direct | 70.7% | 28.9% | 0.3% | 0.0% | 0.0% | 66.0% / 24.0% / 10.0% | 24.0% |
+| direct_then_checks_in | 70.7% | 28.9% | 0.3% | 0.0% | 0.0% | 66.0% / 24.0% / 10.0% | 24.0% |
+| aggressive | 48.8% | 45.2% | 6.0% | 0.0% | 0.0% | 45.0% / 45.0% / 10.0% | 59.8% |
+| delegate | 89.4% | 10.5% | 0.1% | 0.0% | 0.0% | 55.9% / 5.0% / 39.1% | 5.0% |
+| film_close | 11.6% | 49.1% | 0.2% | 38.0% | 1.1% | 15.1% / 20.0% / 64.9% | 12.2% |
+| stand_between | 68.9% | 30.9% | 0.2% | 0.0% | 0.0% | 66.0% / 15.2% / 18.8% | 15.2% |
 
 "aggressive" keeps threatening or insulting him on every exchange. "film_close" raises a phone three metres away and does nothing else: he does not always notice, and when he does not the scripted scene runs to its end. "direct_then_checks_in" speaks to her after he has gone (Delay).
