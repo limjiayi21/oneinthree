@@ -543,8 +543,12 @@
 .oit-mic[data-state='idle'] [data-face='idle'],
 .oit-mic[data-state='recording'] [data-face='recording'],
 .oit-mic[data-state='thinking'] [data-face='thinking'],
+.oit-mic[data-state='missed'] [data-face='missed'],
 .oit-mic[data-state='unavailable'] [data-face='unavailable'] {
   opacity: 1;
+}
+.oit-mic[data-state='missed'] {
+  color: rgba(233, 196, 176, 0.95);
 }
 .oit-mic-l {
   text-align: right;

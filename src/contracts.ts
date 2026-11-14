@@ -320,8 +320,11 @@ export interface Mic {
   init(): Promise<boolean>;
   readonly available: boolean;
   readonly recording: boolean;
-  start(): void;
-  /** Stops and returns the clip, or null if it was too short (< 250 ms) or silent. */
+  /** Returns false if the recorder could not start. */
+  start(): boolean;
+  /** Keep sampling the level while not recording, for hands-free. */
+  watch(on: boolean): void;
+  /** Stops and returns the clip, or null if it was too short, empty, or truly silent. */
   stop(): Promise<Blob | null>;
   /** Live input level 0..1 while recording. */
   level(): number;
@@ -330,7 +333,7 @@ export interface Mic {
 
 /* ---------------------------------------------------------------------- ui */
 
-export type MicState = 'hidden' | 'idle' | 'recording' | 'thinking' | 'unavailable';
+export type MicState = 'hidden' | 'idle' | 'recording' | 'thinking' | 'unavailable' | 'missed';
 
 export interface Hud {
   setVisible(visible: boolean): void;

@@ -12,7 +12,6 @@
  */
 import type {
   ClientEventType,
-  Emotion,
   ManAction,
   ManDecision,
   ManStance,
@@ -21,6 +20,8 @@ import type {
   WomanStrategy,
   WorldContext,
 } from '../../shared/types';
+import { addressOf } from './address';
+import { decideExpression, type ExpressionDecision } from './expression';
 import { PARAMS, param, val, weakestBasis, type Param, type Params } from './params';
 import { Rng, clamp01, normalise, round3 } from './rng';
 
@@ -403,30 +404,15 @@ const STANCE_FEAR: Record<ManStance, number> = {
   escalate: 1,
 };
 
-function pickEmotion(stance: ManStance, strategy: WomanStrategy, state: WomanState, rng: Rng): Emotion {
-  switch (stance) {
-    case 'opening':
-      return rng.pick<Emotion>(['friendly', 'friendly', 'smirk']);
-    case 'persist':
-      return strategy === 'engage' ? rng.pick<Emotion>(['friendly', 'leer']) : rng.pick<Emotion>(['smirk', 'friendly', 'leer']);
-    case 'follow':
-      return rng.pick<Emotion>(['smirk', 'leer', 'neutral']);
-    case 'block':
-      return state.frustration > 0.35 ? 'annoyed' : rng.pick<Emotion>(['smirk', 'smirk', 'annoyed']);
-    case 'guilt':
-      return 'annoyed';
-    case 'hostile':
-      return rng.pick<Emotion>(['angry', 'angry', 'contempt', 'mocking']);
-    case 'intimidate':
-      return rng.pick<Emotion>(['angry', 'contempt']);
-    case 'back_off':
-      if (strategy === 'threaten_attention' || strategy === 'seek_help') return rng.pick<Emotion>(['sheepish', 'annoyed']);
-      return state.frustration > 0.3 ? rng.pick<Emotion>(['contempt', 'annoyed']) : rng.pick<Emotion>(['annoyed', 'sheepish', 'smirk']);
-    case 'escalate':
-      return 'angry';
-    default:
-      return 'neutral';
-  }
+/** Face for a stance the machine already chose. The suggestion slot stays empty here; the line does not get a vote. */
+function pickEmotion(stance: ManStance, strategy: WomanStrategy, state: WomanState, rng: Rng): ExpressionDecision {
+  return decideExpression({
+    stance,
+    move: addressOf(strategy, ''),
+    tension: state.tension,
+    frustration: state.frustration,
+    rng,
+  });
 }
 
 interface Physical {
@@ -650,11 +636,11 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
     state.fear = Math.max(state.fear, STANCE_FEAR.opening);
     state.tension = STANCE_TENSION.opening;
     const { action, proximity, delivery } = actionFor('opening', ph, rng);
-    const emotion = pickEmotion('opening', 'ignore', state, rng);
+    const face = pickEmotion('opening', 'ignore', state, rng);
     const wants = param(params, 'man.disposition.wants_friendly_response');
     return {
       state,
-      decision: { stance: 'opening', action, emotion, emotionIntensity: 0.6, proximity },
+      decision: { stance: 'opening', action, emotion: face.emotion, emotionIntensity: face.intensity, proximity },
       fear: state.fear,
       tension: state.tension,
       rationale: rationaleFrom(
@@ -699,10 +685,10 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
       state.tension = clamp01(STANCE_TENSION.hostile + 0.4 * state.frustration);
       state.fear = clamp01(Math.max(state.fear, STANCE_FEAR.hostile));
       state.lastDriver = reengage.key;
-      const emotion = pickEmotion('hostile', strategy, state, rng);
+      const face = pickEmotion('hostile', strategy, state, rng);
       return {
         state,
-        decision: { stance: 'hostile', action: 'stay', emotion, emotionIntensity: clamp01(0.5 + 0.5 * state.tension), proximity: 3 },
+        decision: { stance: 'hostile', action: 'stay', emotion: face.emotion, emotionIntensity: face.intensity, proximity: 3 },
         fear: state.fear,
         tension: state.tension,
         rationale: rationaleFrom('He was walking away, heard the insult and turned back to throw one of his own.', [reengage]),
@@ -838,8 +824,8 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
   state.stance = next;
 
   const { action, proximity, delivery } = actionFor(next, ph, rng);
-  const emotion = pickEmotion(next, strategy, state, rng);
   state.tension = next === 'escalate' ? 1 : clamp01(STANCE_TENSION[next] + 0.4 * state.frustration);
+  const face = pickEmotion(next, strategy, state, rng);
   const closeBonus = ph.distance < 1.6 && next !== 'back_off' ? 0.06 : 0;
   const wear = Math.min(0.12, 0.025 * state.exchanges) + (state.hasFollowed ? 0.04 : 0);
   state.fear =
@@ -894,8 +880,8 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
     decision: {
       stance: next,
       action,
-      emotion,
-      emotionIntensity: round3(clamp01(0.45 + 0.55 * state.tension)),
+      emotion: face.emotion,
+      emotionIntensity: face.intensity,
       proximity,
     },
     fear: round3(state.fear),
