@@ -1,6 +1,6 @@
 # Teaching replay: summary
 
-Branch `teaching-replay`, from `main` (`b68d2b3`). Nine commits counting this summary, all local; nothing was pushed. `npm run build` and `npm test` pass after every commit. There are 44 tests: the 25 model tests, unchanged, plus 19 new ones.
+Branch `teaching-replay`, from `main` (`b68d2b3`). Fourteen commits counting the summary and its update, all local; nothing was pushed. `npm run build` and `npm test` pass after every commit. There are 44 tests: the 25 model tests, unchanged, plus 19 new ones.
 
 These are unchanged from main:
 
@@ -125,7 +125,7 @@ It replaces the old guided end screen.
 
 ### Task 4: logging
 
-- **New migration**, [migrations/0002_teaching_replay.sql](migrations/0002_teaching_replay.sql), adds `guided_m4` and `guided_m5`. `0001` is unchanged.
+- **New migration**, [migrations/0003_teaching_replay.sql](migrations/0003_teaching_replay.sql) (renamed from 0002, see Follow-up changes), adds `guided_m4` and `guided_m5`. `0001` is unchanged.
 - **The Worker** writes the first choice id at each of the five moments. A stored first choice is never overwritten. Ids only, never words.
 - **`GET /api/stats`** now returns, for each of the five moments:
   - `guidedFirstChoice`: how often each choice was picked first
@@ -204,13 +204,13 @@ The other strips (Staying close, Reading the signs, Insults escalate, Her decisi
 
 Three claims to check with a facilitator's eye:
 
-1. **"Helping starts with noticing, and most people never get past it."** It sits next to `loreal_dontknow_86` (86% don't know what to do). That stat is about not knowing what to do, not about failing to notice.
+1. **"Helping starts with noticing, and most people never get past it."** *Resolved: the strip no longer has a stat; the 86% stat moved to the bystander-effect strip.*
 2. **"People step into most street fights…"** It rests on `cctv_9in10`. Evidence.json's own detail says that study covers public aggression in general, not sexual harassment. The sentence draws exactly that contrast, so I think it's fair, but please confirm.
-3. **The m4 insult strip says "a contest between two men".** This is the brief's wording. REPO_REPORT notes players aren't targeted by gender. "A contest between you and him" would avoid assuming the player is a man.
+3. **The m4 insult strip.** *Resolved: it now reads "Insults turn it into a fight between you and him, with her still stuck in the middle."*
 
 ## Migration commands
 
-I applied `0002_teaching_replay.sql` to the **local** D1 only and checked the upsert there: first picks were kept and later moments filled in. I then deleted the test row. **The remote database is not migrated.**
+I applied `0003_teaching_replay.sql` to the **local** D1 only and checked the upsert there: first picks were kept and later moments filled in. I then deleted the test row. **The remote database is not migrated.**
 
 ```bash
 npx wrangler d1 migrations apply oneinthree-stats --local    # done here
@@ -221,7 +221,7 @@ curl -H 'x-stats-code: <your code>' https://<your-worker>.workers.dev/api/stats
 
 **Deploy order.** Run the remote migration before deploying. Without it, the Worker's write names columns that don't exist yet. That write fails, is logged and is swallowed, so the simulation is unaffected, but no rows are recorded.
 
-**Note on the cards-v2 branch.** It has its own `migrations/0002_card_answers.sql`. Your local D1 already has its `cards` column. D1 tracks migrations by file name, so the two files don't clash. But if the branches are ever merged, rename one of them so the numbering stays readable.
+**Note on the cards-v2 branch.** It has its own `migrations/0002_card_answers.sql`, and your local D1 has applied it (it added a `cards` column). This branch's migration is numbered 0003, so the two don't share a number.
 
 ## How it was checked
 
@@ -252,12 +252,31 @@ curl -H 'x-stats-code: <your code>' https://<your-worker>.workers.dev/api/stats
 2. **Outcome screen.** "Learn how to help" starts the replay. "Walk it again" replays Part 2. "See full details" opens main's debrief intact.
 3. **Every choice and rewind** at all five moments. Leaving from the pause dialog during the replay should go straight to the closing screen.
 4. **Framing.**
-   - At moments 1 and 4 the choice panel covers part of the pair on a 1280×720 screen. The scene is visible before the panel opens, and after it closes.
-   - The camera positions are in `stage()` and `movePlayer()` in [guidedWalkHome.ts](src/scenarios/guidedWalkHome.ts).
+   - The choice panel is a side column with the pair in the rest of the frame (see Follow-up changes). Moments 1 to 4 were checked at 1280×720. Moment 5 at 1280×720, and all moments at 1440×900, still need a look; `?moment=m4` or `?moment=m5` jumps straight there in dev.
+   - The camera positions are in `stage()` and `movePlayer()` in [guidedWalkHome.ts](src/scenarios/guidedWalkHome.ts). The panel width is in both `.oit-choice--side` (hud.css) and `SIDE_PANEL` (guidedWalkHome.ts); change them together.
    - The spotlight radius is `r: 0.17` in `freezeScene()`.
 5. **Screen reader.** Choices, the caption, the "You think:" lines and the strip (concept, sentence, stats, credit) read in a sensible order. The recap ticks are announced.
 6. **Logging.** After a full run with `STATS_CODE` set and the remote migration applied, `/api/stats` should show the Part 2 tactics, the outcome and five first choices.
 7. **Tone.** Read every strip, and the three claims under "Concept attributions to verify", once with the facilitator's eye.
+
+## Follow-up changes
+
+Each was its own commit; build and tests passed after each.
+
+1. **Moment 4 insult strip** now reads "Insults turn it into a fight between you and him, with her still stuck in the middle."
+2. **The 86% stat moved.** Moment 1's Noticing strip keeps its sentence with no stat. `loreal_dontknow_86` is now on moment 2's "Wait and see if the clerk does something" strip.
+3. **Both people stay in view while frozen.**
+   - **Side column.** On screens 900 px wide or more, the choice panel is a column on the side away from the pair. If they would still overlap it, the camera turns, while frozen, just far enough to put them in the rest of the frame. The turn eases, or cuts under reduced motion. Narrower screens keep the bottom panel.
+   - **Moment 1.** The camera starts out toward the curb. Before, he was lined up directly behind her, and from the building side the stoops hid him.
+   - **Moment 4.** He stands slightly diagonal to her, still in her way, so they're face to face rather than one behind the other.
+   - **Checked:** at 1280×720 for moments 1 to 4, both people are on screen, clear of the panel, and not covering each other. Moment 5 and the 1440×900 size were not checked in the browser. At 1440×900 the panel is a smaller share of the width (480 of 1440 px against 480 of 1280), so there is more room, but please look.
+   - **The strip** at the bottom still covers their legs when it holds two stats (moment 2's best choice). Both are visible from the waist up.
+   - **Dev shortcut:** `?skip=intro,part1,part2&moment=m4` (or `m5`) starts the replay at that moment.
+4. **Migration renamed** to `0003_teaching_replay.sql`, so it doesn't share a number with cards-v2's `0002_card_answers.sql`. It had only been applied locally. I removed its record and its two columns from the local D1, then re-applied it; it applied cleanly as 0003. The remote database still needs it:
+
+   ```bash
+   npx wrangler d1 migrations apply oneinthree-stats --remote
+   ```
 
 ## Not committed
 
