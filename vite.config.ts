@@ -8,6 +8,8 @@ import { cloudflare } from '@cloudflare/vite-plugin';
 export default defineConfig(({ mode }) => ({
   plugins: [cloudflare({ remoteBindings: mode !== 'offline' && mode !== 'phone', tunnel: mode === 'phone' })],
   build: { target: 'es2022', chunkSizeWarningLimit: 1500 },
+  // Head look loads MediaPipe lazily; pre-bundle it at startup so the first G press does not hit a stale dep cache.
+  optimizeDeps: { include: ['@mediapipe/tasks-vision'] },
   environments: {
     // Browser build only: phone.html is the phone controller page (see docs/INTERACTIVE_CONTROLS_PLAN.md).
     client: { build: { rolldownOptions: { input: { main: 'index.html', phone: 'phone.html' } } } },
