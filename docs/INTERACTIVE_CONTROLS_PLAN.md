@@ -19,7 +19,7 @@ Let the player control the simulation with their body as well as the keyboard: w
 ## How to run and test
 
 - Start the game without a Cloudflare subdomain: `npm run dev:local` (offline mode, AI replaced by built-in fallbacks). Open http://localhost:5173.
-- Phones only allow motion sensors on https. While `npm run dev:local` is running, press `t` then Enter in its terminal to start a tunnel and open the https address it prints on the phone.
+- Phones only allow motion sensors on https. `npm run dev:phone` is `dev:local` plus a public https tunnel: open the `Tunnel:` address it prints in a normal browser on the laptop (the in-app browser blocks the microphone), pair from the intro, and open the phone address the game shows on the phone. Anyone with the link can reach the dev server while it runs; stop it when done. The address changes on every restart.
 - Typecheck: `npm run typecheck`. Tests: `npm test`.
 
 ## The phone contract (Phase 1 and 2)

@@ -1518,3 +1518,21 @@
     opacity: 0.4;
   }
 }
+
+/* ----------------------------------------------------------- phone pairing */
+
+.oit-phone-pair {
+  flex: 1 1 16rem;
+}
+.oit-phone-code {
+  margin: 0 0 8px;
+  color: var(--oit-ink);
+  font: 500 40px/1.1 var(--oit-sans);
+  letter-spacing: 0.2em;
+}
+.oit-phone-pair .oit-mic-status {
+  margin: 0 0 6px;
+  color: var(--oit-ink-2);
+  font: 400 15px/1.55 var(--oit-sans);
+  overflow-wrap: anywhere;
+}

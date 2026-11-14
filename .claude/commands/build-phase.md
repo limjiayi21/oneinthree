@@ -43,7 +43,7 @@ When all tasks for the phase pass your checks, run the `reviewer` agent. Send re
 ## 6. Hand over to the human
 
 Do not commit or push. Report in plain language:
-- what now works and how to try it (`npm run dev:local`; for the phone, press `t` then Enter in the dev server terminal and open the https address on the phone)
+- what now works and how to try it (`npm run dev:local`; with a phone, `npm run dev:phone` and open the printed `Tunnel:` address on the laptop, then the phone address the game shows)
 - what was tested automatically and what still needs a real phone or webcam
 - anything you decided that the human or the project owner should know
 

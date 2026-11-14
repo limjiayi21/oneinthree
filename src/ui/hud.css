@@ -455,6 +455,22 @@
 .oit-hint.is-on {
   opacity: 1;
 }
+.oit-phone-lost {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 1px 10px;
+  border-radius: 4px;
+  background: rgba(7, 8, 11, 0.5);
+  color: rgba(233, 228, 218, 0.8);
+  font: 500 calc(var(--hud-u) * 0.85) / 2 var(--oit-sans);
+  letter-spacing: 0.03em;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.oit-phone-lost.is-on {
+  opacity: 1;
+}
 .oit-hint .oit-key,
 .oit-prompt .oit-key,
 .oit-mic .oit-key {

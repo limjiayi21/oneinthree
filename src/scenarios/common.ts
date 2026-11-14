@@ -15,6 +15,7 @@ import type {
   WorldContext,
 } from '../../shared/types';
 import { createSession, sendTurn } from '../net/api';
+import type { PhoneLink } from '../net/phoneLink';
 import scriptJson from '../../content/script.json';
 
 export interface ScriptLine {
@@ -38,6 +39,8 @@ export interface SceneDeps {
   requireLock: boolean;
   /** Optional fixed seed for reproducible runs. */
   seed?: number;
+  /** Optional paired phone; adds walking to the keyboard. */
+  phone?: PhoneLink;
 }
 
 export interface SceneResult {
