@@ -43,7 +43,7 @@ import {
 import { applyToDecision, composeBeat, judgeTurn, type JudgeEnv, type TurnReading } from './judge';
 import { emptyMemory, memoryBlock, noteTurn, type ConversationMemory } from './memory';
 import { agentVariables } from '../shared/liveVoice';
-import { coarseExpression } from '../shared/expression';
+import { advanceLiveLadder, initialLiveLadder, liveDecision, liveOutcome, type LiveLadder } from '../shared/liveLadder';
 import { agentTurnSkipsVoice, ensureLiveAgent, mintSignedUrl } from './agent';
 import { planReply } from './converse';
 import { addressOf, addressOfBystander, groundedLine, lineAcknowledges } from './model/address';
@@ -85,11 +85,13 @@ interface Persisted {
   outcome: OutcomeKind | null;
   /** Rolling summary and facts. Absent on sessions saved before this existed. */
   memory?: ConversationMemory;
+  live?: LiveLadder;
 }
 
 const CLIENT_EVENTS: ClientEventType[] = [
   'begin',
   'speech',
+  'agent_reply',
   'silence',
   'sped_up',
   'stopped',
@@ -266,10 +268,11 @@ export class SessionDO extends DurableObject<Env> {
       const vars = agentVariables({
         pov: this.s.meta.pov,
         stance: man?.stance ?? 'opening',
-        emotion: man?.emotion ?? 'smirk',
+        emotion: man?.emotion ?? 'friendly',
         distanceMetres: man?.proximity ?? 4,
+        heat: this.s.live?.heat ?? 0,
       });
-      return json({ signedUrl, dynamicVariables: vars, expression: coarseExpression(man?.emotion ?? 'smirk') });
+      return json({ signedUrl, dynamicVariables: vars });
     } catch (err) {
       return json({ error: `Could not start live voice (${String((err as Error)?.message ?? err).slice(0, 80)})` }, 502);
     }
@@ -392,7 +395,15 @@ export class SessionDO extends DurableObject<Env> {
       ms.total = Date.now() - received;
       emit({ type: 'done', turn, ms });
     };
-    if (s.outcome) return finish();
+    if (s.outcome && req.event !== 'agent_reply') return finish();
+
+    // The live agent already heard her and is replying. Never run a judge,
+    // stance gate, line writer, transcription job, or second voice on this path.
+    if (this.env.ELEVENLABS_AGENT_ID || agentTurnSkipsVoice(req.data)) {
+      this.liveTurn(s, req, turn, emit);
+      ms.agent = 1;
+      return finish();
+    }
 
     let event = req.event;
     let text = (req.text ?? '').trim();
@@ -422,6 +433,34 @@ export class SessionDO extends DurableObject<Env> {
     if (s.meta.pov === 'woman') await this.womanTurn(s, event, text, req.ctx, turn, ms, emit, received, agentVoice);
     else await this.bystanderTurn(s, event, text, req.ctx, turn, ms, emit, received, agentVoice);
     finish();
+  }
+
+  /** Persist the live scene without generating or voicing another reply. */
+  private liveTurn(s: Persisted, req: TurnRequest, turn: number, emit: (ev: TurnEvent) => void): void {
+    const t = req.ctx.elapsed;
+    s.live = advanceLiveLadder(s.live ?? initialLiveLadder(), req);
+    if (req.event === 'agent_reply' && req.text) {
+      this.noteLine(s, 'man', req.text, 'llm', turn, t);
+    } else {
+      if (req.event === 'speech' && req.text) {
+        this.rememberTurn(s, 'player', req.text);
+        s.transcript.push(`HER: ${req.text}`);
+      }
+      this.log({ kind: 'player', t, turn, event: req.event, text: req.text, source: 'event' });
+    }
+    const man = liveDecision(s.live, req.ctx);
+    const fear = s.live.heat / 8;
+    const tension = s.live.heat / 6;
+    s.lastMan = man;
+    if (s.woman) s.woman.stance = man.stance;
+    emit({ type: 'decision', man, fear, tension });
+    this.log({ kind: 'decision', t, turn, man, fear, tension, drivers: ['live_ladder'] });
+    const outcome = liveOutcome(s.live, req.event);
+    if (outcome && !s.outcome) {
+      s.outcome = outcome;
+      emit({ type: 'outcome', outcome });
+      this.log({ kind: 'outcome', t, turn, outcome });
+    }
   }
 
   /** Start the judge immediately so it overlaps Clef and the line model. */
@@ -1040,3 +1079,4 @@ function roundAll<K extends string>(probs: Record<K, number>): Record<string, nu
   for (const [k, v] of Object.entries(probs) as [K, number][]) out[k] = round(v);
   return out;
 }
+

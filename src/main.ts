@@ -83,18 +83,18 @@ async function main(): Promise<void> {
     mic,
     hud,
     voice: health.voice,
-    agent: Boolean(health.agent),
+    agent: Boolean(health.agentId),
     requireLock: params.get('nolock') !== '1',
     seed,
   };
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__oit = deps;
   hud.setLiveVoice(Boolean(health.agent));
-  const liveVoice = Boolean(health.agent);
+  const liveVoice = Boolean(health.agentId);
 
   screens.loading(null);
   if (!skip.has('intro')) {
-    await screens.intro({ voiceAvailable: health.voice, requestMic: () => mic.init() });
-  } else {
+    await screens.intro({ voiceAvailable: health.voice, requestMic: () => deps.agent ? Promise.resolve(true) : mic.init() });
+  } else if (!deps.agent) {
     void mic.init();
   }
   await audio.resume();
@@ -146,3 +146,4 @@ async function main(): Promise<void> {
 }
 
 void main();
+

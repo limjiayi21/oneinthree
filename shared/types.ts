@@ -88,6 +88,7 @@ export type ClientEventType =
   // both POVs
   | 'begin' // the encounter starts (returns the man's opening)
   | 'speech' // player spoke: audio or text attached
+  | 'agent_reply' // actual live agent transcript; never requests another spoken line
   | 'silence' // player said nothing since the man's last line
   // woman POV
   | 'sped_up'
@@ -306,3 +307,4 @@ export const API = {
   agentLine: (id: string) => `/api/session/${id}/agent-line`,
   summary: (id: string) => `/api/session/${id}/summary`,
 } as const;
+

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { agentVariables, commitToolResult, contextualUpdate } from '../shared/liveVoice';
+import { agentVariables, contextualUpdate } from '../shared/liveVoice';
 import { TTS_LIVE_MODEL, VOICES } from './voices';
-import { AGENT_LLM, AGENT_PROMPT, agentTurnSkipsVoice, buildAgentDraft, mintSignedUrl } from './agent';
+import { AGENT_LLM, AGENT_PROMPT, agentTurnSkipsVoice, buildAgentDraft, ensureLiveAgent, mintSignedUrl } from './agent';
 
 describe('ElevenLabs agent draft', () => {
   const draft = buildAgentDraft();
@@ -22,7 +22,7 @@ describe('ElevenLabs agent draft', () => {
     expect(config.agent.prompt.tools).toEqual([]);
     expect(config.agent.prompt.prompt).toMatch(/live voice conversation/i);
     expect(AGENT_PROMPT).toMatch(/never use a slur/i);
-    expect(AGENT_PROMPT).not.toMatch(/call commit_player_turn/i);
+    expect(AGENT_PROMPT).toMatch(/private heat level from 0 to 6/);
   });
 
   it('lets him talk without waiting on the stance machine', () => {
@@ -54,22 +54,40 @@ describe('live-voice contract', () => {
 
   it('tells him where she is without ordering him to stay quiet', () => {
     const vars = agentVariables({ pov: 'woman', stance: 'opening', emotion: 'smirk', distanceMetres: 6 });
-    expect(contextualUpdate(vars, 'opening')).toMatch(/6 metres/);
-    expect(contextualUpdate(vars, 'state')).not.toMatch(/Do not speak/);
+    expect(contextualUpdate(vars)).toMatch(/6 metres/);
+    expect(contextualUpdate(vars)).not.toMatch(/keep talking|speak|say|reply/i);
+  });
+});
+
+describe('dashboard synchronization', () => {
+  it('PATCHes the dashboard prompt, first message and empty tools before each URL', async () => {
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      calls.push(init?.method ?? 'GET');
+      expect(new Headers(init?.headers).get('xi-api-key')).toBe('secret-key');
+      if (init?.method === 'PATCH') {
+        const draft = JSON.parse(String(init.body));
+        expect(draft.conversation_config.agent.prompt.prompt).toBe(AGENT_PROMPT);
+        expect(draft.conversation_config.agent.first_message).toBe('Hey, excuse me, miss. You got a second?');
+        expect(draft.conversation_config.agent.prompt.tools).toEqual([]);
+        expect(draft.conversation_config.agent.prompt.tool_ids).toEqual([]);
+        return new Response('{}');
+      }
+      return Response.json({ signed_url: 'wss://api.elevenlabs.io/conversation' });
+    });
+    for (let i = 0; i < 2; i++) {
+      await ensureLiveAgent('secret-key', 'agent_test', fetchImpl);
+      await mintSignedUrl('secret-key', 'agent_test', fetchImpl);
+    }
+    expect(calls).toEqual(['PATCH', 'GET', 'PATCH', 'GET']);
   });
 
-  it('clamps an illegal expression and never hands the key to the agent', () => {
-    const grabbed = commitToolResult('escalate', 'friendly', 'Get away from me');
-    expect(grabbed.emotion).toBe('angry');
-    expect(grabbed.expression).toBe('angry');
-    expect(grabbed.result).not.toMatch(/xi-api-key|signed_url/);
-    const allowed = commitToolResult('back_off', 'sheepish', 'I am calling the police');
-    expect(allowed.emotion).toBe('sheepish');
-    expect(allowed.expression).toBe('defeated');
-    const parsed = JSON.parse(allowed.result) as { stance: string; say: string };
-    expect(parsed.stance).toBe('back_off');
-    expect(parsed.say).toMatch(/No slurs/);
-    expect(parsed.say).toMatch(/\[nervous\]/);
+  it('does not cache a failed PATCH or proceed to a signed URL', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(new Response('no', { status: 403 })).mockResolvedValueOnce(new Response('{}'));
+    await expect(ensureLiveAgent('secret-key', 'retry_agent', fetchImpl)).rejects.toThrow('agent update 403');
+    await ensureLiveAgent('secret-key', 'retry_agent', fetchImpl);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls.every(([, init]) => init.method === 'PATCH')).toBe(true);
   });
 });
 
@@ -91,3 +109,4 @@ describe('signed URL', () => {
     await expect(mintSignedUrl('secret-key', 'agent_test', fetchImpl)).rejects.toThrow(/401/);
   });
 });
+

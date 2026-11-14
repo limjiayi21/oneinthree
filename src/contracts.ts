@@ -337,7 +337,7 @@ export interface Mic {
 
 /* ---------------------------------------------------------------------- ui */
 
-export type MicState = 'hidden' | 'idle' | 'recording' | 'thinking' | 'unavailable' | 'missed' | 'live';
+export type MicState = 'hidden' | 'idle' | 'recording' | 'thinking' | 'unavailable' | 'missed' | 'live' | 'connecting';
 
 export interface Hud {
   setVisible(visible: boolean): void;
@@ -403,3 +403,4 @@ export interface Screens {
  *   src/ui/hud.ts             createHud(root: HTMLElement): Hud
  *   src/ui/screens.ts         createScreens(root: HTMLElement): Screens
  */
+

@@ -54,4 +54,5 @@ if (!id) {
 console.log(`Created agent ${id}`);
 console.log('Add this line to .dev.vars (gitignored):');
 console.log(`ELEVENLABS_AGENT_ID=${id}`);
-console.log('Then restart npm run dev and press L, or open ?agent=1');
+console.log('Then restart npm run dev. Live voice starts when the encounter begins.');
+

@@ -1,8 +1,7 @@
 /**
  * Optional live-voice path: an ElevenLabs Agent (Conversational AI) speaks as
- * the man. The seeded stance machine still decides what he does. This module
- * only builds the agent, mints a signed URL, and turns a stance into the
- * variables and tool result the agent is allowed to hear.
+ * the man. The scene follows the shared live escalation ladder. This module
+ * updates the dashboard agent and mints a signed URL.
  *
  * LLM: gemini-3.5-flash. ElevenLabs lists it as the model that Gemini 2.5
  * Flash conversations move to from 15 November 2026, and it is the first model
@@ -52,10 +51,11 @@ export function buildAgentDraft(llm: string = AGENT_LLM): AgentDraft {
         dynamic_variables: {
           dynamic_variable_placeholders: {
             stance: 'opening',
-            emotion: 'smirk',
+            emotion: 'friendly',
             expression: 'smug',
             distance: '4',
             pov: 'woman',
+            heat: '0',
           },
         },
         prompt: {
@@ -64,6 +64,7 @@ export function buildAgentDraft(llm: string = AGENT_LLM): AgentDraft {
           temperature: 0.8,
           max_tokens: 150,
           tools: [],
+          tool_ids: [],
         },
       },
       tts: {
@@ -91,11 +92,8 @@ export function agentTurnSkipsVoice(data: Record<string, string | number | boole
   return data?.agent === true || data?.agent === 'true' || data?.agent === 1;
 }
 
-let syncedAgent: string | null = null;
-
 /** Push the live prompt onto the agent id already saved in ElevenLabs. The dashboard copy is what the call uses. */
 export async function ensureLiveAgent(apiKey: string, agentId: string, fetchImpl: typeof fetch = fetch): Promise<void> {
-  if (syncedAgent === agentId) return;
   const draft = buildAgentDraft();
   const res = await fetchImpl(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
     method: 'PATCH',
@@ -110,7 +108,6 @@ export async function ensureLiveAgent(apiKey: string, agentId: string, fetchImpl
     throw new Error(`agent update ${res.status}`);
   }
   await res.body?.cancel().catch(() => {});
-  syncedAgent = agentId;
 }
 
 export async function mintSignedUrl(apiKey: string, agentId: string, fetchImpl: typeof fetch = fetch): Promise<string> {
@@ -125,3 +122,4 @@ export async function mintSignedUrl(apiKey: string, agentId: string, fetchImpl: 
   if (!data.signed_url?.startsWith('wss://')) throw new Error('signed url missing');
   return data.signed_url;
 }
+

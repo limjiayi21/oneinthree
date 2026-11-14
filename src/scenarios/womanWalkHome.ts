@@ -87,6 +87,9 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   let lastBumpEvent = -99;
   let lastShove = -99;
   let pursuit: 'none' | 'follow' | 'block' = 'none';
+  let liveRunning: boolean | null = null;
+  let walkingAwayFor = 0;
+  let walkReportedAtHeat = -1;
   let lastSpeedEvent = -99;
   let lastCrossEvent = -99;
   let fastFor = 0;
@@ -116,6 +119,16 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   /** Keeps her position between lines. Once he is worked up he steps into her path. */
   function pursue(d: number): void {
+    if (deps.agent) {
+      // Distance alone must never promote friendly/defensive behaviour to a chase.
+      if (kit.heat !== 3 || manGone) { liveRunning = null; return; }
+      const running = player.speed > 2;
+      if (liveRunning !== running || man.behaviour !== 'followBehind') {
+        liveRunning = running;
+        man.setBehaviour({ type: 'followBehind', target: toward, gap: running ? 1.15 : 1.7, speed: running ? 3.2 : 2.9 });
+      }
+      return;
+    }
     if (manGone || stance === 'back_off' || stance === 'gone' || stance === 'escalate' || man.behaviour === 'leave') {
       pursuit = 'none';
       return;
@@ -188,7 +201,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         man.setBehaviour({ type: 'closeIn', target: toward, gap: 0.65, speed: 2.4 });
         man.human.playGesture('reach');
         kit.after(0.35, () => {
-          if (kit.ended || manGone || man.distanceTo(player.position) > 1.7) return;
+          if (kit.ended || manGone || (deps.agent && kit.heat !== 5) || man.distanceTo(player.position) > 1.7) return;
           player.pullToward(man.position, 0.8, 0.4);
           player.freeze(0.35);
           kit.scare(0.4);
@@ -212,6 +225,11 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         leave();
         break;
       case 'grab':
+        if (deps.agent) {
+          // The final line is audible, but there is no visible grab before the cut.
+          man.setBehaviour({ type: 'idle', face: toward });
+          break;
+        }
         // Never shown: the arm starts to come up and the scene is cut by the outcome event.
         man.setBehaviour({ type: 'closeIn', target: toward, gap: 0.7, speed: 2.2 });
         man.human.playGesture('reach');
@@ -253,7 +271,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     const seconds = 7.5 - 3 * tension + Math.random() * 1.5;
     const turnAtArm = kit.turnCount;
     cancelSilence = kit.after(seconds, () => {
-      if (kit.ended || manGone || kit.agentLive || kit.turnInFlight || kit.turnCount !== turnAtArm || deps.mic.recording) return;
+      if (kit.ended || manGone || deps.agent || kit.turnInFlight || kit.turnCount !== turnAtArm || deps.mic.recording) return;
       kit.event('silence');
     });
   }
@@ -313,7 +331,9 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
     if (outcome === 'escalated') {
       // Let the last thing he says land, then cut. Nothing is shown.
-      await Promise.race([manSpeaking, kit.wait(2.5)]);
+      if (deps.agent) await kit.waitForAgentReply();
+      else await Promise.race([manSpeaking, kit.wait(2.5)]);
+      await kit.stopAgent();
       player.flinch(man.position, 1);
       engine.pulse(1);
       await kit.wait(0.18);
@@ -325,6 +345,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       kit.end(outcome);
       return;
     }
+
+    await kit.stopAgent();
 
     if (outcome === 'took_refuge') {
       audio.play('shop_bell', { position: P.shopDoor, volume: 0.9 });
@@ -432,7 +454,6 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         kit.refreshMic();
         hud.objective('Get home.');
         kit.event('begin');
-        kit.after(3.5, () => hud.hint('Live. Speak normally. He answers out loud.', 8000));
       }
     }
 
@@ -440,6 +461,15 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       man.human.setGaze(eye);
       const d = man.distanceTo(pos);
       pursue(d);
+
+      if (deps.agent) {
+        walkingAwayFor = player.speed > 0.8 && !player.isLookingAt(man.position, 65) ? walkingAwayFor + dt : 0;
+        if (walkReportedAtHeat !== kit.heat && walkingAwayFor > 1.8 && (kit.heat === 0 || kit.heat === 2)) {
+          walkReportedAtHeat = kit.heat;
+          walkingAwayFor = 0;
+          kit.event('walked_past');
+        }
+      }
 
       // Her body reacts before she does.
       if (d < 0.95 && man.speed > 0.2 && kit.time - lastFlinch > 3.5) {
@@ -496,19 +526,19 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const offBump = player.on('bumped', ({ collider }) => {
     if (collider !== man || manGone || !encounter) return;
     const hot = stance === 'hostile' || stance === 'intimidate' || stance === 'block' || man.behaviour === 'block';
-    if (hot && kit.time - lastShove > 0.7) {
+    if (hot && !deps.agent && kit.time - lastShove > 0.7) {
       lastShove = kit.time;
       player.stepBack(man.position, 0.32, 0.24);
       player.freeze(0.2);
     }
-    if (man.behaviour === 'block' && kit.time - lastBumpEvent > 5) {
+    if ((man.behaviour === 'block' || (deps.agent && kit.heat === 3)) && kit.time - lastBumpEvent > 5) {
       lastBumpEvent = kit.time;
       kit.scare(0.12);
       kit.event('pushed_past');
     }
   });
 
-  kit.exposeDebug({ man, clerk, world, stance: () => stance, decision: () => decision, log: [] as unknown[] });
+  kit.exposeDebug({ man, clerk, world, stance: () => stance, heat: () => kit.heat, decision: () => decision, log: [] as unknown[] });
 
   /* --------------------------------------------------------------- run */
 
@@ -552,3 +582,4 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   player.dispose();
   return { sessionId, outcome };
 }
+

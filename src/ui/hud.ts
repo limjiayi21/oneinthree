@@ -320,14 +320,17 @@ export function createHud(root: HTMLElement): Hud {
       }
     } else if (state === 'unavailable') {
       micEl.classList.remove('is-compact');
-      micStatus.textContent = 'Microphone unavailable. Press T to type instead.';
+      micStatus.textContent = 'Voice unavailable. See the connection error.';
+    } else if (state === 'connecting') {
+      micEl.classList.remove('is-compact');
+      micStatus.textContent = 'Connecting live voice…';
     } else if (state === 'recording') {
       micStatus.textContent = 'Listening.';
     } else if (state === 'thinking') {
       micStatus.textContent = 'Transcribing.';
     } else if (state === 'live') {
       micEl.classList.remove('is-compact');
-      micStatus.textContent = 'Live voice. Speak normally. Press L to go back to push-to-talk.';
+      micStatus.textContent = 'Live voice. Speak normally. You can interrupt him.';
     } else if (state === 'missed') {
       micEl.classList.remove('is-compact');
       micStatus.textContent = "Didn't catch that.";
@@ -636,3 +639,4 @@ export function createHud(root: HTMLElement): Hud {
     dispose,
   };
 }
+
