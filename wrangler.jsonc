@@ -13,10 +13,16 @@
   // Workers AI (Clef + the line model) always runs remotely, also in `vite dev`, and bills the account.
   "ai": { "binding": "AI", "remote": true },
   "durable_objects": {
-    "bindings": [{ "name": "SESSION", "class_name": "SessionDO" }]
+    "bindings": [
+      { "name": "SESSION", "class_name": "SessionDO" },
+      { "name": "PHONE", "class_name": "PhoneRelayDO" }
+    ]
   },
-  // One SQLite-backed Durable Object per session (worker/session.ts).
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SessionDO"] }],
+  // One SQLite-backed Durable Object per session (worker/session.ts), one per phone pairing code (worker/phoneRelay.ts).
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["SessionDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["PhoneRelayDO"] }
+  ],
   // Production secret (voice): `npx wrangler secret put ELEVENLABS_API_KEY`. Without it the Worker still runs, with voice off.
   "observability": { "enabled": true }
 }

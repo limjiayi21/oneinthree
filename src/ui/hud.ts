@@ -18,6 +18,7 @@
 import './base.css';
 import './hud.css';
 import type { Hud, MicState } from '../contracts';
+import type { PhoneLink } from '../net/phoneLink';
 import { add, clamp, clamp01, ensureFonts, h, keycap, nextId, reducedMotion, reflow, splitKeyPrompt, trapFocus, withKeycaps } from './dom';
 
 type Speaker = 'man' | 'woman' | 'you' | 'clerk';
@@ -60,7 +61,7 @@ function formatClock(totalSeconds: number): string {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
-export function createHud(root: HTMLElement): Hud {
+export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
   ensureFonts();
   root.classList.add('oit-root', 'oit-hud');
 
@@ -122,7 +123,15 @@ export function createHud(root: HTMLElement): Hud {
   );
   const micStatus = h('div', { class: 'oit-sr', role: 'status' });
 
-  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, reticleEl, promptEl, hintEl, micEl, micStatus);
+  // Shown only while a phone that was paired is lost: walking is on the keyboard again.
+  const phoneEl = h('div', { class: 'oit-phone-lost', role: 'status' });
+  const offPhone = phone?.onChange(() => {
+    const lost = phone.status === 'lost';
+    phoneEl.textContent = lost ? 'Phone lost. Walk with the keyboard.' : '';
+    phoneEl.classList.toggle('is-on', lost);
+  });
+
+  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, reticleEl, promptEl, hintEl, micEl, micStatus, phoneEl);
 
   const fadeEl = h('div', { class: 'oit-fade', 'aria-hidden': 'true' });
 
@@ -544,6 +553,7 @@ export function createHud(root: HTMLElement): Hud {
     cardEnd?.();
     fadeSettle?.();
     disposed = true;
+    offPhone?.();
     timers.forEach((id) => window.clearTimeout(id));
     timers.clear();
     window.clearInterval(filmInterval);

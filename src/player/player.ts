@@ -33,6 +33,8 @@ export interface PlayerOptions {
    * true and 'unlock' is never emitted.
    */
   requireLock?: boolean;
+  /** Extra movement source (the paired phone), added to the keys. */
+  extraMove?: () => { forward: number; hurry: boolean } | null;
 }
 
 /** Additive reaction layers, for tests and the dev harness. Everything is 0 at rest. */
@@ -221,6 +223,7 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
 
   const input = createInput(engine.renderer.domElement, {
     requireLock,
+    extraMove: opts.extraMove,
     // only while the game is live: never under a pause overlay or a cutscene
     canRelock: () => inputEnabled && !disposed,
     onLook(dx, dy) {
@@ -462,7 +465,7 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
       const f = intent.forward;
       const s = intent.strafe;
       const fwdSpeed = intent.hurry ? T.hurrySpeed : T.walkSpeed;
-      lf = f > 0 ? fwdSpeed : f < 0 ? -T.walkSpeed * T.slowFactor : 0;
+      lf = f > 0 ? Math.min(fwdSpeed * f, T.hurrySpeed) : f < 0 ? -T.walkSpeed * T.slowFactor : 0;
       ls = s * T.walkSpeed * T.slowFactor * (intent.hurry && f > 0 ? 1.25 : 1);
       if (f !== 0 && s !== 0) {
         lf *= Math.SQRT1_2;
