@@ -12,16 +12,15 @@ of Part 1's debrief. It is a plain film: no question, no slider, nothing to answ
 |---|---|---|
 | 0:00–0:05 | Black | Catcall montage (7 of the man's lines, panned, building up, heartbeat under it), cut to silence at 4.8 s |
 | 0:05–0:10.7 | Clip A: her walk | "For you, that was a simulation. For many women, it's an ordinary walk home." (also as a caption) |
-| 0:10.7–0:28.2 | **The stats, back to back with no gap**, a hard cut to a new shot on each: the rest of her walk (66%), keys (44%), the shadow (1 in 3), the empty street (25%) | Each stat spoken in full, one straight after another. The numbers stack up on screen in the lower-third style, older ones dimmed. Heartbeat and the follower's footsteps rise underneath. |
+| 0:10.7–0:28.2 | **The stats, back to back with no gap**, a hard cut to a new shot on each: the rest of her walk (66%), keys (44%), the shadow (1 in 3), the empty street (25%) | Each stat spoken in full, one straight after another, and shown on its own shot with only its own card (lower-third style), switching on the cut. Heartbeat and the follower's footsteps rise underneath. |
 | 0:28.2 | A beat of silence; clip E fades in | |
 | 0:29–0:36.2 | Clip E: the push-in past the figure across the road | "But sometimes, someone is there." (caption), then "This time, you're the one. What would you do?" spoken and shown large in the centre as the picture fades to black |
 
 - **Sound:** her footsteps, keys, ambience and a quiet music bed (20 dB under the
   narration) until the beat of silence; then the street and the music return
   quietly with the push-in. Mixed to -16 LUFS.
-- **On screen:** stats use the numbers and sources from `content/evidence.json`,
-  each with its number, the short phrase she says, and a source line. The full
-  wording of every stat is in the screen-reader text.
+- **On screen:** each stat card shows the number, the full wording from
+  `content/evidence.json` and a source line (publisher and year).
 - **Spoken stats are short forms.** The 44% figure is from a UK YouGov survey,
   so the spoken line says "In the UK".
 - **The figure across the road** is the bystander (warm grey), as designed: it

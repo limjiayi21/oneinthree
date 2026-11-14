@@ -47,9 +47,9 @@ let LENGTH = 30;
 /**
  * The film:
  *   1. the walk:   black + montage, then clip A under "For you, that was a simulation…"
- *   2. the stats:  66%, 44%, "1 in 3" and 25%, back to back with no gap, a hard cut
- *                  to a new shot on each, the numbers stacking up on screen (older
- *                  ones dimmed), heartbeat and follower rising underneath
+ *   2. the stats:  66%, 44%, "1 in 3" and 25%, back to back with no gap, each on
+ *                  its own shot with only its own card (a hard cut to the next),
+ *                  heartbeat and follower rising underneath
  *   3. a beat of silence, then clip E (the push-in across the road): "But sometimes,
  *                  someone is there.", then "This time, you're the one. What would you do?"
  * Every time, including the film's length, is worked out from the narration in plan().
@@ -144,12 +144,12 @@ function plan() {
   const layer = (name, card, at, until, fadeIn = XF, fadeOut = XF) => LAYERS.push({ name, card, at, until, fadeIn, fadeOut });
   layer('band-opening', { kind: 'band' }, opening.at + 0.2, stats[0].at - 0.05);
   layer('caption-opening', { kind: 'caption', text: OPENING.text }, opening.at + 0.2, stats[0].at - 0.05);
-  // The stats: one card per stat, each showing every stat so far; the newest bright, the rest dimmed.
-  layer('band-stats', { kind: 'band', tall: true }, stats[0].at - 0.1, cut, 0.2, 0.25);
+  // The stats: each on its own shot with only its own card (number, full wording, source), switching on the cut.
+  layer('band-stats', { kind: 'band' }, stats[0].at - 0.1, cut, 0.2, 0.25);
   stats.forEach((l, i) => {
     const last = i + 1 === stats.length;
-    const until = last ? cut : stats[i + 1].at - 0.05 + 0.1;
-    layer(`stack-${i + 1}`, { kind: 'stack', rows: stats.slice(0, i + 1).map((r) => ({ id: r.id, short: r.short })) }, l.at - 0.08, until, i === 0 ? 0.2 : 0.08, last ? 0.25 : 0.05);
+    const until = last ? cut : stats[i + 1].at - 0.05;
+    layer(`stat-${l.id}`, { kind: 'stat', id: l.id }, l.at - 0.05, until, i === 0 ? 0.2 : 0.12, last ? 0.25 : 0.06);
   });
   layer('band-someone', { kind: 'band' }, someone.at - 0.1, hook.at - 0.1);
   layer('caption-someone', { kind: 'caption', text: SOMEONE.text }, someone.at - 0.1, hook.at - 0.1);
