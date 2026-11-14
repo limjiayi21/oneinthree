@@ -65,6 +65,10 @@ sped up 13% by `assemble-film.mjs`. Lines 2 and 3 of the original script
 | `narration-stat-25-female.mp3` | Only twenty-five percent of people harassed in public say someone helped. | 4.6 s | 44 |
 | `narration-hook-female.mp3` | This time, you're the one. What would you do? | 3.4 s | 31 |
 | `narration-someone-help-female.mp3` | But sometimes, someone is there to help. | 3.0 s | 28 |
+| `narration-someone-to-help-female.mp3` | But sometimes, there is someone to help. | 3.3 s | 28 |
+| `narration-its-you-take1-female.mp3` (used) | And this time, [whispering] it's you. | 2.6 s | 27 |
+| `narration-its-you-take2-female.mp3` | same, second take | 2.7 s | 27 |
+| `narration-its-you-take3-female.mp3` | same, third take | 2.6 s | 27 |
 
 ## Sound effects
 
@@ -190,19 +194,21 @@ All clips are 1280×720, 24 fps, 8.0 s, no audio. Notes from checking frames at
 | Narration (6 lines) | 226 |
 | Sound effects (5) | 739 |
 | Music | ~1,212 |
-| Film narration (6 lines) | 233 |
-| **Total** | **82,040** |
+| Film narration (10 lines and takes) | 342 |
+| **Total** | **82,149** |
 
 Per-item image figures are averages: the account's credit counter updates late,
 so individual readings in the log show 0 or double. Totals are from the counter.
 
 ## The finished film
 
-`public/film/part1-film.mp4` (in git, about 33 s) and
+`public/film/part1-film.mp4` (in git, about 36 s) and
 `film/assets/part1-film-master.mp4`, built by `film/scripts/assemble-film.mjs`;
 see `PART1_FILM_SUMMARY.md` for the timeline. Shots: A (0–5.7 s at normal speed,
-then the rest of it slowed 2× under the 66% stat), B, D, then E (slowed 1.04×).
-Narration (all female): `narration-1`, `narration-stat-66`, `-44`, `-25` and
-`narration-someone-help`; the closing line is on screen only. No longer used:
-clip C, `narration-stat-34`, `narration-3`, `narration-hook`. The 5 s montage is
-`montage-5s.wav` (`build-montage.mjs --profile short`).
+then the rest of it slowed 2× under the 66% stat), B, D, then E (its last frame
+held at the end). Narration (all female): `narration-1`, `narration-stat-66`,
+`-44`, `-25`, `narration-someone-to-help` and `narration-its-you-take1`; the
+closing question is on screen only. Wind: `public/audio/sfx/wind_gust.mp3` (the
+game's own). No longer used: clip C, `narration-stat-34`, `narration-3`,
+`narration-hook`, `narration-someone-help`. The 5 s montage is `montage-5s.wav`
+(`build-montage.mjs --profile short`).

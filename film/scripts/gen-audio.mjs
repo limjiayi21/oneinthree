@@ -57,6 +57,9 @@ const FILM_LINES = [
   { name: 'stat-25', text: 'Only twenty-five percent of people harassed in public say someone helped.' }, // loreal_helped_25
   { name: 'hook', text: 'This time, you’re the one. What would you do?' },
   { name: 'someone-help', text: 'But sometimes, someone is there to help.' },
+  { name: 'someone-to-help', text: 'But sometimes, there is someone to help.' },
+  // "And this time," in the calm voice, then "it's you" whispered (an inline v4 audio tag). Three takes to choose from.
+  { name: 'its-you', text: 'And this time, [whispering] it\u2019s you.', takes: 3 },
 ];
 const FILM_VOICE = 'female';
 
@@ -81,14 +84,18 @@ const jobs = [
     url: `https://api.elevenlabs.io/v1/text-to-speech/${v.id}?output_format=${TTS_OUTPUT_FORMAT}`,
     body: { text: `${TAG} ${text}`, model_id: TTS_RENDER_MODEL, voice_settings: SETTINGS },
   }))),
-  ...FILM_LINES.map((l) => {
+  ...FILM_LINES.flatMap((l) => {
     const v = NARRATORS.find((n) => n.suffix === FILM_VOICE);
-    return {
-      name: `narration-${l.name}-${v.suffix}`,
-      file: `narration-${l.name}-${v.suffix}.mp3`,
-      url: `https://api.elevenlabs.io/v1/text-to-speech/${v.id}?output_format=${TTS_OUTPUT_FORMAT}`,
-      body: { text: `${TAG} ${l.text}`, model_id: TTS_RENDER_MODEL, voice_settings: SETTINGS },
-    };
+    const takes = l.takes ?? 1;
+    return Array.from({ length: takes }, (_, i) => {
+      const id = takes > 1 ? `${l.name}-take${i + 1}` : l.name;
+      return {
+        name: `narration-${id}-${v.suffix}`,
+        file: `narration-${id}-${v.suffix}.mp3`,
+        url: `https://api.elevenlabs.io/v1/text-to-speech/${v.id}?output_format=${TTS_OUTPUT_FORMAT}`,
+        body: { text: `${TAG} ${l.text}`, model_id: TTS_RENDER_MODEL, voice_settings: SETTINGS },
+      };
+    });
   }),
   ...SFX.map((s) => ({
     name: `sfx-${s.name}`,

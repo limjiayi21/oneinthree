@@ -51,8 +51,9 @@ let LENGTH = 30;
  *                  its own shot with only its own card (a hard cut to the next),
  *                  heartbeat and follower rising underneath
  *   3. a beat of silence, then clip E (the push-in across the road): "But sometimes,
- *                  someone is there to help.", then "This time, you're the one. What would
- *                  you do?" on screen only, read in silence
+ *                  there is someone to help.", "And this time, it's you" ("it's you"
+ *                  whispered, a gust of wind behind it, the line in the middle of the
+ *                  screen), then "What are you going to do?" on screen only, in silence
  * Every time, including the film's length, is worked out from the narration in plan().
  */
 const TEMPO = 1.03; // narration speed-up (pitch kept): close to natural
@@ -64,7 +65,7 @@ const SHOTS = {
   D: { file: 'edit/D.mp4', from: 0 }, // the empty street, rain
   B: { file: 'edit/B.mp4', from: 0 }, // keys (the calm 4 s of the clip, slowed)
   C: { file: 'video/C-veo.mp4', from: 0, maxSource: 3 }, // the shadow; after 3 s the light cuts out and strobes
-  E: { file: 'edit/E.mp4', from: 0, maxSource: 8 }, // the push-in from across the road (road visible throughout); 8 s long
+  E: { file: 'edit/E.mp4', from: 0, maxSource: 8, hold: true }, // the push-in from across the road (road visible throughout); 8 s long, then its last frame holds
 };
 /** Clip A is 8 s long: the opening uses it at normal speed, the 66% shot the rest of it, slowed. */
 const A_LENGTH = 8;
@@ -76,9 +77,13 @@ const STATS = [
   { file: 'narration-stat-44-female.mp3', shot: 'B', id: 'yougov_keys_44', short: 'of women in the UK hold their keys ready to defend themselves.', corner: 'tr' }, // top right: the hand fills the lower left
   { file: 'narration-stat-25-female.mp3', shot: 'D', id: 'loreal_helped_25', short: 'of people harassed in public say someone helped.' },
 ];
-const SOMEONE = { file: 'narration-someone-help-female.mp3', text: 'But sometimes, someone is there to help.' };
-/** The closing line is not spoken: it is left on screen, in silence, to be read. */
-const HOOK = { text: 'This time, you’re the one. What would you do?', readFor: 4.2 };
+const SOMEONE = { file: 'narration-someone-to-help-female.mp3', text: 'But sometimes, there is someone to help.' };
+/** "And this time," in her calm voice, then "it's you" whispered: take 1 of 3 (the truest whisper, and the clearest). */
+const WHISPER = { file: 'narration-its-you-take1-female.mp3', text: 'And this time, it\u2019s you.' };
+/** The closing question is not spoken: it appears on its own, in silence, as the picture fades to black. */
+const QUESTION = { text: 'What are you going to do?', readFor: 3.8 };
+/** A single gust of night wind from the game's own sounds, behind the whisper. */
+const WIND = resolve(root, 'public/audio/sfx/wind_gust.mp3');
 
 /** Target loudness (LUFS) of each source before mixing, as measured with ebur128. */
 const NARRATION_LUFS = -16;
@@ -90,6 +95,7 @@ let AUDIO = [];
 let LAYERS = [];
 let CUES = [];
 let TIMES = {};
+let PIC_FADE = { at: 0, dur: FADE_OUT };
 
 /** Layout in pixels of the 1280x720 frame. */
 export const LAYOUT = { side: 96, statTop: 448, statMaxWidth: 700, captionBottom: 46, stackTop: 300, stackRow: 92 };
@@ -121,9 +127,12 @@ function plan() {
   const cut = frame(stats[stats.length - 1].until + 0.06); // end of the stats: the push-in fades in
   const eAt = cut;
   const someone = line(SOMEONE, cut + 0.75);
-  const hook = { ...HOOK, at: frame(someone.until + 0.6) };
-  LENGTH = frame(hook.at + HOOK.readFor);
-  TIMES = { opening, stats, cut, eAt, someone, hook };
+  const whisper = line(WHISPER, someone.until + 0.6);
+  const whisperOff = whisper.until + 1.0; // the line stays up a moment, then fades
+  const question = { ...QUESTION, at: frame(whisperOff + 0.5) };
+  LENGTH = frame(question.at + QUESTION.readFor);
+  PIC_FADE = { at: question.at - 0.4, dur: 1.6 }; // the picture goes dark as the question appears
+  TIMES = { opening, stats, cut, eAt, someone, whisper, question };
 
   // ---- picture. xf: the crossfade into that scene (1 frame = a hard cut).
   const hard = 1 / FPS;
@@ -156,9 +165,10 @@ function plan() {
     layer(l.corner ? `shade-${l.corner}` : `band-${l.id}`, l.corner ? { kind: 'shade', corner: l.corner } : { kind: 'band' }, from, until, fadeIn, fadeOut);
     layer(`stat-${l.id}`, { kind: 'stat', id: l.id, corner: l.corner }, from, until, i === 0 ? 0.2 : 0.12, fadeOut);
   });
-  layer('band-someone', { kind: 'band' }, someone.at - 0.1, hook.at - 0.1);
-  layer('caption-someone', { kind: 'caption', text: SOMEONE.text }, someone.at - 0.1, hook.at - 0.1);
-  layer('closing', { kind: 'closing', text: HOOK.text }, hook.at - 0.2, LENGTH, XF, 0.2);
+  layer('band-someone', { kind: 'band' }, someone.at - 0.1, whisper.at - 0.15);
+  layer('caption-someone', { kind: 'caption', text: SOMEONE.text }, someone.at - 0.1, whisper.at - 0.15);
+  layer('whisper', { kind: 'closing', text: WHISPER.text }, whisper.at - 0.1, whisperOff, 0.4, 0.6);
+  layer('question', { kind: 'closing', text: QUESTION.text }, question.at, LENGTH, 0.5, 0.2);
 
   // ---- text track: what is on screen, with the full stat wording and source
   const full = (id) => {
@@ -169,8 +179,9 @@ function plan() {
     { at: 0, until: 4.8, text: '[A man calls out at a woman, again and again, over a heartbeat. Then silence.]' },
     { at: opening.at, until: stats[0].at, text: OPENING.text },
     ...stats.map((l) => ({ at: l.at, until: l.until, text: full(l.id) })),
-    { at: someone.at, until: hook.at, text: SOMEONE.text },
-    { at: hook.at, until: LENGTH, text: HOOK.text },
+    { at: someone.at, until: whisper.at, text: SOMEONE.text },
+    { at: whisper.at, until: whisperOff, text: WHISPER.text },
+    { at: question.at, until: LENGTH, text: QUESTION.text },
   ];
 
   // ---- sound
@@ -192,9 +203,12 @@ function plan() {
     // Building under the stats: the follower closing in and her heartbeat speeding up (loop if the stats run long).
     { file: 'sfx-follower.mp3', at: s0, until: cut + ease, loop: true, from: 0, lufs: -28, ramp: [0.3, 1.1], fadeIn: 0.6, fadeOut: ease },
     { file: 'sfx-heartbeat.mp3', at: s0, until: cut + ease, loop: true, from: 0, lufs: -24, ramp: [0.3, 1.15], fadeIn: 0.6, fadeOut: ease },
+    // One gust of wind behind the whisper (it rises out of silence and dies away), gone before the question.
+    { path: WIND, at: whisper.at - 1.0, until: Math.min(whisper.at - 1.0 + 4.48, question.at - 0.15), lufs: -33, fadeOut: 0.5 },
     { wav: opening.wav, at: opening.at, lufs: NARRATION_LUFS },
     ...stats.map((l) => ({ wav: l.wav, at: l.at, lufs: NARRATION_LUFS })),
     { wav: someone.wav, at: someone.at, lufs: NARRATION_LUFS },
+    { wav: whisper.wav, at: whisper.at, lufs: NARRATION_LUFS + 1 },
   ];
 }
 
@@ -323,7 +337,7 @@ function buildAudio() {
   const inputs = [];
   const filters = [];
   AUDIO.forEach((l, i) => {
-    const file = l.wav ?? A(l.file);
+    const file = l.wav ?? l.path ?? A(l.file);
     if (!existsSync(file)) throw new Error(`missing ${file}`);
     if (l.loop) inputs.push('-stream_loop', '-1');
     inputs.push('-i', file);
@@ -384,9 +398,11 @@ function buildFilm(mixWav) {
       inputs.push('-i', file);
     }
     // A shot allowed only maxSource seconds of its clip is slowed (frames held) to fill a longer slot.
+    // A shot with hold keeps its last frame instead of slowing down.
     const source = s.maxSource && dur > s.maxSource ? s.maxSource : dur;
-    const stretch = dur / source;
-    f.push(`[${n}:v]trim=start=${s.from ?? 0}:duration=${source.toFixed(3)},setpts=(PTS-STARTPTS)*${stretch.toFixed(4)},fps=${FPS},scale=${W}:${H},setsar=1,format=yuv420p,settb=AVTB[s${i}]`);
+    const stretch = s.hold ? 1 : dur / source;
+    const hold = s.hold && dur > source ? `,tpad=stop_mode=clone:stop_duration=${(dur - source + 0.1).toFixed(3)}` : '';
+    f.push(`[${n}:v]trim=start=${s.from ?? 0}:duration=${source.toFixed(3)},setpts=(PTS-STARTPTS)*${stretch.toFixed(4)},fps=${FPS}${hold},scale=${W}:${H},setsar=1,format=yuv420p,settb=AVTB[s${i}]`);
     s.stretch = stretch;
     n++;
   });
@@ -396,7 +412,7 @@ function buildFilm(mixWav) {
     prev = `x${i}`;
   }
   // Fade the picture (not the text) to black at the end.
-  f.push(`[${prev}]fade=t=out:st=${LENGTH - FADE_OUT}:d=${FADE_OUT},format=yuva420p[pic0]`);
+  f.push(`[${prev}]fade=t=out:st=${PIC_FADE.at.toFixed(3)}:d=${PIC_FADE.dur},format=yuva420p[pic0]`);
   prev = 'pic0';
   // Text layers: bands first, then cards.
   const layers = LAYERS;
@@ -447,8 +463,8 @@ mkdirSync(build, { recursive: true });
 plan();
 console.log('narration:');
 const T = TIMES;
-console.log(`  closing line on screen (silent) from ${T.hook.at.toFixed(2)} s`);
-for (const l of [T.opening, ...T.stats, T.someone]) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
+console.log(`  question on screen (silent) from ${T.question.at.toFixed(2)} s`);
+for (const l of [T.opening, ...T.stats, T.someone, T.whisper]) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
 console.log(`stats end ${T.cut.toFixed(2)} s; push-in from ${T.eAt.toFixed(2)} s; film length ${LENGTH.toFixed(2)} s`);
 console.log(`shots: ${SCENES.map((s) => `${s.name} ${s.at.toFixed(2)}-${(s.at + s.slot).toFixed(2)}`).join(', ')}`);
 console.log(`text track -> ${writeVtt()}`);
@@ -471,7 +487,7 @@ ff(['-i', master, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-profile:
 
 const check = A('check');
 mkdirSync(check, { recursive: true });
-const stills = [...SCENES.slice(1, -1).map((s) => ({ name: s.name, t: s.at + s.slot / 2 })), { name: 'E-someone', t: T.someone.at + 1 }, { name: 'E-hook', t: LENGTH - 1.6 }];
+const stills = [...SCENES.slice(1, -1).map((s) => ({ name: s.name, t: s.at + s.slot / 2 })), { name: 'E-someone', t: T.someone.at + 1 }, { name: 'E-whisper', t: T.whisper.until - 0.3 }, { name: 'E-question', t: LENGTH - 1.5 }];
 for (const { name, t } of stills) ff(['-ss', t.toFixed(2), '-i', master, '-frames:v', '1', resolve(check, `still-${name}-${t.toFixed(1)}s.png`)]);
 console.log(`shot stretch: ${SCENES.slice(1).map((s) => `${s.name} x${(s.stretch ?? 1).toFixed(2)}`).join(', ')}`);
 
