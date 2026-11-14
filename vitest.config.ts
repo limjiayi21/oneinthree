@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['worker/**/*.test.ts', 'src/**/*.test.ts'],
+    include: ['worker/**/*.test.ts', 'shared/**/*.test.ts', 'src/**/*.test.ts'],
     environment: 'node',
     testTimeout: 60000,
   },

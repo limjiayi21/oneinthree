@@ -48,6 +48,7 @@ import { BYSTANDER_SYSTEM, WOMAN_SYSTEM, bystanderUserPrompt, cleanLine, womanUs
 export interface Env {
   AI: Ai;
   SESSION: DurableObjectNamespace<SessionDO>;
+  PHONE: DurableObjectNamespace;
   ASSETS: Fetcher;
   ELEVENLABS_API_KEY?: string;
 }

@@ -5,13 +5,17 @@
  * and E belong to the scene director and are never read or preventDefault-ed
  * here. All key input is ignored while a text field has focus.
  *
+ * An optional `extraMove` source (the paired phone) adds forward walking and
+ * hurry when no forward/back key is held. It is read only while input is
+ * active, so pause still stops movement.
+ *
  * With `requireLock: false` (automation / accessibility fallback) the keys
  * work without pointer lock, Arrow-Left / Arrow-Right turn the view instead
  * of strafing, and dragging the mouse with a button held looks around.
  */
 
 export interface MoveIntent {
-  /** -1 (back) .. 1 (forward) */
+  /** -1 (back) .. 1 (forward); the phone may go a little above 1 (longer strides) */
   forward: number;
   /** -1 (left) .. 1 (right) */
   strafe: number;
@@ -42,6 +46,8 @@ export interface InputOptions {
   onLook(dx: number, dy: number): void;
   onLock(): void;
   onUnlock(): void;
+  /** Extra movement source (the phone). Adds to the keys; a held forward or back key wins. */
+  extraMove?(): { forward: number; hurry: boolean } | null;
 }
 
 const MOVE_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight']);
@@ -172,9 +178,17 @@ export function createInput(dom: HTMLElement, opts: InputOptions): PlayerInput {
       out.strafe = 0;
       out.turn = 0;
       out.hurry = false;
-      if (!active() || held.size === 0) return out;
+      if (!active()) return out;
+      const extra = opts.extraMove?.() ?? null;
       if (isTextField(doc.activeElement)) {
         held.clear();
+        return out;
+      }
+      if (held.size === 0) {
+        if (extra && extra.forward > 0) {
+          out.forward = extra.forward;
+          out.hurry = extra.hurry;
+        }
         return out;
       }
       const arrowsTurn = !opts.requireLock;
@@ -187,6 +201,11 @@ export function createInput(dom: HTMLElement, opts: InputOptions): PlayerInput {
         if (down('ArrowRight')) out.turn -= 1;
       }
       out.hurry = down('ShiftLeft') || down('ShiftRight');
+      // A held forward or back key always wins over the phone.
+      if (extra && extra.forward > 0) {
+        if (out.forward === 0 && !down('KeyW') && !down('KeyS') && !down('ArrowUp') && !down('ArrowDown')) out.forward = extra.forward;
+        if (extra.hurry) out.hurry = true;
+      }
       return out;
     },
 

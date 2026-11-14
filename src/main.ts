@@ -5,6 +5,7 @@ import { createMic } from './audio/mic';
 import { createHud } from './ui/hud';
 import { createScreens } from './ui/screens';
 import { getHealth, getSummary } from './net/api';
+import { createPhoneLink } from './net/phoneLink';
 import { runWomanWalkHome } from './scenarios/womanWalkHome';
 import { runBystanderWalkHome } from './scenarios/bystanderWalkHome';
 import type { SceneDeps, SceneResult } from './scenarios/common';
@@ -51,8 +52,9 @@ async function main(): Promise<void> {
   // Dev shortcuts: ?skip=intro,part1
   const skip = new Set((params.get('skip') ?? '').split(',').filter(Boolean));
   const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
-  const hud = createHud(document.querySelector<HTMLElement>('#hud')!);
-  const screens = createScreens(document.querySelector<HTMLElement>('#screens')!);
+  const phone = createPhoneLink();
+  const hud = createHud(document.querySelector<HTMLElement>('#hud')!, phone);
+  const screens = createScreens(document.querySelector<HTMLElement>('#screens')!, { phone });
   hud.setVisible(false);
   screens.loading('Loading…');
 
@@ -103,6 +105,7 @@ async function main(): Promise<void> {
     seed,
     eyes,
     hands,
+    phone,
   };
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__oit = deps;
 

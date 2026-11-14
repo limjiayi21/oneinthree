@@ -15,6 +15,7 @@ import type {
   WorldContext,
 } from '../../shared/types';
 import { createSession, sendTurn } from '../net/api';
+import type { PhoneLink } from '../net/phoneLink';
 import scriptJson from '../../content/script.json';
 import type { EyeLookSource } from '../player/eyes';
 import type { HandGestureSource } from '../player/hands';
@@ -40,10 +41,12 @@ export interface SceneDeps {
   requireLock: boolean;
   /** Optional fixed seed for reproducible runs. */
   seed?: number;
-  /** Optional webcam eye-look (G toggles it). */
+  /** Optional webcam head look (G toggles it). */
   eyes?: EyeLookSource;
   /** Optional webcam hand gestures (H toggles it). */
   hands?: HandGestureSource;
+  /** Optional paired phone; adds walking to the keyboard. */
+  phone?: PhoneLink;
 }
 
 export interface SceneResult {

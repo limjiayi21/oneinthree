@@ -39,7 +39,12 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const P = world.points;
   const Z = world.zones;
 
-  const player = createPlayer(engine, world, { body: 'woman', requireLock: deps.requireLock, eyes: deps.eyes });
+  const player = createPlayer(engine, world, {
+    body: 'woman',
+    requireLock: deps.requireLock,
+    eyes: deps.eyes,
+    extraMove: () => deps.phone?.move(performance.now()) ?? null,
+  });
   const kit = new SceneKit(deps, player, 'woman');
 
   /* ---------------------------------------------------------------- cast */

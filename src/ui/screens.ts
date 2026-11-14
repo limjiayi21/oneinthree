@@ -13,6 +13,7 @@
 import './base.css';
 import './screens.css';
 import type { Screens } from '../contracts';
+import type { PhoneLink } from '../net/phoneLink';
 import type { FiveDResult, Insight, Pov, Rationale, SummaryData, TimelineEntry } from '../../shared/types';
 import type { CaseStudy, Evidence, EvidenceSource, EvidenceStat, SupportResource } from '../../shared/evidence';
 import { add, clamp01, ensureFonts, focusables, h, keycap, nextId, reflow, type Child } from './dom';
@@ -24,6 +25,8 @@ export interface ScreensOptions {
    * Used by the dev harness to lay screens out against mock entries.
    */
   evidence?: Evidence;
+  /** Optional phone link: adds the pairing button to the intro. */
+  phone?: PhoneLink;
 }
 
 const PRODUCT = 'One in Three';
@@ -358,6 +361,38 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
         });
         paint();
 
+        /* Optional phone pairing: never blocks Continue. */
+        const phone = options.phone;
+        let phoneRow: HTMLElement | null = null;
+        if (phone) {
+          const phoneBtn = h('button', { class: 'oit-btn oit-btn--quiet', type: 'button' }, 'Walk with your phone (optional)');
+          const phoneBox = h('div', { class: 'oit-phone-pair' });
+          const paintPhone = (): void => {
+            phoneBox.replaceChildren();
+            if (phone.status === 'off') {
+              phoneBtn.hidden = false;
+              return;
+            }
+            phoneBtn.hidden = true;
+            const label = { waiting: 'Waiting for your phone', connected: 'Phone connected', lost: 'Phone lost, reconnecting' }[phone.status];
+            const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            add(
+              phoneBox,
+              h('p', { class: 'oit-phone-code', 'aria-label': `Code ${phone.code.split('').join(' ')}` }, phone.code),
+              h('p', { class: 'oit-mic-status' }, `On your phone, open ${location.origin}/phone.html?code=${phone.code}`),
+              local
+                ? h('p', { class: 'oit-mic-status' }, 'A phone cannot reach localhost. Open the game from the dev server’s tunnel address (press t then Enter in the dev server terminal).')
+                : null,
+              h('p', { class: 'oit-mic-status', role: 'status', 'data-state': phone.status }, label),
+            );
+          };
+          phoneBtn.addEventListener('click', () => void phone.pair());
+          // Stop listening once this step is replaced (the old element leaves the page).
+          const off = phone.onChange(() => (phoneBox.isConnected || phoneBtn.isConnected ? paintPhone() : off()));
+          paintPhone();
+          phoneRow = h('div', { class: 'oit-mic-check' }, phoneBtn, phoneBox);
+        }
+
         return h(
           'div',
           { class: 'oit-step' },
@@ -377,6 +412,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               h('p', null, 'You answer by holding ', keycap('Space'), ' and speaking. What you say is sent to the simulation’s server so that it can be understood and answered.'),
               h('div', { class: 'oit-mic-check' }, button, status),
             ),
+            phoneRow ? row('Phone', h('p', null, 'You can also walk by stepping in place, with your phone in your pocket.'), phoneRow) : null,
           ),
           actions('Begin Part 1', finish, true),
         );

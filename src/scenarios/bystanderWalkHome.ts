@@ -17,7 +17,12 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   const { engine, world, audio, hud } = deps;
   const P = world.points;
 
-  const player = createPlayer(engine, world, { body: 'bystander', requireLock: deps.requireLock, eyes: deps.eyes });
+  const player = createPlayer(engine, world, {
+    body: 'bystander',
+    requireLock: deps.requireLock,
+    eyes: deps.eyes,
+    extraMove: () => deps.phone?.move(performance.now()) ?? null,
+  });
   const kit = new SceneKit(deps, player, 'bystander');
 
   /* ---------------------------------------------------------------- cast */
