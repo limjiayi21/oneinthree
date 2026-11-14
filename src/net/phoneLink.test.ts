@@ -59,6 +59,23 @@ describe('createStepRhythm', () => {
     expect(r.state(5100 + 990)).toBe('running');
   });
 
+  it('one double-counted step, or fast steps before calibration, never read as running', () => {
+    const r = createStepRhythm();
+    feed(r, series(0, 600, 9)); // calibrated at 600 ms
+    feed(r, [5400, 5550, 5950, 6250]); // intervals 600, 150 (double count), 400, 300
+    expect(r.state(6250)).not.toBe('running');
+
+    const fresh = createStepRhythm();
+    feed(fresh, series(0, 330, 5)); // quick from the start: not calibrated yet
+    expect(fresh.state(1400)).not.toBe('running');
+  });
+
+  it('a very quick (possibly misread) pace still coasts at least MIN_COAST_MS', () => {
+    const r = createStepRhythm();
+    feed(r, series(0, 280, 4)); // pace 280 ms, last step at 840
+    expect(r.state(840 + 600)).not.toBe('stopped'); // a real step 600 ms later keeps her walking
+  });
+
   it('ignores a pause longer than STOP_AFTER_MS for calibration', () => {
     const r = createStepRhythm();
     feed(r, series(0, 600, 5)); // 4 valid intervals, last step at 2400

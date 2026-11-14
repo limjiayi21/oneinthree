@@ -15,6 +15,8 @@ export const EASE_START = 1.3;
 export const EASE_END = 2.3;
 export const STOP_MIN_MS = 450;
 export const MAX_COAST_MS = 1400;
+/** Never coast to a stop sooner than this, even if the pace reads very quick: a misread pace must not cause stop-start walking. */
+export const MIN_COAST_MS = 900;
 export const HURRY_RATIO = 0.75;
 /** Steps faster than this share of the normal interval are running in place (sprint). */
 export const RUN_RATIO = 0.62;
@@ -65,15 +67,18 @@ export function createStepRhythm(): StepRhythm {
       if (!recent.length) return gap < STOP_AFTER_MS ? 1 : 0; // first step: no pace yet
       const pace = median(recent);
       const easeFrom = Math.max(STOP_MIN_MS, EASE_START * pace);
-      const easeTo = Math.min(MAX_COAST_MS, Math.max(easeFrom + 1, EASE_END * pace));
+      const easeTo = Math.min(MAX_COAST_MS, Math.max(easeFrom + 1, MIN_COAST_MS, EASE_END * pace));
       if (gap <= easeFrom) return 1;
       return gap >= easeTo ? 0 : 1 - (gap - easeFrom) / (easeTo - easeFrom);
     },
     state(nowMs) {
       if (this.drive(nowMs) === 0) return 'stopped';
       if (!recent.length) return 'walking';
-      const pace = median(recent);
-      return pace < RUN_RATIO * normal ? 'running' : pace < HURRY_RATIO * normal ? 'hurrying' : 'walking';
+      // Running must be sustained (every recent step fast, not just the median) and measured against the
+      // player's own calibrated pace, so a double-counted step or a naturally quick stepper never sets off a sprint.
+      const calibrated = calibration.length >= CALIBRATION_STEPS;
+      if (calibrated && recent.length === 3 && recent.every((i) => i < RUN_RATIO * normal)) return 'running';
+      return median(recent) < HURRY_RATIO * normal ? 'hurrying' : 'walking';
     },
     get normalMs() {
       return normal;

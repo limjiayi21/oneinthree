@@ -33,6 +33,20 @@ function countSteps(bumpsMs: number[], seconds: number): number {
 }
 
 describe('step detector', () => {
+  it('the dip below gravity after each step is not counted as another step', () => {
+    const det = createStepDetector();
+    let steps = 0;
+    for (let i = 0; i < 600; i++) {
+      const t = (i * 1000) / 60; // 10 s at 60 Hz
+      const phase = t % 600; // one step every 600 ms
+      const jolt = phase < 120 ? 4 * Math.sin((Math.PI * phase) / 120) : 0; // up, 120 ms
+      const dip = phase >= 300 && phase < 450 ? -3 * Math.sin((Math.PI * (phase - 300)) / 150) : 0; // down, 300 ms later
+      if (det.push(0, 0, GRAVITY + jolt + dip, t)) steps++;
+    }
+    expect(steps).toBeGreaterThanOrEqual(16);
+    expect(steps).toBeLessThanOrEqual(17); // about 10 s / 600 ms, not double
+  });
+
   it('finds about 20 steps in 10 s of stepping at 2 steps/s, and none when the phone is still', () => {
     const walking = Array.from({ length: 20 }, (_, k) => 250 + k * 500);
     const steps = countSteps(walking, 10);
