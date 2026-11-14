@@ -184,43 +184,5 @@
       "text": "In the Cornell and Hollaback! review of 223 New York incidents, harassment was more likely to cease when a bystander confronted the harasser. The report gives no percentage. https://www.ilr.cornell.edu/sites/default/files-d8/ILR_Report_TARGET_1B_11202012_1.pdf",
       "sourceIds": ["cornell_nyc_2012"]
     }
-  },
-  "replayTips": {
-    "boundary": {
-      "text": "A short calm no is what the US survey describes as a response that can work. It does not say how often he then leaves.",
-      "sourceIds": ["ssh_2014"]
-    },
-    "escalation": {
-      "text": "68% of harassed women in that survey were worried the incident would get worse. That is their fear, not a count of how often it does.",
-      "sourceIds": ["ssh_2014"]
-    },
-    "filming": {
-      "text": "Film only once someone else is already helping, and let her decide what happens to the footage. The guide does not describe a camera alone as what stops him.",
-      "sourceIds": ["rtb_5ds"]
-    },
-    "gesture": {
-      "text": "Following and other physical forms are part of what the US survey measured. How often one encounter turns physical is not measured.",
-      "sourceIds": ["ssh_2014"]
-    },
-    "distract": {
-      "text": "Distract means ignore him and talk to her about something else. It is one of the indirect options, meant not to escalate.",
-      "sourceIds": ["rtb_5ds"]
-    },
-    "delegate": {
-      "text": "Delegate means ask a third person and say what you see and what you want them to do.",
-      "sourceIds": ["rtb_5ds"]
-    },
-    "document": {
-      "text": "Document only if someone is already helping and you are safe. She decides what happens to the recording.",
-      "sourceIds": ["rtb_5ds"]
-    },
-    "delay": {
-      "text": "Delay is checking in afterwards if you could not act in the moment. It still counts.",
-      "sourceIds": ["rtb_5ds"]
-    },
-    "direct": {
-      "text": "Direct is one short sentence telling him to stop. It is the risky one: he may turn on you. In the New York sample, confrontation made harassment more likely to stop, and the report gives no percentage.",
-      "sourceIds": ["rtb_5ds", "cornell_nyc_2012"]
-    }
   }
 }

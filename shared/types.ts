@@ -242,16 +242,6 @@ export interface HealthResponse {
   agent?: boolean;
 }
 
-export interface ReplayMoment {
-  t: number;
-  kind: 'boundary' | 'escalation' | 'filming' | 'gesture' | 'bystander';
-  label: string;
-  text: string;
-  tip: string;
-  sourceUrl: string;
-  sourceTitle: string;
-}
-
 export interface TimelineEntry {
   /** Seconds since scene start. */
   t: number;
@@ -289,8 +279,6 @@ export interface SummaryData {
   caseStudyId?: string;
   /** bystander POV only */
   fiveDs?: FiveDResult[];
-  /** Key moments with a short cited tip. Empty when nothing notable happened. */
-  replay?: ReplayMoment[];
   /** Transparency: how the man's behaviour was decided. */
   modelNotes: Rationale[];
 }

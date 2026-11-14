@@ -590,38 +590,6 @@
   font: 400 17px/1.62 var(--oit-sans);
 }
 
-/* -------------------------------------------------------- debrief: replay */
-
-.oit-replay {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.oit-replay-row {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  column-gap: 16px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--oit-line);
-}
-.oit-replay-row:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-.oit-replay-label {
-  margin: 0 0 4px;
-  color: var(--oit-ink-3);
-  font: 600 11px/1.4 var(--oit-sans);
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-.oit-replay-tip {
-  margin: 8px 0 0;
-  max-width: 38rem;
-  color: var(--oit-ink-2);
-  font: 400 15px/1.55 var(--oit-sans);
-}
-
 /* ------------------------------------------------------ debrief: timeline */
 
 .oit-tl {

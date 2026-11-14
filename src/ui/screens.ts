@@ -13,7 +13,7 @@
 import './base.css';
 import './screens.css';
 import type { Screens } from '../contracts';
-import type { FiveDResult, Insight, Pov, Rationale, ReplayMoment, SummaryData, TimelineEntry } from '../../shared/types';
+import type { FiveDResult, Insight, Pov, Rationale, SummaryData, TimelineEntry } from '../../shared/types';
 import type { CaseStudy, Evidence, EvidenceSource, EvidenceStat, SupportResource } from '../../shared/evidence';
 import { add, clamp01, ensureFonts, focusables, h, keycap, nextId, reflow, type Child } from './dom';
 import { bundledEvidence, headlineStat, hostOf, normaliseEvidence, resolveSources, resolveStats, safeUrl } from './evidence';
@@ -405,8 +405,8 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
 
   /* --------------------------------------------------------------- briefing */
 
-  function briefing(pov: Pov): Promise<void | 'switch'> {
-    return new Promise<void | 'switch'>((resolve) => {
+  function briefing(pov: Pov): Promise<void> {
+    return new Promise<void>((resolve) => {
       const bystander = pov === 'bystander';
       const titleId = nextId('oit-brief');
       const el = h('section', { class: 'oit-screen oit-screen--scrim oit-brief', 'aria-labelledby': titleId, 'data-pov': bystander ? 'bystander' : 'woman' });
@@ -423,18 +423,6 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           },
         },
         'Begin',
-      );
-      const switchBtn = h(
-        'button',
-        {
-          class: 'oit-btn oit-btn--ghost',
-          type: 'button',
-          onclick: () => {
-            close(el);
-            resolve('switch');
-          },
-        },
-        bystander ? 'Walk home instead' : 'Practice the 5Ds',
       );
 
       const affordance = (key: string | null, label: string): HTMLElement =>
@@ -461,7 +449,6 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
                 affordance('E', 'Ask the shopkeeper for help'),
                 affordance(null, 'Or keep walking'),
               ),
-              h('p', { class: 'oit-brief-task' }, 'Distract, Delegate, Document, Delay, Direct. Four of them do not start with him.'),
             ),
           ]
         : [
@@ -485,7 +472,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
             'div',
             { class: 'oit-brief-in' },
             body,
-            h('div', { class: 'oit-actions oit-rise' }, begin, switchBtn, h('p', { class: 'oit-brief-esc' }, keycap('Esc'), ' pauses at any time.')),
+            h('div', { class: 'oit-actions oit-rise' }, begin, h('p', { class: 'oit-brief-esc' }, keycap('Esc'), ' pauses at any time.')),
           ),
         ),
       );
@@ -528,39 +515,6 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
         entry.rationale && entry.rationale.text ? rationaleBlock(entry.rationale, why) : null,
       ),
       entry.label ? h('span', { class: 'oit-tag' }, entry.label) : h('span', { class: 'oit-tl-notag', 'aria-hidden': 'true' }),
-    );
-  }
-
-  function renderReplay(moments: ReplayMoment[] | undefined): HTMLElement | null {
-    const rows = (moments ?? []).filter((m) => m && typeof m.text === 'string' && m.text.trim() && typeof m.tip === 'string' && m.tip.trim());
-    if (rows.length === 0) return null;
-    return section(
-      'Replay',
-      'oit-sec--replay',
-      h('p', { class: 'oit-sec-lede' }, 'The moments that changed the scene, and what the research can say about each. It does not grade you.'),
-      h(
-        'ol',
-        { class: 'oit-replay' },
-        rows.map((m) => {
-          const url = safeUrl(m.sourceUrl);
-          const source: EvidenceSource | null = url
-            ? { id: m.kind, title: m.sourceTitle || 'Source', publisher: m.sourceTitle || 'Source', year: Number.NaN, url, accessed: '' }
-            : null;
-          return h(
-            'li',
-            { class: 'oit-replay-row', 'data-kind': m.kind },
-            h('span', { class: 'oit-tl-time' }, h('span', { class: 'oit-sr' }, 'At '), formatTime(m.t)),
-            h(
-              'div',
-              { class: 'oit-replay-body' },
-              h('p', { class: 'oit-replay-label' }, m.label),
-              h('p', { class: 'oit-tl-text' }, m.text),
-              h('p', { class: 'oit-replay-tip' }, m.tip),
-              source ? sourceLine([source]) : null,
-            ),
-          );
-        }),
-      ),
     );
   }
 
@@ -809,7 +763,6 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
             )
           : null;
 
-      const replay = renderReplay(Array.isArray(data.replay) ? data.replay : []);
       const timeline = renderTimeline(Array.isArray(data.timeline) ? data.timeline : []);
       const insights = renderInsights(Array.isArray(data.insights) ? data.insights : []);
       const stats = renderStats(Array.isArray(data.statIds) ? data.statIds : []);
@@ -825,7 +778,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           'div',
           { class: 'oit-frame' },
           h('div', { class: 'oit-topbar oit-topbar--static' }, wordmark()),
-          h('article', { class: 'oit-article' }, header, noFault, replay, timeline, fiveDs, insights, stats, caseStudy, model),
+          h('article', { class: 'oit-article' }, header, noFault, timeline, fiveDs, insights, stats, caseStudy, model),
           h(
             'footer',
             { class: 'oit-sum-foot', id: actionsId },

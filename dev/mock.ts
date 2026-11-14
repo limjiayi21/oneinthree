@@ -16,16 +16,7 @@
  */
 
 import type { Evidence } from '../shared/evidence';
-import type { Rationale, ReplayMoment, SummaryData, TimelineEntry } from '../shared/types';
-import research from '../data/harassment_research.json';
-
-const replayTips = research.replayTips as Record<string, { text: string }>;
-const replaySources = research.sources as Record<string, { title: string; url: string }>;
-
-function replayMoment(t: number, kind: ReplayMoment['kind'], label: string, text: string, tipKey: string, sourceId: string): ReplayMoment {
-  const source = replaySources[sourceId];
-  return { t, kind, label, text, tip: replayTips[tipKey].text, sourceUrl: source.url, sourceTitle: source.title };
-}
+import type { Rationale, SummaryData, TimelineEntry } from '../shared/types';
 
 const src = (n: string, year: number) => ({
   id: `mock-${n}`,
@@ -250,11 +241,6 @@ export function mockSummary(kind: MockSummaryKind, evidence: Evidence): SummaryD
       ],
       statIds: pickStats(evidence, ['bystander', 'response', 'prevalence', 'following'], 4),
       caseStudyId: pickCase(evidence, ['bystander_helped', 'bystander_absent']),
-      replay: [
-        replayMoment(52, 'bystander', 'Distract', '“Hey! Sorry, do you know which way the F train is?”', 'distract', 'rtb_5ds'),
-        replayMoment(64, 'bystander', 'Delegate', 'Asked the shopkeeper for help.', 'delegate', 'rtb_5ds'),
-        replayMoment(75, 'bystander', 'Direct', '“Leave her alone.”', 'direct', 'cornell_nyc_2012'),
-      ],
       fiveDs: [
         { key: 'distract', used: true, moments: ['“Hey! Sorry, do you know which way the F train is?”'], feedback: 'You gave her a way out that did not require her to refuse him again, and did not require you to confront him.' },
         { key: 'delegate', used: true, moments: ['Asked the shopkeeper for help.'], feedback: 'The shopkeeper had standing on that sidewalk, and cameras. You did not have to carry it alone.' },
@@ -311,11 +297,6 @@ export function mockSummary(kind: MockSummaryKind, evidence: Evidence): SummaryD
       ],
       statIds: pickStats(evidence, ['escalation', 'prevalence', 'reporting'], 3),
       caseStudyId: pickCase(evidence, ['rejection_violence', 'followed']),
-      replay: [
-        replayMoment(76, 'boundary', 'Boundary', '“Please leave me alone.”', 'boundary', 'ssh_2014'),
-        replayMoment(88, 'gesture', 'Gesture', 'He steps into the path.', 'gesture', 'ssh_2014'),
-        replayMoment(107, 'escalation', 'Escalation', 'He turns hostile.', 'escalation', 'ssh_2014'),
-      ],
       modelNotes,
     };
   }
@@ -352,10 +333,6 @@ export function mockSummary(kind: MockSummaryKind, evidence: Evidence): SummaryD
     ],
     statIds: pickStats(evidence, ['prevalence', 'following', 'behaviour_change', 'age'], 4),
     caseStudyId: pickCase(evidence, ['followed', 'walking_home']),
-    replay: [
-      replayMoment(76, 'boundary', 'Boundary', '“Please leave me alone.”', 'boundary', 'ssh_2014'),
-      replayMoment(110, 'gesture', 'Gesture', 'He follows.', 'gesture', 'ssh_2014'),
-    ],
     modelNotes,
   };
 }

@@ -371,8 +371,8 @@ export interface Hud {
 export interface Screens {
   /** Landing + content note + how it works + headphone/mic check. Resolves when the user starts. */
   intro(opts: { voiceAvailable: boolean; requestMic: () => Promise<boolean> }): Promise<void>;
-  /** Short brief before a part. 'switch' means the player chose the other role. */
-  briefing(pov: Pov): Promise<void | 'switch'>;
+  /** Short brief before a part. */
+  briefing(pov: Pov): Promise<void>;
   /** Debrief for a part. */
   summary(data: SummaryData): Promise<'continue' | 'retry'>;
   /** Closing screen: resources and sources. */

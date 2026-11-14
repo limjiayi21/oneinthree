@@ -38,7 +38,6 @@ export interface HarassmentResearch {
     fiveDCitation: ResearchClaim;
     bystanderStops: ResearchClaim;
   };
-  replayTips: Record<string, ResearchClaim>;
 }
 
 export const HARASSMENT_RESEARCH = file as HarassmentResearch;

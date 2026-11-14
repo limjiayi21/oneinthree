@@ -99,29 +99,39 @@ async function main(): Promise<void> {
   screens.loading(null);
   idle(); // the scenes drive world.update from here on
 
-  let pov: Pov = params.get('pov') === 'bystander' || skip.has('part1') ? 'bystander' : 'woman';
-
   for (;;) {
     let exited = false;
-    while (!exited) {
-      if ((await screens.briefing(pov)) === 'switch') {
-        pov = pov === 'woman' ? 'bystander' : 'woman';
-        continue;
+
+    if (!skip.has('part1')) {
+      for (;;) {
+        await screens.briefing('woman');
+        await audio.resume();
+        world.setDoorOpen('home', false);
+        const result = await runWomanWalkHome(deps);
+        hud.setVisible(false);
+        if (result.outcome === 'exited') {
+          exited = true;
+          break;
+        }
+        screens.loading('…');
+        const summary = await debrief(result, 'woman');
+        screens.loading(null);
+        if ((await screens.summary(summary)) === 'continue') break;
       }
-      await audio.resume();
-      world.setDoorOpen('home', false);
-      const result = pov === 'woman' ? await runWomanWalkHome(deps) : await runBystanderWalkHome(deps);
-      hud.setVisible(false);
-      if (result.outcome === 'exited') {
-        exited = true;
-        break;
-      }
-      screens.loading('…');
-      const summary = await debrief(result, pov);
-      screens.loading(null);
-      if ((await screens.summary(summary)) === 'continue') {
-        if (pov === 'woman') pov = 'bystander';
-        else break;
+    }
+
+    if (!exited) {
+      for (;;) {
+        await screens.briefing('bystander');
+        await audio.resume();
+        world.setDoorOpen('home', false);
+        const result = await runBystanderWalkHome(deps);
+        hud.setVisible(false);
+        if (result.outcome === 'exited') break;
+        screens.loading('…');
+        const summary = await debrief(result, 'bystander');
+        screens.loading(null);
+        if ((await screens.summary(summary)) === 'continue') break;
       }
     }
 
@@ -129,7 +139,6 @@ async function main(): Promise<void> {
     await hud.fade(true, 0);
     await screens.closing();
     skip.clear();
-    pov = params.get('pov') === 'bystander' ? 'bystander' : 'woman';
   }
 }
 
