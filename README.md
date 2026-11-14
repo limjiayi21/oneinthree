@@ -20,9 +20,28 @@ npm run set-key
 npm run dev
 ```
 
-`set-key` asks for your ElevenLabs API key with hidden input and saves it to `.dev.vars`, which is git-ignored. Without a key the simulation still runs, with subtitles instead of voices. The dev server is at http://localhost:5173 and needs `wrangler login` for Workers AI.
+`set-key` asks for your ElevenLabs API key with hidden input and saves it to `.dev.vars`, which is git-ignored. You can also copy the template and paste the key yourself:
 
-Controls: W A S D to walk, mouse to look, Shift to hurry, hold Space to speak, T to type instead, Esc to pause. In Part 2, F films and E asks the shopkeeper for help.
+```bash
+cp .dev.vars.example .dev.vars
+# then put your key on the ELEVENLABS_API_KEY line. Never commit .dev.vars.
+```
+
+Without a key the simulation still runs, with subtitles instead of voices. The dev server is at http://localhost:5173 and needs `wrangler login` for Workers AI. For a deployed build the same key is a Worker secret, not a client variable: `npx wrangler secret put ELEVENLABS_API_KEY`.
+
+Controls: W A S D to walk, mouse to look, Shift to hurry, hold Space to speak, T to type instead, H to toggle hands-free, Esc to pause. In Part 2, F films and E asks the shopkeeper for help. A clip is capped at 8 seconds. The indicator under the scene says Listening…, Transcribing…, or Didn't catch that.
+
+### Check voice and the microphone on a laptop
+
+The VM this was built on has no microphone and no ElevenLabs key, so this part is for a real machine.
+
+1. `npm install`
+2. `npm run set-key` (or edit `.dev.vars` as above). Confirm `git status` does not list `.dev.vars`.
+3. `npx wrangler login` once, so Workers AI can read what you said.
+4. `npm run dev` and open http://localhost:5173
+5. Allow the microphone on the intro screen. Hold Space and say "Leave me alone." The indicator should read Listening…, then Transcribing…, then his reply should mention being left alone. Subtitles stay up while his voice plays. Press Space again while he is still talking: his line cuts off and yours starts.
+6. Press H and speak without holding Space. Press H again to go back to push-to-talk.
+7. If the key is missing or speech-to-text fails, the subtitle still shows and the indicator says Didn't catch that. Press T to type the same line and confirm he answers it.
 
 ## How a turn works
 
