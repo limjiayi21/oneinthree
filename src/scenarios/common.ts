@@ -152,17 +152,9 @@ export class SceneKit {
     readonly pov: Pov,
   ) {
     this.finished = new Promise((res) => (this.resolveEnd = res));
-    const flag = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('agent') : null;
-    this.wantLive = flag === '0' ? false : this.deps.agent || flag === '1';
-    this.deps.hud.setTalkMode(this.wantLive ? 'live' : 'off');
+    this.wantLive = false;
     this.cleanups.push(deps.engine.onUpdate((dt, elapsed) => this.tick(dt, elapsed)));
     this.bindKeys();
-    this.onFrame(() => {
-      if (this.wantLive && this.speechEnabled && this.sessionId && !this.liveAttempted && !this.agentLive) {
-        this.liveAttempted = true;
-        void this.toggleLive();
-      }
-    });
     this.cleanups.push(
       player.on('step', (s) => {
         const vol = 0.35 + Math.min(1, s.speed / 2.3) * 0.5;
@@ -412,7 +404,6 @@ export class SceneKit {
 
   async turn(req: TurnRequest, audio?: Blob | null): Promise<void> {
     if (this.ended || !this.sessionId) return;
-    if (this.deps.agent && (this.agentLive || this.wantLive)) req = { ...req, data: { ...req.data, agent: true } };
     const isSpeech = req.event === 'speech';
     const terminal = req.event === 'reached_home' || req.event === 'entered_shop' || req.event === 'scene_timeout';
     if (this.busy) {
@@ -495,13 +486,16 @@ export class SceneKit {
 
   refreshMic(): void {
     const { hud, mic } = this.deps;
+    if (this.speechEnabled && !this.ended && !this.handsFree) {
+      this.handsFree = true;
+      void mic.init().then(() => mic.watch(true));
+    }
     if (!this.speechEnabled) hud.setMic('hidden');
-    else if (this.agentLive) hud.setMic('live');
     else if (this.talkHeld) hud.setMic('recording', mic.level());
     else if (performance.now() < this.missedUntil) hud.setMic('missed');
     else if (this.busy && this.speechTurn) hud.setMic('thinking');
-    else hud.setMic(mic.available ? 'idle' : 'unavailable');
-    hud.setTalkMode(!this.speechEnabled ? 'off' : this.agentLive ? 'live' : 'push');
+    else hud.setMic('live');
+    hud.setTalkMode(this.speechEnabled ? 'live' : 'off');
   }
 
   private flashMissed(): void {
@@ -518,34 +512,14 @@ export class SceneKit {
 
     const down = (e: KeyboardEvent) => {
       if (this.ended || this.paused || isTypingTarget(e)) return;
-      if (e.code === 'Space') {
+      if (e.code === 'Space' || e.code === 'KeyL' || e.code === 'KeyH') {
         e.preventDefault();
-        if (this.agentLive) return;
-        const action = pushToTalkDown({ enabled: this.speechEnabled, held: this.talkHeld, available: mic.available });
-        if (e.repeat || action === 'ignore') return;
-        if (action === 'type') {
-          void this.typeInstead();
-          return;
-        }
-        this.beginTalk('ptt');
-      } else if (e.code === 'KeyT') {
+        return;
+      }
+      if (e.code === 'KeyT') {
         if (!this.speechEnabled || e.repeat) return;
         e.preventDefault();
         void this.typeInstead();
-      } else if (e.code === 'KeyL' && !e.repeat) {
-        e.preventDefault();
-        if (!this.speechEnabled) {
-          hud.hint(this.deps.agent ? 'Live voice starts once he approaches.' : 'Live voice needs ELEVENLABS_AGENT_ID on the server.', 4200);
-          return;
-        }
-        void this.toggleLive();
-      } else if (e.code === 'KeyH' && !e.repeat && this.speechEnabled && !this.agentLive) {
-        e.preventDefault();
-        this.handsFree = !this.handsFree;
-        mic.watch(this.handsFree);
-        this.loudMs = 0;
-        this.quietMs = 0;
-        hud.hint(this.handsFree ? 'Hands-free is on. Speak, or hold Space. H switches it off.' : 'Hands-free is off. Hold Space to speak.', 3200);
       } else if (!e.repeat) {
         this.onKey(e.code);
       }

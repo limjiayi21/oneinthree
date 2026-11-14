@@ -121,6 +121,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       return;
     }
     const hot = stance === 'hostile' || stance === 'intimidate' || stance === 'block';
+    if (hot && man.behaviour === 'closeIn' && d < 2.2) return;
     if (!hot && d < 2.5 && man.behaviour === 'followBehind') {
       pursuit = 'none';
       man.setBehaviour({
@@ -168,6 +169,12 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       case 'follow_behind':
         man.setBehaviour({ type: 'followBehind', target: toward, gap: Math.max(1.6, gap), speed: 2.9 });
         break;
+      case 'stalk':
+        man.setBehaviour({ type: 'followBehind', target: toward, gap: Math.max(3.2, gap), speed: 1.35 });
+        break;
+      case 'run_after':
+        man.setBehaviour({ type: 'followBehind', target: toward, gap: 1.15, speed: 3.2 });
+        break;
       case 'step_closer':
         man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(0.75, gap), speed: 1.3 });
         kit.after(0.5, () => involuntaryStepBack(0.55));
@@ -176,6 +183,17 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(0.75, gap), speed: 1.4 });
         man.human.playGesture('lean_in');
         kit.after(0.45, () => involuntaryStepBack(0.5));
+        break;
+      case 'pull_arm':
+        man.setBehaviour({ type: 'closeIn', target: toward, gap: 0.65, speed: 2.4 });
+        man.human.playGesture('reach');
+        kit.after(0.35, () => {
+          if (kit.ended || manGone || man.distanceTo(player.position) > 1.7) return;
+          player.pullToward(man.position, 0.8, 0.4);
+          player.freeze(0.35);
+          kit.scare(0.4);
+          if (kit.secondsSinceThought > 2) kit.think(pick(['w_close_1', 'w_close_2']));
+        });
         break;
       case 'block_path':
         man.setBehaviour({ type: 'block', target: toward, targetForward: towardFwd, gap: Math.max(1.0, gap) });
@@ -375,7 +393,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     // ambient beats on the way
     if (first('start') ) {
       kit.after(1.6, () => kit.think('w_start_1', { intensity: 0.1 }));
-      kit.after(2.2, () => hud.hint(kit.deps.agent ? 'W A S D to walk  ·  mouse to look  ·  Shift to hurry  ·  Live voice is on' : 'W A S D to walk  ·  mouse to look  ·  Shift to hurry', 7000));
+      kit.after(2.2, () => hud.hint('W A S D to walk  ·  mouse to look  ·  Shift to hurry  ·  then just speak', 7000));
     }
     if (pos.z < P.subwayExit.z - 7 && first('keys')) {
       audio.play('keys_jingle', { volume: 0.5 });
@@ -414,7 +432,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         kit.refreshMic();
         hud.objective('Get home.');
         kit.event('begin');
-        kit.after(3.5, () => hud.hint(kit.agentLive ? 'Live voice is on. Speak normally. L switches to holding Space.' : kit.deps.agent ? 'Live voice is starting. Speak once he is close. L switches modes.' : 'Hold SPACE to speak.  Or say nothing.', 8000));
+        kit.after(3.5, () => hud.hint('Live. Speak normally. He answers out loud.', 8000));
       }
     }
 

@@ -456,15 +456,17 @@ function actionFor(stance: ManStance, ph: Physical, rng: Rng): { action: ManActi
       if (ph.moving) return { action: 'walk_alongside', proximity: 1.4, delivery: ph.distance > 5 ? 'call_out' : 'normal' };
       return { action: ph.distance > 3 ? 'approach' : 'stay', proximity: 1.6, delivery: ph.distance > 5 ? 'call_out' : 'normal' };
     case 'follow':
-      return { action: 'follow_behind', proximity: 2.8, delivery: ph.distance > 4 ? 'call_out' : 'normal' };
+      if (ph.hurrying || ph.evading) return { action: 'run_after', proximity: 1.4, delivery: 'shout' };
+      if (ph.distance > 5) return { action: 'stalk', proximity: 3.4, delivery: 'low' };
+      return { action: 'follow_behind', proximity: 2.2, delivery: ph.distance > 4 ? 'call_out' : 'normal' };
     case 'block':
       return { action: 'block_path', proximity: 1.1, delivery: 'normal' };
     case 'hostile':
-      if (ph.distance > 2.4) return { action: 'follow_behind', proximity: 1.4, delivery: 'shout' };
+      if (ph.distance > 2.4 || ph.hurrying) return { action: 'run_after', proximity: 1.3, delivery: 'shout' };
       return { action: 'block_path', proximity: 1.0, delivery: 'normal' };
     case 'intimidate':
-      if (ph.distance > 1.8) return { action: 'follow_behind', proximity: 1.1, delivery: 'low' };
-      return { action: 'block_path', proximity: 0.9, delivery: 'low' };
+      if (ph.distance > 1.8) return { action: 'run_after', proximity: 1.0, delivery: 'low' };
+      return { action: 'pull_arm', proximity: 0.7, delivery: 'low' };
     case 'back_off':
       return { action: 'back_away', proximity: 3, delivery: ph.far || ph.hurrying ? 'shout' : 'normal' };
     case 'gone':

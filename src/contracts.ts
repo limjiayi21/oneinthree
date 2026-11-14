@@ -143,6 +143,8 @@ export interface Player {
   flinch(from: THREE.Vector3, strength?: number): void;
   /** A deliberate, forced step (or two) back from `from`, over `duration` seconds. */
   stepBack(from: THREE.Vector3, distance?: number, duration?: number): void;
+  /** Pull her a step toward `to` (a hand on the arm). Not a depicted assault. */
+  pullToward(to: THREE.Vector3, distance?: number, duration?: number): void;
   /** Whole-body jump: vertical jolt, shoulders up, breath caught. strength 0..1 */
   startle(strength?: number): void;
   /** Pulls the gaze toward a point for `duration` seconds (a nervous glance), then releases. */

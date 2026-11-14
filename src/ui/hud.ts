@@ -135,7 +135,7 @@ export function createHud(root: HTMLElement): Hud {
       h('span', { class: 'oit-mic-r' }),
     ),
     h('div', { class: 'oit-mic-face', 'data-face': 'missed' }, h('span', { class: 'oit-mic-l' }), h('span', null, "Didn't catch that"), h('span', { class: 'oit-mic-r' })),
-    h('div', { class: 'oit-mic-face', 'data-face': 'live' }, h('span', { class: 'oit-mic-l' }, 'Live voice'), h('span', null, 'Listening…'), h('span', { class: 'oit-mic-r' }, 'L to stop')),
+    h('div', { class: 'oit-mic-face', 'data-face': 'live' }, h('span', { class: 'oit-mic-l' }, 'Live'), h('span', null, 'Speak normally'), h('span', { class: 'oit-mic-r' })),
     h('div', { class: 'oit-mic-face', 'data-face': 'unavailable' }, h('span', { class: 'oit-mic-l' }, 'Press'), keycap('T'), h('span', { class: 'oit-mic-r' }, 'to type instead')),
   );
   const partialEl = h('p', { class: 'oit-mic-partial' });

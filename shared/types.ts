@@ -44,9 +44,12 @@ export type ManAction =
   | 'approach'
   | 'walk_alongside'
   | 'follow_behind'
+  | 'stalk' // trails her without closing, watching
+  | 'run_after' // hurries to catch her
   | 'step_closer'
   | 'block_path'
   | 'lean_in'
+  | 'pull_arm' // yanks her back a step. Not a depicted assault.
   | 'back_away'
   | 'leave'
   | 'turn_on_bystander' // bystander POV: he squares up to the player instead
