@@ -295,5 +295,4 @@ export const API = {
   turn: (id: string) => `/api/session/${id}/turn`,
   summary: (id: string) => `/api/session/${id}/summary`,
   guided: (id: string) => `/api/session/${id}/guided`,
-  filmGuess: '/api/film/guess',
 } as const;

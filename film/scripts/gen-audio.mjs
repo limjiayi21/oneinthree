@@ -45,6 +45,20 @@ const NARRATION = [
   'But sometimes, someone is there.',
 ];
 
+/**
+ * The 30 s film's spoken stats and closing hook, in the chosen (female) voice
+ * only. Short spoken forms of content/evidence.json entries; the full wording
+ * and the source stay on screen.
+ */
+const FILM_LINES = [
+  { name: 'stat-66', text: 'Sixty-six percent of women in the US have been sexually harassed in public.' }, // ssh2018_public_66
+  { name: 'stat-44', text: 'In the UK, forty-four percent of women hold their keys ready to defend themselves.' }, // yougov_keys_44 (UK survey)
+  { name: 'stat-34', text: 'More than one in three women in the US have been followed.' }, // ssh2018_followed_34
+  { name: 'stat-25', text: 'Only twenty-five percent of people harassed in public say someone helped.' }, // loreal_helped_25
+  { name: 'hook', text: 'This time, you’re the one. What would you do?' },
+];
+const FILM_VOICE = 'female';
+
 const SFX = [
   { name: 'footsteps', prompt: 'Footsteps on wet pavement at night, steady walking pace, close to the listener', seconds: 10 },
   { name: 'follower', prompt: 'A second set of heavier footsteps on wet pavement, approaching slowly from behind', seconds: 10 },
@@ -66,6 +80,15 @@ const jobs = [
     url: `https://api.elevenlabs.io/v1/text-to-speech/${v.id}?output_format=${TTS_OUTPUT_FORMAT}`,
     body: { text: `${TAG} ${text}`, model_id: TTS_RENDER_MODEL, voice_settings: SETTINGS },
   }))),
+  ...FILM_LINES.map((l) => {
+    const v = NARRATORS.find((n) => n.suffix === FILM_VOICE);
+    return {
+      name: `narration-${l.name}-${v.suffix}`,
+      file: `narration-${l.name}-${v.suffix}.mp3`,
+      url: `https://api.elevenlabs.io/v1/text-to-speech/${v.id}?output_format=${TTS_OUTPUT_FORMAT}`,
+      body: { text: `${TAG} ${l.text}`, model_id: TTS_RENDER_MODEL, voice_settings: SETTINGS },
+    };
+  }),
   ...SFX.map((s) => ({
     name: `sfx-${s.name}`,
     file: `sfx-${s.name}.mp3`,

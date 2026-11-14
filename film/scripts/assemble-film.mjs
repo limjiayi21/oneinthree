@@ -3,21 +3,26 @@
  * Assembles the 30 s Part 1 film from the prepared assets. No API calls.
  * Needs ffmpeg and Google Chrome (headless, to render the text cards).
  *
- *   node film/scripts/assemble-film.mjs
+ *   node film/scripts/assemble-film.mjs              build everything
+ *   node film/scripts/assemble-film.mjs --vtt-only   only write the text track
  *
- * Inputs (film/assets/, not in git): video/A-veo.mp4, edit/B.mp4, edit/C.mp4,
- * edit/E.mp4, montage-5s.wav (built by build-montage.mjs --profile short),
- * narration-1-female.mp3, narration-3-female.mp3, music.mp3 and the sfx-*.mp3.
+ * Inputs (film/assets/, not in git): video/A-veo.mp4, video/C-veo.mp4,
+ * edit/B.mp4, edit/D.mp4, edit/E.mp4, montage-5s.wav (build-montage.mjs
+ * --profile short), the narration-*-female.mp3 lines, music.mp3, sfx-*.mp3.
  *
  * Outputs:
  *   film/assets/part1-film-master.mp4   1280x720, 24 fps, high quality
  *   public/film/part1-film.mp4          H.264 crf 26, AAC 128k, +faststart
- *   film/assets/check/still-09s.png, still-21s.png, still-28s.png
- *   film/assets/build/                  text cards and the audio mix
+ *   public/film/part1-film.vtt          the on-screen words, for screen readers
+ *   film/assets/check/still-*.png       a still from the middle of each shot
+ *   film/assets/build/                  text cards, trimmed narration, the mix
  *
- * The timeline lives in SCENES, AUDIO and CARDS below. Stats are read from
- * content/evidence.json by id; the source line is the publisher (up to any
- * bracket or "via") and the source's year.
+ * The film is narrated end to end, so the timeline is worked out from the
+ * narration (see plan()): each line is trimmed of silence and sped up by
+ * TEMPO, the lines run back to back with GAP between them, and every shot,
+ * text card and sound effect is placed around the line it belongs to.
+ * Stats are read from content/evidence.json by id; the on-screen source line
+ * is the publisher (up to any bracket or "via") and the source's year.
  *
  * ffmpeg here has no drawtext/libass, so each text card is rendered to a
  * transparent 1280x720 PNG by headless Chrome (with the game's fonts and
@@ -35,66 +40,120 @@ const fontsDir = A('fonts');
 const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const W = 1280, H = 720, FPS = 24, LENGTH = 30, XF = 0.3, FADE_OUT = 1.5;
 
-// ---------------------------------------------------------------- timeline
+// ---------------------------------------------------------------- the script
+
+/** Narration speed-up (pitch kept) so every line fits in 30 s, and the pause between lines. */
+const TEMPO = 1.13;
+const GAP = 0.16;
+/** When the first line starts (the montage cuts to silence at 4.8 s), and the latest the last may end. */
+const NARRATION_START = 5.1;
+const NARRATION_END_BY = 29.6;
 
 /**
- * Picture. Each scene after the first starts with a XF crossfade at `at`, so
- * every scene but the last runs XF longer than its slot.
+ * The film, line by line. shot: the clip under the line (a shot runs until the
+ * next line that names a different one). card: the on-screen text for it.
+ * Shots: file, where to start in it, and maxSource (seconds of the source that
+ * may be used; a longer slot is slowed to fit).
  */
-const SCENES = [
-  { name: 'black', at: 0, slot: 5 },
-  { name: 'A', at: 5, slot: 6, file: 'video/A-veo.mp4', from: 0 }, // original clip, normal speed
-  { name: 'B', at: 11, slot: 6, file: 'edit/B.mp4', from: 0 },
-  { name: 'C', at: 17, slot: 6, file: 'edit/C.mp4', from: 0 },
-  { name: 'E', at: 23, slot: 7, file: 'edit/E.mp4', from: 0 },
+const SHOTS = {
+  A: { file: 'video/A-veo.mp4', from: 0, maxSource: 6 }, // the walk, original speed (it brightens after 6 s)
+  D: { file: 'edit/D.mp4', from: 0 }, // the empty street, rain
+  B: { file: 'edit/B.mp4', from: 0 }, // keys (the calm 4 s of the clip, slowed)
+  C: { file: 'video/C-veo.mp4', from: 0, maxSource: 3 }, // the shadow; after 3 s the light cuts out and strobes
+  E: { file: 'edit/E.mp4', from: 0 }, // from across the road (the road stays visible)
+};
+const LINES = [
+  { file: 'narration-1-female.mp3', shot: 'A', card: { kind: 'caption', text: 'For you, that was a simulation. For many women, it’s an ordinary walk home.' } },
+  { file: 'narration-stat-66-female.mp3', shot: 'D', card: { kind: 'stat', id: 'ssh2018_public_66' } },
+  { file: 'narration-stat-44-female.mp3', shot: 'B', card: { kind: 'stat', id: 'yougov_keys_44' } },
+  { file: 'narration-stat-34-female.mp3', shot: 'C', card: { kind: 'stat', id: 'ssh2018_followed_34' } },
+  { file: 'narration-stat-25-female.mp3', shot: 'E', card: { kind: 'stat', id: 'loreal_helped_25' } },
+  { file: 'narration-hook-female.mp3', shot: 'E', card: { kind: 'closing', text: 'This time, you’re the one. What would you do?' } },
 ];
 
 /** Target loudness (LUFS) of each source before mixing, as measured with ebur128. */
 const NARRATION_LUFS = -16;
 const MUSIC_BELOW = 20; // dB under the narration
 
-/**
- * Sound. at/until are film times; from is the start inside the source; loop
- * repeats a short source. lufs sets the level; ramp multiplies the gain
- * linearly from ramp[0] to ramp[1] over the layer (amplitude); fadeIn/fadeOut
- * in seconds. Everything also fades with the picture over the last 1.5 s.
- */
-const AUDIO = [
-  { file: 'montage-5s.wav', at: 0, until: 5, keep: true }, // already mixed and cut at 4.8 s
-  { file: 'sfx-footsteps.mp3', at: 5, until: 17 + XF, loop: true, lufs: -29, fadeIn: XF, fadeOut: XF },
-  { file: 'sfx-ambience.mp3', at: 5, until: LENGTH, loop: true, lufs: -34, fadeIn: XF },
-  { file: 'narration-1-female.mp3', at: 5.5, lufs: NARRATION_LUFS },
-  { file: 'sfx-keys.mp3', at: 11, until: 17, lufs: -27, fadeIn: 0.15, fadeOut: XF },
-  { file: 'sfx-follower.mp3', at: 17, until: 23 + XF, from: 3.7, lufs: -27, ramp: [0.45, 1], fadeIn: XF, fadeOut: XF },
-  { file: 'sfx-heartbeat.mp3', at: 17, until: 23.5, from: 8.5, lufs: -24, ramp: [0.4, 1], fadeIn: XF, fadeOut: 0.5 }, // the faster end
-  { file: 'narration-3-female.mp3', at: 24, lufs: NARRATION_LUFS },
-  { file: 'music.mp3', at: 5, until: LENGTH, from: 0, lufs: NARRATION_LUFS - MUSIC_BELOW, rise: { from: 23, to: 25, db: 4 }, fadeIn: 0.5 },
-];
-
-/** Bands: soft dark band across the lower third while any lower-third text is up. */
-const BANDS = [
-  [6, 11],
-  [12, 17],
-  [20, 27],
-];
-
-/** Text. kind: caption (bottom), stat (above the caption slot), closing (centred, larger). */
-const CARDS = [
-  { kind: 'caption', at: 6, until: 11, text: 'For you, that was a simulation. For many women, it\u2019s an ordinary walk home.' },
-  { kind: 'stat', at: 8, until: 11, id: 'ssh2018_public_66' },
-  { kind: 'stat', at: 12, until: 17, id: 'yougov_keys_44' },
-  { kind: 'stat', at: 20, until: 23, id: 'ssh2018_followed_34' }, // the game adds "You guessed N" beside this one
-  { kind: 'stat', at: 23, until: 27, id: 'loreal_helped_25' },
-  { kind: 'caption', at: 24, until: 27, text: 'But sometimes, someone is there.' },
-  { kind: 'closing', at: 27, until: LENGTH, text: 'Next: you\u2019re the one watching.' },
-];
+/** Filled in by plan(). */
+let SCENES = [];
+let AUDIO = [];
+let CARDS = [];
+let BANDS = [];
+let TIMES = [];
 
 /**
- * Layout in pixels of the 1280x720 frame, shared with the game overlay (which
- * places "You guessed N" to the right of the stat block): the stat block's top
- * edge and its maximum width.
+ * Layout in pixels of the 1280x720 frame: side margin, the stat block's top
+ * edge and maximum width, and the caption's distance from the bottom.
  */
 export const LAYOUT = { side: 96, statTop: 448, statMaxWidth: 700, captionBottom: 46 };
+
+/** Trim a narration line's leading and trailing silence and speed it up; returns the new file and its length. */
+function prepareLine(file) {
+  const out = resolve(build, `vo-${file.replace(/\.mp3$/, '')}.wav`);
+  const trim = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.03';
+  ff(['-i', A(file), '-af', `${trim},areverse,${trim},areverse,atempo=${TEMPO}`, '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s24le', out]);
+  const dur = Number(sh('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', out]).toString().trim());
+  return { out, dur };
+}
+
+/** Lay the narration end to end, then hang the shots, cards, bands and sound off it. */
+function plan() {
+  let t = NARRATION_START;
+  TIMES = LINES.map((l) => {
+    const { out, dur } = prepareLine(l.file);
+    const at = t;
+    t = at + dur + GAP;
+    return { ...l, wav: out, at, until: at + dur, dur };
+  });
+  const last = TIMES[TIMES.length - 1];
+  if (last.until > NARRATION_END_BY) throw new Error(`narration ends at ${last.until.toFixed(2)} s, after ${NARRATION_END_BY} s: raise TEMPO or shorten a line`);
+
+  // Shots: black under the montage, then a cut 0.1 s before the first line of each new shot.
+  SCENES = [{ name: 'black', at: 0, slot: 5 }];
+  for (const l of TIMES) {
+    if (SCENES[SCENES.length - 1].name === l.shot) continue;
+    const at = SCENES.length === 1 ? 5 : Math.round((l.at - 0.1) * FPS) / FPS;
+    SCENES.push({ name: l.shot, at, ...SHOTS[l.shot] });
+  }
+  SCENES.forEach((s, i) => (s.slot = (i + 1 < SCENES.length ? SCENES[i + 1].at : LENGTH) - s.at));
+
+  // Cards: each with its line. Stats hold until just after the line; the closing holds to the end.
+  CARDS = TIMES.map((l) => {
+    const scene = [...SCENES].reverse().find((s) => s.at <= l.at);
+    const sceneEnd = scene.at + scene.slot;
+    if (l.card.kind === 'closing') return { ...l.card, at: l.at - 0.2, until: LENGTH };
+    return { ...l.card, at: Math.max(scene.at + 0.15, l.at - 0.1), until: Math.min(sceneEnd, l.until + 0.45) };
+  });
+  // Bands under the lower-third cards, merged where they touch.
+  BANDS = [];
+  for (const c of CARDS.filter((c) => c.kind !== 'closing')) {
+    const prev = BANDS[BANDS.length - 1];
+    if (prev && c.at - prev[1] < 0.6) prev[1] = Math.max(prev[1], c.until);
+    else BANDS.push([c.at, c.until]);
+  }
+
+  const span = (name) => {
+    const s = SCENES.find((x) => x.name === name);
+    return [s.at, s.at + s.slot];
+  };
+  const [aAt] = span('A');
+  const [, dEnd] = span('D');
+  const [bAt, bEnd] = span('B');
+  const [cAt, cEnd] = span('C');
+  const [eAt] = span('E');
+  AUDIO = [
+    { file: 'montage-5s.wav', at: 0, until: 5, keep: true }, // already mixed and cut at 4.8 s
+    { file: 'sfx-ambience.mp3', at: aAt, until: LENGTH, loop: true, lufs: -34, fadeIn: XF },
+    { file: 'sfx-footsteps.mp3', at: aAt, until: bEnd + XF, loop: true, lufs: -30, fadeIn: XF, fadeOut: XF }, // her steps: the walk, the street, the keys
+    { file: 'sfx-keys.mp3', at: bAt, until: Math.min(bEnd, bAt + 6), lufs: -28, fadeIn: 0.15, fadeOut: XF },
+    { file: 'sfx-follower.mp3', at: cAt - 0.4, until: cEnd + XF, from: 10 - (cEnd + XF - cAt + 0.4), lufs: -28, ramp: [0.5, 1], fadeIn: 0.4, fadeOut: XF }, // the closest seconds
+    { file: 'sfx-heartbeat.mp3', at: cAt - 0.4, until: cEnd + 0.8, from: 15 - (cEnd + 0.8 - cAt + 0.4), lufs: -25, ramp: [0.5, 1], fadeIn: 0.4, fadeOut: 0.8 }, // the faster end
+    { file: 'music.mp3', at: aAt, until: LENGTH, from: 0, lufs: NARRATION_LUFS - MUSIC_BELOW, rise: { from: eAt, to: eAt + 2, db: 4 }, fadeIn: 0.5 },
+    ...TIMES.map((l) => ({ wav: l.wav, at: l.at, lufs: NARRATION_LUFS })),
+  ];
+  void dEnd;
+}
 
 // ---------------------------------------------------------------- helpers
 
@@ -193,7 +252,7 @@ function buildAudio() {
   const inputs = [];
   const filters = [];
   AUDIO.forEach((l, i) => {
-    const file = A(l.file);
+    const file = l.wav ?? A(l.file);
     if (!existsSync(file)) throw new Error(`missing ${file}`);
     if (l.loop) inputs.push('-stream_loop', '-1');
     inputs.push('-i', file);
@@ -217,10 +276,12 @@ function buildAudio() {
     chain.push(`adelay=${Math.round(l.at * 1000)}:all=1`);
     filters.push(`[${i}:a]${chain.join(',')}[a${i}]`);
   });
-  filters.push(
-    `${AUDIO.map((_, i) => `[a${i}]`).join('')}amix=inputs=${AUDIO.length}:normalize=0:duration=longest,` +
-      `atrim=0:${LENGTH},apad=whole_dur=${LENGTH},afade=t=out:st=${LENGTH - FADE_OUT}:d=${FADE_OUT}[mix]`,
-  );
+  // Music and effects fade out with the picture; the narration (the closing hook) is left whole.
+  const bed = AUDIO.map((l, i) => (l.wav ? null : `[a${i}]`)).filter(Boolean);
+  const voice = AUDIO.map((l, i) => (l.wav ? `[a${i}]` : null)).filter(Boolean);
+  filters.push(`${bed.join('')}amix=inputs=${bed.length}:normalize=0:duration=longest,atrim=0:${LENGTH},apad=whole_dur=${LENGTH},afade=t=out:st=${LENGTH - FADE_OUT}:d=${FADE_OUT}[bed]`);
+  filters.push(`${voice.join('')}amix=inputs=${voice.length}:normalize=0:duration=longest,apad=whole_dur=${LENGTH},atrim=0:${LENGTH}[voice]`);
+  filters.push('[bed][voice]amix=inputs=2:normalize=0:duration=first[mix]');
   const raw = resolve(build, 'mix-raw.wav');
   ff([...inputs, '-filter_complex', filters.join(';'), '-map', '[mix]', '-t', String(LENGTH), '-c:a', 'pcm_s24le', raw]);
   // Bring the whole mix to -16 LUFS with a -1 dBFS ceiling.
@@ -246,7 +307,11 @@ function buildFilm(mixWav) {
       if (!existsSync(file)) throw new Error(`missing ${file}`);
       inputs.push('-i', file);
     }
-    f.push(`[${n}:v]trim=start=${s.from ?? 0}:duration=${dur},setpts=PTS-STARTPTS,fps=${FPS},scale=${W}:${H},setsar=1,format=yuv420p,settb=AVTB[s${i}]`);
+    // A shot allowed only maxSource seconds of its clip is slowed (frames held) to fill a longer slot.
+    const source = s.maxSource && dur > s.maxSource ? s.maxSource : dur;
+    const stretch = dur / source;
+    f.push(`[${n}:v]trim=start=${s.from ?? 0}:duration=${source.toFixed(3)},setpts=(PTS-STARTPTS)*${stretch.toFixed(4)},fps=${FPS},scale=${W}:${H},setsar=1,format=yuv420p,settb=AVTB[s${i}]`);
+    s.stretch = stretch;
     n++;
   });
   let prev = 's0';
@@ -282,10 +347,9 @@ function buildFilm(mixWav) {
 // ---------------------------------------------------------------- text track
 
 /**
- * public/film/part1-film.vtt: the same words as the burned-in text (plus a
- * description of the montage), so the game can read them to screen readers.
- * The captions repeat the narration word for word, so they double as the
- * transcript of what is said.
+ * public/film/part1-film.vtt: the on-screen words with a description of the
+ * montage, so the game can read them to screen readers (the narration says
+ * a short form of each stat; the cue carries the full wording and source).
  */
 function writeVtt() {
   const ts = (s) => {
@@ -313,6 +377,10 @@ function writeVtt() {
 // ---------------------------------------------------------------- run
 
 mkdirSync(build, { recursive: true });
+plan();
+console.log('narration:');
+for (const l of TIMES) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
+console.log(`shots: ${SCENES.map((s) => `${s.name} ${s.at.toFixed(2)}-${(s.at + s.slot).toFixed(2)}`).join(', ')}`);
 console.log(`text track -> ${writeVtt()}`);
 if (process.argv.includes('--vtt-only')) process.exit(0);
 if (!existsSync(A('montage-5s.wav'))) {
@@ -333,7 +401,12 @@ ff(['-i', master, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-profile:
 
 const check = A('check');
 mkdirSync(check, { recursive: true });
-for (const t of [9, 21, 28]) ff(['-ss', String(t), '-i', master, '-frames:v', '1', resolve(check, `still-${String(t).padStart(2, '0')}s.png`)]);
+for (const s of SCENES.slice(1)) {
+  // A still from the middle of each shot, plus the closing line.
+  const t = s.name === 'E' ? LENGTH - 2 : s.at + s.slot / 2;
+  ff(['-ss', t.toFixed(2), '-i', master, '-frames:v', '1', resolve(check, `still-${s.name}-${t.toFixed(1)}s.png`)]);
+}
+console.log(`shot stretch: ${SCENES.slice(1).map((s) => `${s.name} x${(s.stretch ?? 1).toFixed(2)}`).join(', ')}`);
 
 const mb = (p) => (statSync(p).size / 1e6).toFixed(2);
 console.log(`master ${mb(master)} MB -> ${master}`);

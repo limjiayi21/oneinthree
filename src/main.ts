@@ -4,7 +4,7 @@ import { createAudio } from './audio/engine';
 import { createMic } from './audio/mic';
 import { createHud } from './ui/hud';
 import { createScreens } from './ui/screens';
-import { getHealth, getSummary, postFilmGuess, postGuided } from './net/api';
+import { getHealth, getSummary, postGuided } from './net/api';
 import { FILM } from './ui/film';
 import { createPhoneLink } from './net/phoneLink';
 import { runWomanWalkHome } from './scenarios/womanWalkHome';
@@ -152,7 +152,7 @@ async function main(): Promise<void> {
     // The film replaces Part 1's debrief in the main flow (?skip=film leaves it out).
     if (!exited && !skip.has('film')) {
       audio.stopAmbience(0.6);
-      await screens.film({ src: FILM.src, track: FILM.track, onGuess: (guess) => void postFilmGuess(guess) });
+      await screens.film({ src: FILM.src, track: FILM.track });
     }
 
     if (!exited && !skip.has('part2')) {

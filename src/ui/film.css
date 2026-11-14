@@ -1,17 +1,16 @@
 /*
- * The Part 1 film: content note, full-screen player on black, the one
- * question, and the player's guess beside the burned-in answer.
+ * The Part 1 film: content note and full-screen player on black.
  * Uses the shared tokens in base.css.
  */
 
-.oit-film {
+.oit-reel {
   background: #000;
   overflow: hidden;
 }
 
 /* ------------------------------------------------------------ content note */
 
-.oit-film-note {
+.oit-reel-note {
   position: absolute;
   inset: 0;
   display: flex;
@@ -23,10 +22,10 @@
   text-align: center;
   cursor: default;
 }
-.oit-film[data-ready='true'] .oit-film-note {
+.oit-reel[data-ready='true'] .oit-reel-note {
   cursor: pointer;
 }
-.oit-film-note-text {
+.oit-reel-note-text {
   margin: 0;
   display: flex;
   flex-direction: column;
@@ -35,10 +34,10 @@
   font: 300 clamp(28px, 3.2vw, 44px)/1.2 var(--oit-serif);
   outline: none;
 }
-.oit-film-note-text span + span {
+.oit-reel-note-text span + span {
   color: var(--oit-ink-2);
 }
-.oit-film-note-go {
+.oit-reel-note-go {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -46,10 +45,10 @@
   opacity: 0;
   transition: opacity 0.6s var(--oit-ease);
 }
-.oit-film[data-ready='true'] .oit-film-note-go {
+.oit-reel[data-ready='true'] .oit-reel-note-go {
   opacity: 1;
 }
-.oit-film-hint {
+.oit-reel-hint {
   margin: 0;
   color: var(--oit-ink-3);
   font: 400 13px/1.4 var(--oit-sans);
@@ -57,15 +56,15 @@
 
 /* ------------------------------------------------------------------ player */
 
-.oit-film-player {
+.oit-reel-player {
   position: absolute;
   inset: 0;
   outline: none;
 }
-.oit-film-player[hidden] {
+.oit-reel-player[hidden] {
   display: none;
 }
-.oit-film-video {
+.oit-reel-video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -74,43 +73,13 @@
   background: #000;
   display: block;
 }
-.oit-film-video::-webkit-media-controls {
+.oit-reel-video::-webkit-media-controls {
   display: none !important;
-}
-
-/* The film's own 1280x720 frame; JS sets its box and --u (one film pixel). */
-.oit-film-frame {
-  position: absolute;
-  pointer-events: none;
-  --u: 1px;
-}
-.oit-film-guess {
-  position: absolute;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 14);
-  color: var(--oit-you);
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.oit-film-guess.is-on {
-  opacity: 1;
-}
-.oit-film-guess-k {
-  font: 500 calc(var(--u) * 15) / 1 var(--oit-sans);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.oit-film-guess-n {
-  font: 300 calc(var(--u) * 50) / 1 var(--oit-serif);
-  font-variant-numeric: lining-nums proportional-nums;
 }
 
 /* ------------------------------------------------------------ skip, pause */
 
-.oit-film-skip {
+.oit-reel-skip {
   position: absolute;
   top: 20px;
   right: 20px;
@@ -126,18 +95,18 @@
   opacity: 0.6;
   transition: opacity 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
-.oit-film-skip:hover,
-.oit-film-skip:focus-visible {
+.oit-reel-skip:hover,
+.oit-reel-skip:focus-visible {
   opacity: 1;
   color: var(--oit-ink);
   border-color: var(--oit-line-2);
 }
-.oit-film-skip:focus-visible {
+.oit-reel-skip:focus-visible {
   outline: 2px solid var(--oit-accent);
   outline-offset: 3px;
 }
 
-.oit-film-paused {
+.oit-reel-paused {
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -148,91 +117,25 @@
   gap: 16px;
   background: rgba(0, 0, 0, 0.55);
 }
-.oit-film-paused[hidden] {
+.oit-reel-paused[hidden] {
   display: none;
 }
-.oit-film-paused-title {
+.oit-reel-paused-title {
   margin: 0;
   color: var(--oit-ink);
   font: 300 36px/1 var(--oit-serif);
 }
 
-/* ---------------------------------------------------------------- question */
-
-.oit-film-question {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 2;
-  transform: translate(-50%, -50%);
-  width: min(560px, calc(100% - 48px));
-  padding: 32px 32px 28px;
-  border: 1px solid var(--oit-line);
-  border-radius: 6px;
-  background: rgba(7, 8, 11, 0.9);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
-  animation: oit-film-in 0.3s ease both;
-}
-.oit-film-question[hidden] {
-  display: none;
-}
-.oit-film-q {
-  margin: 0 0 28px;
-  color: var(--oit-ink);
-  font: 400 clamp(22px, 2.2vw, 28px)/1.25 var(--oit-serif);
-  text-wrap: balance;
-}
-.oit-film-range-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.oit-film-range-end {
-  color: var(--oit-ink-3);
-  font: 400 12px/1 var(--oit-sans);
-  font-variant-numeric: tabular-nums;
-}
-.oit-film-range {
-  flex: 1;
-  accent-color: var(--oit-you);
-  height: 28px;
-  cursor: pointer;
-}
-.oit-film-range:focus-visible {
-  outline: 2px solid var(--oit-accent);
-  outline-offset: 4px;
-}
-.oit-film-q-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 22px;
-}
-.oit-film-value {
-  color: var(--oit-you);
-  font: 300 48px/1 var(--oit-serif);
-  font-variant-numeric: lining-nums tabular-nums;
-}
-
-@keyframes oit-film-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 /* ---------------------------------------------------------- reduced motion */
 
-.oit-film.is-calm,
-.oit-film.is-calm * {
+.oit-reel.is-calm,
+.oit-reel.is-calm * {
   transition: none !important;
   animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  .oit-film,
-  .oit-film * {
+  .oit-reel,
+  .oit-reel * {
     transition: none !important;
     animation: none !important;
   }

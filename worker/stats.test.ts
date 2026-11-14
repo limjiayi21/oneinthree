@@ -2,8 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ClientEventType } from '../shared/types';
 import type { LogEntry } from './log';
-import { FILM_ANSWER, aggregate, aggregateFilmGuesses, cleanFilmGuess, cleanGuidedChoices, codeMatches, tacticsFromLog } from './stats';
-import evidence from '../content/evidence.json';
+import { aggregate, cleanGuidedChoices, codeMatches, tacticsFromLog } from './stats';
 
 const player = (event: ClientEventType, tactic?: string, text?: string): LogEntry => ({
   kind: 'player',
@@ -85,43 +84,6 @@ describe('aggregate', () => {
     const stats = aggregate([{ tactics: '[]', outcome: 'intervened_he_left', ...none, guided_m1: 'm1_distract', guided_m2: 'm2_delegate', guided_m3: 'm3_delay' }]);
     expect(stats.guidedFirstChoice).toEqual({ m1: {}, m2: {}, m3: {}, m4: {}, m5: {} });
     expect(stats.guidedCompleted).toBe(0);
-  });
-});
-
-describe('cleanFilmGuess', () => {
-  it('accepts whole numbers from 0 to 100 and nothing else', () => {
-    for (const ok of [0, 1, 34, 99, 100]) expect(cleanFilmGuess(ok)).toBe(ok);
-    for (const bad of [-1, 101, 34.5, Number.NaN, Number.POSITIVE_INFINITY, '34', null, undefined, {}, [34], true]) expect(cleanFilmGuess(bad)).toBeNull();
-  });
-});
-
-describe('aggregateFilmGuesses', () => {
-  it('counts, averages and bands the guesses against the answer', () => {
-    const stats = aggregateFilmGuesses([10, 34, 50, 90, 100, 20]);
-    expect(stats.count).toBe(6);
-    expect(stats.mean).toBe(50.7);
-    expect(stats.median).toBe(42);
-    expect(stats.answer).toBe(FILM_ANSWER);
-    expect([stats.below, stats.exact, stats.above]).toEqual([2, 1, 3]);
-    expect(stats.byTen['10-19']).toBe(1);
-    expect(stats.byTen['30-39']).toBe(1);
-    expect(stats.byTen['90-100']).toBe(2);
-    expect(Object.keys(stats.byTen)).toHaveLength(10);
-  });
-
-  it('ignores values that are not valid guesses and handles no data', () => {
-    const empty = aggregateFilmGuesses([]);
-    expect(empty).toMatchObject({ count: 0, mean: null, median: null, below: 0, exact: 0, above: 0 });
-    expect(aggregateFilmGuesses([-5, 200, 'x', 40]).count).toBe(1);
-  });
-
-  it('the answer matches the stat shown in the film', () => {
-    const stat = (evidence as { stats: Array<{ id: string; text: string }> }).stats.find((s) => s.id === 'ssh2018_followed_34');
-    expect(stat?.text).toContain(`(${FILM_ANSWER}%)`);
-  });
-
-  it('aggregate leaves film guesses for readStats to fill in', () => {
-    expect(aggregate([]).filmGuesses).toBeNull();
   });
 });
 

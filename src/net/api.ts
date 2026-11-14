@@ -55,23 +55,6 @@ export async function postGuided(sessionId: string, choices: Record<string, stri
 }
 
 /**
- * Record the player's guess from the Part 1 film question, for aggregate
- * counts. A whole number 0-100 only, not linked to the session. Best effort.
- */
-export async function postFilmGuess(guess: number): Promise<void> {
-  try {
-    await fetch(API.filmGuess, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ guess }),
-      keepalive: true,
-    });
-  } catch {
-    /* logging must never get in the way */
-  }
-}
-
-/**
  * Send one turn and yield the server's events as they arrive. If `audio` is
  * given the request goes as multipart (meta + clip); otherwise as JSON.
  * Never throws: transport failures surface as a final `error` event.

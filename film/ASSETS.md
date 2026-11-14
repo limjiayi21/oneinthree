@@ -50,6 +50,21 @@ Lines: (1) "For you, that was a simulation. For many women, it's an ordinary wal
 home." (2) "Most of it happens when no one else is around. So most men never see
 it." (3) "But sometimes, someone is there."
 
+### Film narration (spoken stats and closing hook)
+
+Same voice (Matilda), model, settings and tag as above; made by
+`film/scripts/gen-audio.mjs`. In the film each line is trimmed of silence and
+sped up 13% by `assemble-film.mjs`. Lines 2 and 3 of the original script
+(`narration-2/3-*`) are no longer used.
+
+| File | Line | Length | Credits |
+|---|---|---|---|
+| `narration-stat-66-female.mp3` | Sixty-six percent of women in the US have been sexually harassed in public. | 5.0 s | 45 |
+| `narration-stat-44-female.mp3` | In the UK, forty-four percent of women hold their keys ready to defend themselves. | 5.6 s | 48 |
+| `narration-stat-34-female.mp3` | More than one in three women in the US have been followed. | 4.0 s | 37 |
+| `narration-stat-25-female.mp3` | Only twenty-five percent of people harassed in public say someone helped. | 4.6 s | 44 |
+| `narration-hook-female.mp3` | This time, you're the one. What would you do? | 3.4 s | 31 |
+
 ## Sound effects
 
 Script: `film/scripts/gen-audio.mjs`. Model `eleven_text_to_sound_v3`, prompt
@@ -174,7 +189,17 @@ All clips are 1280×720, 24 fps, 8.0 s, no audio. Notes from checking frames at
 | Narration (6 lines) | 226 |
 | Sound effects (5) | 739 |
 | Music | ~1,212 |
-| **Total** | **81,807** |
+| Film narration (5 lines) | 205 |
+| **Total** | **82,012** |
 
 Per-item image figures are averages: the account's credit counter updates late,
 so individual readings in the log show 0 or double. Totals are from the counter.
+
+## The finished film
+
+`public/film/part1-film.mp4` (in git) and `film/assets/part1-film-master.mp4`,
+built by `film/scripts/assemble-film.mjs`; see `PART1_FILM_SUMMARY.md` for the
+timeline. Shots used: A (original clip, 0–5.3 s), D, B, C (first 3 s only,
+slowed 1.18×: after that its light cuts out and strobes), E. The 5 s montage
+is `montage-5s.wav` (`build-montage.mjs --profile short`).
+
