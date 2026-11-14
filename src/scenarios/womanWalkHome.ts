@@ -204,11 +204,12 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     });
   }
 
-  function onLine(text: string, url: string, speaker: 'man' | 'woman' | 'clerk'): void {
+  function onLine(text: string, url: string, speaker: 'man' | 'woman' | 'clerk', emotion: ManDecision['emotion']): void {
     const seq = ++speechSeq;
     cancelSilence?.();
     if (speaker === 'man') {
       audio.stopAllSpeech();
+      man.human.setEmotion(emotion, decision?.emotionIntensity ?? 0.7);
       const g = GESTURE_FOR[stance];
       if (g && Math.random() < 0.8) man.human.playGesture(pick(g));
       manSpeaking = kit.say(man, 'man', text, url).then(() => {
@@ -226,7 +227,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         kit.serverFear = ev.fear;
         break;
       case 'line':
-        onLine(ev.text, ev.audioUrl, ev.speaker);
+        onLine(ev.text, ev.audioUrl, ev.speaker, ev.emotion);
         break;
       case 'thought': {
         // Her thought lands a beat after he starts speaking, as a reaction to it.

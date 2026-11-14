@@ -15,6 +15,9 @@ import type {
   WorldContext,
 } from '../../shared/types';
 import { createSession, sendTurn } from '../net/api';
+import { MAX_CLIP_BYTES } from '../../shared/audio';
+import { MAX_CLIP_MS, bargeOnTalkStart, pushToTalkDown, vadEdge, type TalkOrigin } from '../audio/talk';
+import { captionHoldMs } from '../ui/captions';
 import scriptJson from '../../content/script.json';
 
 export interface ScriptLine {
@@ -80,6 +83,16 @@ export class SceneKit {
 
   /* speech */
   private talkHeld = false;
+  private talkOrigin: TalkOrigin = 'ptt';
+  /** Hands-free is off until the player presses H. Push-to-talk always works. */
+  private handsFree = false;
+  private limitTimer = 0;
+  private missedUntil = 0;
+  private loudMs = 0;
+  private quietMs = 0;
+  private captionToken = 0;
+  /** True while an NPC line is still audible, so a new clip can cut it. */
+  private npcAudible = false;
   /** Scenes switch this on once the player may speak. */
   speechEnabled = false;
   private lastThoughtAt = -99;
@@ -197,6 +210,8 @@ export class SceneKit {
 
   dispose(): void {
     this.ended = true;
+    window.clearTimeout(this.limitTimer);
+    this.deps.mic.watch(false);
     for (const c of this.cleanups.splice(0)) c();
     for (const npc of this.npcs.splice(0)) {
       npc.human.dispose();
@@ -243,24 +258,38 @@ export class SceneKit {
   async say(npc: Npc | null, speaker: 'man' | 'woman' | 'clerk', text: string, url: string): Promise<void> {
     const { audio, hud } = this.deps;
     const estimate = Math.max(1.4, text.length * 0.062);
-    hud.subtitle(speaker, text, (estimate + 1.2) * 1000);
-    if (url && this.deps.voice) {
-      let got = false;
-      const handle = audio.speak(url, {
-        bus: 'voice',
-        position: npc ? () => npc.human.getHeadPosition(this.tmpA) : undefined,
-        onLevel: (l) => {
-          got = got || l > 0.02;
-          npc?.human.setTalking(l);
-        },
-      });
-      const t0 = this.time;
-      await handle.done;
-      npc?.human.setTalking(0);
-      // If the audio failed outright, still give the line its time on screen.
-      if (!got && this.time - t0 < 0.4) await this.mime(npc, estimate);
-    } else {
-      await this.mime(npc, estimate);
+    const hasAudio = Boolean(url && this.deps.voice);
+    const token = ++this.captionToken;
+    // The auto-clear must outlast the line. Voiced lines are cleared when the
+    // audio actually ends; a text-length timer was dropping the subtitle early.
+    const hold = hasAudio ? captionHoldMs(true, text) : Math.ceil((estimate + 0.8) * 1000);
+    hud.subtitle(speaker, text, hold);
+    this.npcAudible = true;
+    try {
+      if (hasAudio) {
+        let got = false;
+        const handle = audio.speak(url, {
+          bus: 'voice',
+          position: npc ? () => npc.human.getHeadPosition(this.tmpA) : undefined,
+          onLevel: (l) => {
+            got = got || l > 0.02;
+            npc?.human.setTalking(l);
+          },
+        });
+        const t0 = this.time;
+        await handle.done;
+        npc?.human.setTalking(0);
+        // Audio failed outright (no key, 502, autoplay): keep the subtitle and move his mouth.
+        if (!got && this.time - t0 < 0.4 && token === this.captionToken) await this.mime(npc, estimate);
+      } else {
+        await this.mime(npc, estimate);
+      }
+      if (token === this.captionToken) await this.wait(0.35);
+    } finally {
+      if (token === this.captionToken) {
+        this.npcAudible = false;
+        hud.clearSubtitle();
+      }
     }
   }
 
@@ -341,8 +370,14 @@ export class SceneKit {
     try {
       for await (const ev of sendTurn(this.sessionId, req, audio)) {
         if (this.ended) break;
-        if (ev.type === 'heard' && ev.text) this.deps.hud.subtitle('you', ev.text, 2600);
-        if (ev.type === 'error') console.warn('[turn]', ev.message);
+        if (ev.type === 'heard') {
+          if (ev.text) this.deps.hud.subtitle('you', ev.text, 2600);
+          else this.flashMissed();
+        }
+        if (ev.type === 'error') {
+          console.warn('[turn]', ev.message);
+          if (isSpeech) this.flashMissed();
+        }
         this.onEvent(ev);
       }
     } finally {
@@ -380,8 +415,14 @@ export class SceneKit {
     const { hud, mic } = this.deps;
     if (!this.speechEnabled) hud.setMic('hidden');
     else if (this.talkHeld) hud.setMic('recording', mic.level());
+    else if (performance.now() < this.missedUntil) hud.setMic('missed');
     else if (this.busy && this.speechTurn) hud.setMic('thinking');
     else hud.setMic(mic.available ? 'idle' : 'unavailable');
+  }
+
+  private flashMissed(): void {
+    this.missedUntil = performance.now() + 1800;
+    this.deps.hud.setMic('missed');
   }
 
   private bindKeys(): void {
@@ -395,42 +436,36 @@ export class SceneKit {
       if (this.ended || this.paused || isTypingTarget(e)) return;
       if (e.code === 'Space') {
         e.preventDefault();
-        if (e.repeat || !this.speechEnabled || this.talkHeld) return;
-        if (!mic.available) {
+        const action = pushToTalkDown({ enabled: this.speechEnabled, held: this.talkHeld, available: mic.available });
+        if (e.repeat || action === 'ignore') return;
+        if (action === 'type') {
           void this.typeInstead();
           return;
         }
-        this.talkHeld = true;
-        mic.start();
-        hud.setMic('recording', 0);
+        this.beginTalk('ptt');
       } else if (e.code === 'KeyT') {
         if (!this.speechEnabled || e.repeat) return;
         e.preventDefault();
         void this.typeInstead();
+      } else if (e.code === 'KeyH' && !e.repeat && this.speechEnabled) {
+        e.preventDefault();
+        this.handsFree = !this.handsFree;
+        mic.watch(this.handsFree);
+        this.loudMs = 0;
+        this.quietMs = 0;
+        hud.hint(this.handsFree ? 'Hands-free is on. Speak, or hold Space. H switches it off.' : 'Hands-free is off. Hold Space to speak.', 3200);
       } else if (!e.repeat) {
         this.onKey(e.code);
       }
     };
 
     const up = (e: KeyboardEvent) => {
-      if (e.code !== 'Space' || !this.talkHeld) return;
-      this.talkHeld = false;
-      void mic.stop().then((blob) => {
-        if (this.ended) return;
-        if (!blob) {
-          this.refreshMic();
-          return;
-        }
-        void this.turn({ event: 'speech', ctx: this.context() }, blob);
-      });
+      if (e.code !== 'Space' || !this.talkHeld || this.talkOrigin !== 'ptt') return;
+      this.endTalk();
     };
 
     const blur = () => {
-      if (this.talkHeld) {
-        this.talkHeld = false;
-        void mic.stop();
-        this.refreshMic();
-      }
+      if (this.talkHeld) this.endTalk();
     };
 
     window.addEventListener('keydown', down);
@@ -442,9 +477,62 @@ export class SceneKit {
       window.removeEventListener('blur', blur);
     });
 
-    // live level ring while recording
-    this.onFrame(() => {
+    // live level ring while recording, and hands-free edges between lines
+    this.onFrame((dt) => {
       if (this.talkHeld) hud.setMic('recording', mic.level());
+      if (!this.handsFree || !this.speechEnabled || this.ended || this.paused || this.typing) return;
+      const level = mic.level();
+      const step = Math.min(0.25, Math.max(0, dt)) * 1000;
+      if (!this.talkHeld) {
+        this.loudMs = level >= 0.2 ? this.loudMs + step : 0;
+        this.quietMs = 0;
+      } else if (this.talkOrigin === 'vad') {
+        this.quietMs = level < 0.08 ? this.quietMs + step : 0;
+        this.loudMs = 0;
+      }
+      const edge = vadEdge({ holding: this.talkHeld && this.talkOrigin === 'vad', level, loudMs: this.loudMs, quietMs: this.quietMs });
+      if (!this.talkHeld && edge === 'start') this.beginTalk('vad');
+      else if (this.talkHeld && this.talkOrigin === 'vad' && edge === 'stop') this.endTalk();
+    });
+  }
+
+  private beginTalk(origin: TalkOrigin): void {
+    const { mic, hud, audio } = this.deps;
+    if (this.talkHeld || this.ended || !this.speechEnabled) return;
+    if (bargeOnTalkStart(this.npcAudible)) {
+      audio.stopAllSpeech();
+      this.npcAudible = false;
+      this.captionToken++;
+      hud.clearSubtitle();
+    }
+    this.talkOrigin = origin;
+    this.talkHeld = true;
+    this.missedUntil = 0;
+    if (!mic.start()) {
+      this.talkHeld = false;
+      this.flashMissed();
+      return;
+    }
+    hud.setMic('recording', 0);
+    window.clearTimeout(this.limitTimer);
+    this.limitTimer = window.setTimeout(() => {
+      if (this.talkHeld) this.endTalk();
+    }, MAX_CLIP_MS);
+  }
+
+  private endTalk(): void {
+    if (!this.talkHeld) return;
+    this.talkHeld = false;
+    window.clearTimeout(this.limitTimer);
+    this.limitTimer = 0;
+    const { mic } = this.deps;
+    void mic.stop().then((blob) => {
+      if (this.ended) return;
+      if (!blob || blob.size > MAX_CLIP_BYTES) {
+        this.flashMissed();
+        return;
+      }
+      void this.turn({ event: 'speech', ctx: this.context() }, blob);
     });
   }
 
