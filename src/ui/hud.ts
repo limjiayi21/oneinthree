@@ -113,11 +113,18 @@ export function createHud(root: HTMLElement): Hud {
     h(
       'div',
       { class: 'oit-mic-face', 'data-face': 'recording' },
-      h('span', { class: 'oit-mic-l' }, 'Listening'),
+      h('span', { class: 'oit-mic-l' }, 'Listening…'),
       h('span', { class: 'oit-ring' }, h('i'), h('b')),
       h('span', { class: 'oit-mic-r' }, 'Release to send'),
     ),
-    h('div', { class: 'oit-mic-face', 'data-face': 'thinking' }, h('span', { class: 'oit-mic-l' }), h('span', { class: 'oit-ring oit-ring--wait' }, h('i'), h('b')), h('span', { class: 'oit-mic-r' })),
+    h(
+      'div',
+      { class: 'oit-mic-face', 'data-face': 'thinking' },
+      h('span', { class: 'oit-mic-l' }, 'Transcribing…'),
+      h('span', { class: 'oit-ring oit-ring--wait' }, h('i'), h('b')),
+      h('span', { class: 'oit-mic-r' }),
+    ),
+    h('div', { class: 'oit-mic-face', 'data-face': 'missed' }, h('span', { class: 'oit-mic-l' }), h('span', null, "Didn't catch that"), h('span', { class: 'oit-mic-r' })),
     h('div', { class: 'oit-mic-face', 'data-face': 'unavailable' }, h('span', { class: 'oit-mic-l' }, 'Press'), keycap('T'), h('span', { class: 'oit-mic-r' }, 'to type instead')),
   );
   const micStatus = h('div', { class: 'oit-sr', role: 'status' });
@@ -298,6 +305,16 @@ export function createHud(root: HTMLElement): Hud {
     } else if (state === 'unavailable') {
       micEl.classList.remove('is-compact');
       micStatus.textContent = 'Microphone unavailable. Press T to type instead.';
+    } else if (state === 'recording') {
+      micStatus.textContent = 'Listening.';
+    } else if (state === 'thinking') {
+      micStatus.textContent = 'Transcribing.';
+    } else if (state === 'missed') {
+      micEl.classList.remove('is-compact');
+      micStatus.textContent = "Didn't catch that.";
+      micTimer = later(() => {
+        if (micState === 'missed') setMic('idle');
+      }, 1800);
     } else if (state === 'hidden') {
       micStatus.textContent = '';
     }
