@@ -26,6 +26,8 @@ export const SMOOTHING_ALPHA = 0.35;
 export interface StepDetector {
   /** Feed one sample (m/s^2, timestamp in ms). Returns true exactly when a new step is detected. */
   push(x: number, y: number, z: number, tMs: number): boolean;
+  /** Strength of the most recently finished step (its smoothed peak, m/s^2 above gravity); 0 until one has finished. */
+  readonly lastPeak: number;
   /** Forget all state. */
   reset(): void;
 }
@@ -35,6 +37,8 @@ export function createStepDetector(): StepDetector {
   let primed = false;
   let armed = true;
   let lastStepMs = -Infinity;
+  let rise = 0; // highest smoothed value since the last counted step
+  let lastPeak = 0;
 
   return {
     push(x, y, z, tMs) {
@@ -49,17 +53,25 @@ export function createStepDetector(): StepDetector {
         smoothed += SMOOTHING_ALPHA * (dev - smoothed);
       }
 
+      rise = Math.max(rise, smoothed);
       if (smoothed < STEP_REARM_LEVEL) armed = true;
       if (armed && smoothed >= STEP_THRESHOLD) {
         // Any crossing disarms, even one blocked by the gap: otherwise that bump's tail fires once the gap clears.
         armed = false;
         if (tMs - lastStepMs < STEP_MIN_GAP_MS) return false;
+        if (lastStepMs > -Infinity) lastPeak = rise; // the previous step has finished: keep its peak
+        rise = smoothed;
         lastStepMs = tMs;
         return true;
       }
       return false;
     },
+    get lastPeak() {
+      return lastPeak;
+    },
     reset() {
+      rise = 0;
+      lastPeak = 0;
       smoothed = 0;
       primed = false;
       armed = true;

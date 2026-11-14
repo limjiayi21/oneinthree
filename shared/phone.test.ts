@@ -8,6 +8,8 @@ describe('parsePhoneMessage', () => {
   it('parses every valid message type', () => {
     expect(parsePhoneMessage('{"t":"hello"}')).toEqual({ t: 'hello' });
     expect(parsePhoneMessage('{"t":"step","at":12.5}')).toEqual({ t: 'step', at: 12.5 });
+    expect(parsePhoneMessage('{"t":"step","at":1,"peak":3.5}')).toEqual({ t: 'step', at: 1, peak: 3.5 });
+    expect(parsePhoneMessage('{"t":"step","at":1,"peak":"x"}')).toEqual({ t: 'step', at: 1 }); // bad strength is dropped, the step kept
     expect(parsePhoneMessage('{"t":"film","on":true}')).toEqual({ t: 'film', on: true });
     expect(parsePhoneMessage('{"t":"peer","connected":false}')).toEqual({ t: 'peer', connected: false });
     expect(parsePhoneMessage('{"t":"status","filming":true}')).toEqual({ t: 'status', filming: true });

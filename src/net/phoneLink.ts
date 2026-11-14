@@ -20,13 +20,21 @@ export const MIN_COAST_MS = 900;
 export const HURRY_RATIO = 0.75;
 /** Steps faster than this share of the normal interval are running in place (sprint). */
 export const RUN_RATIO = 0.62;
+/**
+ * Running in place hits much harder than stepping but is often only a little quicker
+ * (the stepUp pedometer tells running by strength too). Three steps in a row at least this
+ * many times as hard as the player's calibrated walking step, and quicker than RUN_HARD_PACE
+ * of the normal interval, read as running.
+ */
+export const RUN_PEAK_RATIO = 1.6;
+export const RUN_HARD_PACE = 0.9;
 /** Phone walking takes longer strides than the W key (1.45 m/s becomes about 1.8 m/s, still under the 2.0 m/s "sped up" line). Hurry speed is capped, so it is unchanged. */
 export const PHONE_STRIDE = 1.25;
 export const DEFAULT_NORMAL_MS = 550;
 export const CALIBRATION_STEPS = 8;
 
 export interface StepRhythm {
-  step(phoneAtMs: number, receivedAtMs: number): void;
+  step(phoneAtMs: number, receivedAtMs: number, peak?: number): void;
   state(nowMs: number): 'stopped' | 'walking' | 'hurrying' | 'running';
   /** Walking speed, 0 (stopped) .. 1 (full). */
   drive(nowMs: number): number;
@@ -46,10 +54,21 @@ export function createStepRhythm(): StepRhythm {
   let recent: number[] = [];
   let calibration: number[] = [];
   let normal = DEFAULT_NORMAL_MS;
+  let peaks: number[] = []; // strength of the last 3 steps
+  let calibrationPeaks: number[] = [];
+  let normalPeak: number | null = null;
 
   return {
-    step(phoneAtMs, receivedAtMs) {
+    step(phoneAtMs, receivedAtMs, peak) {
       lastReceived = receivedAtMs;
+      if (peak !== undefined && peak > 0) {
+        peaks.push(peak);
+        if (peaks.length > 3) peaks.shift();
+        if (calibrationPeaks.length < CALIBRATION_STEPS) {
+          calibrationPeaks.push(peak);
+          if (calibrationPeaks.length === CALIBRATION_STEPS) normalPeak = median(calibrationPeaks);
+        }
+      }
       const interval = lastAt === null ? null : phoneAtMs - lastAt;
       lastAt = phoneAtMs;
       // Pauses and a phone clock that went backwards are not rhythm.
@@ -77,7 +96,10 @@ export function createStepRhythm(): StepRhythm {
       // Running must be sustained (every recent step fast, not just the median) and measured against the
       // player's own calibrated pace, so a double-counted step or a naturally quick stepper never sets off a sprint.
       const calibrated = calibration.length >= CALIBRATION_STEPS;
-      if (calibrated && recent.length === 3 && recent.every((i) => i < RUN_RATIO * normal)) return 'running';
+      const quickest = recent.length === 3 ? Math.max(...recent) : Infinity;
+      const veryQuick = quickest < RUN_RATIO * normal;
+      const hard = normalPeak !== null && peaks.length === 3 && Math.min(...peaks) >= RUN_PEAK_RATIO * normalPeak && quickest < RUN_HARD_PACE * normal;
+      if (calibrated && (veryQuick || hard)) return 'running';
       return median(recent) < HURRY_RATIO * normal ? 'hurrying' : 'walking';
     },
     get normalMs() {
@@ -89,6 +111,9 @@ export function createStepRhythm(): StepRhythm {
       recent = [];
       calibration = [];
       normal = DEFAULT_NORMAL_MS;
+      peaks = [];
+      calibrationPeaks = [];
+      normalPeak = null;
     },
   };
 }
@@ -153,7 +178,7 @@ export function createPhoneLink(): PhoneLink {
       if (m.t === 'hello' || m.t === 'step') {
         lastMsgAt = now;
         if (status === 'lost') set('connected');
-        if (m.t === 'step') rhythm.step(m.at, now);
+        if (m.t === 'step') rhythm.step(m.at, now, m.peak);
       } else if (m.t === 'peer') {
         if (m.connected) {
           everConnected = true;

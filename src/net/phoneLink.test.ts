@@ -59,6 +59,18 @@ describe('createStepRhythm', () => {
     expect(r.state(5100 + 990)).toBe('running');
   });
 
+  it('hard steps a little quicker than walking read as running; one hard step does not', () => {
+    const r = createStepRhythm();
+    for (let i = 0; i < 9; i++) r.step(i * 600, i * 600, 2); // calibrate: 600 ms, strength 2
+    let t = 8 * 600;
+    r.step((t += 500), t, 2.2); // one slightly hard step: not running
+    expect(r.state(t)).not.toBe('running');
+    for (let i = 0; i < 3; i++) r.step((t += 500), t, 4); // 500 ms (< 0.9 x 600), strength 4 (>= 1.6 x 2)
+    expect(r.state(t)).toBe('running');
+    r.step((t += 600), t, 4); // hard but back at walking pace: not running
+    expect(r.state(t)).not.toBe('running');
+  });
+
   it('one double-counted step, or fast steps before calibration, never read as running', () => {
     const r = createStepRhythm();
     feed(r, series(0, 600, 9)); // calibrated at 600 ms

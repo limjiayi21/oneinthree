@@ -23,7 +23,7 @@ export const phoneWsPath = (code: string, role: PhoneRole) =>
 /** Sent by the phone. */
 export type PhoneToGame =
   | { t: 'hello' }
-  | { t: 'step'; at: number } // phone's performance.now() in ms
+  | { t: 'step'; at: number; peak?: number } // at: phone's performance.now() in ms; peak: strength of the previous step, m/s^2 above gravity
   | { t: 'film'; on: boolean }; // sets the state, never toggles
 
 /** Sent by the relay to both sides when the other side joins or leaves. */
@@ -55,7 +55,10 @@ export function parsePhoneMessage(raw: unknown): PhoneMessage | null {
     case 'hello':
       return { t: 'hello' };
     case 'step':
-      return typeof o.at === 'number' && Number.isFinite(o.at) ? { t: 'step', at: o.at } : null;
+      if (typeof o.at !== 'number' || !Number.isFinite(o.at)) return null;
+      return typeof o.peak === 'number' && Number.isFinite(o.peak) && o.peak >= 0 && o.peak < 200
+        ? { t: 'step', at: o.at, peak: o.peak }
+        : { t: 'step', at: o.at };
     case 'film':
       return typeof o.on === 'boolean' ? { t: 'film', on: o.on } : null;
     case 'peer':

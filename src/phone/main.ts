@@ -31,6 +31,9 @@ const stateEl = el<HTMLElement>('state');
 const messageEl = el<HTMLElement>('message');
 const stepsWrap = el<HTMLElement>('steps-wrap');
 const stepsEl = el<HTMLElement>('steps');
+// Live tuning aid: time since the previous step and how hard the previous step was.
+const readoutEl = el<HTMLElement>('readout');
+let lastStepAt = 0;
 const hintEl = el<HTMLElement>('hint');
 
 const detector = createStepDetector();
@@ -105,7 +108,10 @@ function onMotion(e: DeviceMotionEvent): void {
     stepsWrap.classList.add('tick');
     window.clearTimeout(tickTimer);
     tickTimer = window.setTimeout(() => stepsWrap.classList.remove('tick'), 150);
-    send({ t: 'step', at: now });
+    const pace = lastStepAt > 0 ? (now - lastStepAt) / 1000 : 0;
+    lastStepAt = now;
+    readoutEl.textContent = `pace ${pace ? pace.toFixed(2) + ' s' : '-'}  ·  strength ${detector.lastPeak.toFixed(1)}`;
+    send({ t: 'step', at: now, peak: detector.lastPeak });
   }
 }
 
@@ -244,6 +250,8 @@ async function start(): Promise<void> {
   backoff = RECONNECT_MIN_MS;
   steps = 0;
   stepsEl.textContent = '0';
+  readoutEl.textContent = '';
+  lastStepAt = 0;
   detector.reset();
   setRunningUi(true);
   setState('connecting');
