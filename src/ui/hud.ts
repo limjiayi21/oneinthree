@@ -102,6 +102,16 @@ export function createHud(root: HTMLElement): Hud {
   );
 
   const objectiveEl = h('div', { class: 'oit-objective', role: 'status' });
+  const modeEl = h('p', { class: 'oit-status-mode' }, 'Push to talk');
+  const moodEl = h('p', { class: 'oit-status-mood' }, '');
+  const statusEl = h(
+    'aside',
+    { class: 'oit-status', 'aria-live': 'polite' },
+    h('p', { class: 'oit-status-k' }, 'Mode'),
+    modeEl,
+    h('p', { class: 'oit-status-k' }, 'His mood'),
+    moodEl,
+  );
   const reticleEl = h('div', { class: 'oit-reticle', 'aria-hidden': 'true' });
   const promptEl = h('div', { class: 'oit-prompt', role: 'status' });
   const hintEl = h('div', { class: 'oit-hint', role: 'status' });
@@ -133,7 +143,7 @@ export function createHud(root: HTMLElement): Hud {
   micEl.append(partialEl, liveOfferEl);
   const micStatus = h('div', { class: 'oit-sr', role: 'status' });
 
-  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, reticleEl, promptEl, hintEl, micEl, micStatus);
+  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, statusEl, reticleEl, promptEl, hintEl, micEl, micStatus);
 
   const fadeEl = h('div', { class: 'oit-fade', 'aria-hidden': 'true' });
 
@@ -331,6 +341,18 @@ export function createHud(root: HTMLElement): Hud {
 
   function setLiveVoice(on: boolean): void {
     micEl.dataset.offer = on ? '1' : '0';
+  }
+
+  function setTalkMode(mode: 'live' | 'push' | 'off'): void {
+    statusEl.dataset.mode = mode;
+    modeEl.textContent = mode === 'live' ? 'Live' : mode === 'push' ? 'Push to talk' : 'Off';
+    statusEl.classList.toggle('is-on', mode !== 'off');
+  }
+
+  function setMood(label: string | null): void {
+    const clean = label?.replace(/\s+/g, ' ').trim() ?? '';
+    moodEl.textContent = clean || '—';
+    statusEl.classList.toggle('has-mood', clean.length > 0);
   }
 
   function setPartial(text: string | null): void {
@@ -601,6 +623,8 @@ export function createHud(root: HTMLElement): Hud {
     objective,
     setMic,
     setLiveVoice,
+    setTalkMode,
+    setMood,
     setPartial,
     setFear,
     fade,

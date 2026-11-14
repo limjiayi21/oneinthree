@@ -351,6 +351,10 @@ export interface Hud {
   setMic(state: MicState, level?: number): void;
   /** Show "Press L for live voice" on the idle mic when the server has an agent id. */
   setLiveVoice(on: boolean): void;
+  /** Which way she is talking. Shown on the side of the view. */
+  setTalkMode(mode: 'live' | 'push' | 'off'): void;
+  /** His current mood, in plain words. null hides it. */
+  setMood(label: string | null): void;
   /** Words heard so far while the mic is open. null clears them. */
   setPartial(text: string | null): void;
   /** 0..1: DOM-side fear cues (pulsing edge darkness). */

@@ -34,6 +34,27 @@ export interface ScriptLine {
 export const SCRIPT = (scriptJson as unknown as { lines: Record<string, ScriptLine> }).lines;
 export const voUrl = (id: string) => `/audio/vo/${id}.mp3`;
 
+const MOOD: Record<Emotion, string> = {
+  neutral: 'Calm',
+  friendly: 'Friendly',
+  smirk: 'Smirking',
+  leer: 'Staring',
+  mocking: 'Mocking',
+  annoyed: 'Annoyed',
+  angry: 'Angry',
+  contempt: 'Contempt',
+  sheepish: 'Backing down',
+  surprised: 'Surprised',
+  afraid: 'Afraid',
+  worried: 'Nervous',
+  relieved: 'Relieved',
+  determined: 'Set on it',
+};
+
+export function moodLabel(emotion: Emotion): string {
+  return MOOD[emotion] ?? 'Calm';
+}
+
 export interface SceneDeps {
   engine: Engine;
   world: StreetWorld;
@@ -109,7 +130,8 @@ export class SceneKit {
   agentLive = false;
   private live: LiveVoice | null = null;
   private liveStarting = false;
-  private wantLive = typeof location !== 'undefined' && new URLSearchParams(location.search).get('agent') === '1';
+  /** Live by default when an agent id is configured. ?agent=0 keeps push-to-talk. */
+  private wantLive = false;
   private liveAttempted = false;
   private lastStance: ManStance = 'idle';
   private encounterBegun = false;
@@ -130,6 +152,9 @@ export class SceneKit {
     readonly pov: Pov,
   ) {
     this.finished = new Promise((res) => (this.resolveEnd = res));
+    const flag = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('agent') : null;
+    this.wantLive = flag === '0' ? false : this.deps.agent || flag === '1';
+    this.deps.hud.setTalkMode(this.wantLive ? 'live' : 'off');
     this.cleanups.push(deps.engine.onUpdate((dt, elapsed) => this.tick(dt, elapsed)));
     this.bindKeys();
     this.onFrame(() => {
@@ -406,8 +431,10 @@ export class SceneKit {
       for await (const ev of sendTurn(this.sessionId, req, audio)) {
         if (this.ended) break;
         if (ev.type === 'heard') {
-          if (ev.text) this.deps.hud.subtitle('you', ev.text, 2600);
-          else this.flashMissed();
+          if (ev.text) {
+            this.deps.hud.subtitle('you', ev.text, 7000);
+            this.deps.hud.setPartial(ev.text);
+          } else this.flashMissed();
         }
         if (ev.type === 'error') {
           console.warn('[turn]', ev.message);
@@ -417,6 +444,7 @@ export class SceneKit {
         if (ev.type === 'decision') {
           this.lastStance = ev.man.stance;
           this.memoryNote = ev.memory ?? this.memoryNote;
+          this.deps.hud.setMood(moodLabel(ev.man.emotion));
           if (req.event === 'begin') this.encounterBegun = true;
           if (this.agentLive && this.live) {
             const vars = agentVariables({
@@ -473,6 +501,7 @@ export class SceneKit {
     else if (performance.now() < this.missedUntil) hud.setMic('missed');
     else if (this.busy && this.speechTurn) hud.setMic('thinking');
     else hud.setMic(mic.available ? 'idle' : 'unavailable');
+    hud.setTalkMode(!this.speechEnabled ? 'off' : this.agentLive ? 'live' : 'push');
   }
 
   private flashMissed(): void {
@@ -596,7 +625,8 @@ export class SceneKit {
       this.live = null;
       await live?.close().catch(() => {});
       this.onAgentMouth(0);
-      this.deps.hud.hint('Push-to-talk. Hold Space to speak.', 2800);
+      this.deps.hud.setTalkMode('push');
+      this.deps.hud.hint('Push to talk. Hold Space. L goes back to live.', 2800);
       this.refreshMic();
       return;
     }
@@ -617,16 +647,21 @@ export class SceneKit {
         variables: session.dynamicVariables,
         commit: (heard, expression) => this.commitAgentTurn(heard, expression),
         onLine: (who, text) => {
-          if (who === 'you') this.deps.hud.subtitle('you', text, 2400);
-          else {
-            this.deps.hud.subtitle('man', text, 120000);
+          if (who === 'you') {
+            this.deps.hud.subtitle('you', text, 8000);
+            this.deps.hud.setPartial(text);
+          } else {
+            this.deps.hud.setPartial(null);
+            this.deps.hud.subtitle('man', text, 9000);
             postAgentLine(this.sessionId, text);
           }
         },
         onSpeaking: (speaking) => {
           this.npcAudible = speaking;
           this.onAgentMouth(speaking ? 0.7 : 0);
-          if (!speaking) this.deps.hud.clearSubtitle();
+        },
+        onHearing: (hearing) => {
+          if (hearing) this.deps.hud.setPartial('Hearing you…');
         },
         onError: () => this.flashMissed(),
       });
@@ -644,7 +679,8 @@ export class SceneKit {
         this.greeted = true;
       }
       this.refreshMic();
-      this.deps.hud.hint('Live voice. Speak normally. L returns to push-to-talk.', 4200);
+      this.deps.hud.setTalkMode('live');
+      this.deps.hud.hint('Live voice. Speak normally. L switches to holding Space.', 4200);
     } catch (err) {
       console.warn('[agent]', err);
       this.agentLive = false;

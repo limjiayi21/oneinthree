@@ -448,7 +448,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
                 affordance('Space', 'Hold to speak, to either of them'),
                 affordance('F', 'Film what is happening'),
                 affordance('E', 'Ask the shopkeeper for help'),
-                ...(liveVoice ? [affordance('L', 'Press L for live voice')] : []),
+                ...(liveVoice ? [affordance('L', 'Switch between live voice and holding Space')] : []),
                 affordance(null, 'Or keep walking'),
               ),
             ),
@@ -466,7 +466,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               'div',
               { class: 'oit-brief-what oit-rise' },
               h('p', { class: 'oit-brief-task' }, 'Get home.'),
-              liveVoice ? h('p', { class: 'oit-brief-esc' }, 'Press L for live voice once he approaches. Hold Space to speak.') : null,
+              liveVoice ? h('p', { class: 'oit-brief-esc' }, 'Live voice is the default. Speak once he approaches. Press L to hold Space instead.') : null,
             ),
           ];
 

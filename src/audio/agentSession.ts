@@ -12,6 +12,7 @@ export interface LiveVoiceHandlers {
   commit(heard: string, expression: string): Promise<string>;
   onLine(who: 'you' | 'man', text: string): void;
   onSpeaking(speaking: boolean): void;
+  onHearing?(hearing: boolean): void;
   onError(message: string): void;
 }
 
@@ -39,6 +40,7 @@ export async function startLiveVoice(handlers: LiveVoiceHandlers): Promise<LiveV
       if (!text) return;
       handlers.onLine(payload.role === 'user' || payload.source === 'user' ? 'you' : 'man', text);
     },
+    onVadScore: ({ vadScore }) => handlers.onHearing?.(vadScore > 0.45),
     onModeChange: ({ mode }) => handlers.onSpeaking(mode === 'speaking'),
     onInterruption: () => handlers.onSpeaking(false),
     onError: (message) => handlers.onError(message),
