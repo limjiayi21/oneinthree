@@ -1535,4 +1535,37 @@
   color: var(--oit-ink-2);
   font: 400 15px/1.55 var(--oit-sans);
   overflow-wrap: anywhere;
+
+/* ------------------------------------------------- guided replay: end screen */
+
+.oit-checklist {
+  max-width: 40rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--oit-line);
+}
+.oit-checklist li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: baseline;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--oit-line);
+}
+.oit-checklist-mark {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--oit-accent);
+  border-radius: 50%;
+  background: var(--oit-accent);
+}
+.oit-checklist-name {
+  color: var(--oit-ink);
+  font: 500 16px/1.5 var(--oit-sans);
+}
+.oit-checklist-what {
+  display: block;
+  color: var(--oit-ink-2);
+  font: 400 15px/1.55 var(--oit-sans);
 }

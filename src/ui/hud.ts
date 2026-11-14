@@ -488,6 +488,133 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     });
   }
 
+  /* --------------------------------------------------------- guided replay */
+
+  let panelEnd: (() => void) | null = null;
+
+  /**
+   * A panel over the frozen scene, low in the frame so the people stay in view.
+   * Focus moves in and is kept there; when it closes, focus goes back where it was.
+   */
+  function openPanel(el: HTMLElement, first: HTMLElement, cleanup?: () => void): () => void {
+    panelEnd?.();
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    root.classList.add('is-choosing');
+    overlayLayer.appendChild(el);
+    reflow(el);
+    el.classList.add('is-on');
+    const release = trapFocus(el);
+    first.focus({ preventScroll: true });
+    let closed = false;
+    const close = (): void => {
+      if (closed) return;
+      closed = true;
+      if (panelEnd === close) panelEnd = null;
+      cleanup?.();
+      release();
+      root.classList.remove('is-choosing');
+      el.classList.remove('is-on');
+      el.setAttribute('inert', '');
+      later(() => el.remove(), 260);
+      if (previousFocus && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+      else (document.activeElement as HTMLElement | null)?.blur?.();
+    };
+    panelEnd = close;
+    return close;
+  }
+
+  const aborted = (): DOMException => new DOMException('The panel was closed.', 'AbortError');
+
+  function choice(opts: { prompt: string; options: Array<{ label: string; note?: string }>; signal?: AbortSignal }): Promise<number> {
+    clearSubtitle();
+    const titleId = nextId('oit-choice');
+    const buttons = opts.options.map((option, index) =>
+      h(
+        'button',
+        { class: 'oit-choice-opt', type: 'button', 'data-index': index },
+        keycap(String(index + 1)),
+        h('span', { class: 'oit-choice-text' }, option.label, option.note ? h('span', { class: 'oit-choice-note' }, ` ${option.note}`) : null),
+      ),
+    );
+    const el = h(
+      'div',
+      { class: 'oit-choice', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
+      h(
+        'div',
+        { class: 'oit-choice-panel' },
+        h('p', { class: 'oit-choice-prompt', id: titleId }, opts.prompt),
+        h('div', { class: 'oit-choice-list', role: 'group', 'aria-label': 'Your options' }, buttons),
+        h('p', { class: 'oit-choice-keys', 'aria-hidden': 'true' }, 'Press ', keycap('1'), keycap('2'), keycap('3'), ' or choose with ', keycap('Tab'), ' and ', keycap('Enter')),
+      ),
+    );
+    return new Promise<number>((resolve, reject) => {
+      if (opts.signal?.aborted) {
+        reject(aborted());
+        return;
+      }
+      let done = false;
+      const pick = (index: number): void => {
+        if (done || index < 0 || index >= buttons.length) return;
+        done = true;
+        close();
+        resolve(index);
+      };
+      const onKey = (e: KeyboardEvent): void => {
+        if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
+        const match = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+        if (!match) return;
+        e.preventDefault();
+        e.stopPropagation();
+        pick(Number(match[1]) - 1);
+      };
+      buttons.forEach((b, i) => b.addEventListener('click', () => pick(i)));
+      window.addEventListener('keydown', onKey, true);
+      const close = openPanel(el, buttons[0] ?? el, () => window.removeEventListener('keydown', onKey, true));
+      opts.signal?.addEventListener('abort', () => {
+        if (done) return;
+        done = true;
+        close();
+        reject(aborted());
+      });
+    });
+  }
+
+  function feedback(opts: { text: string; reference?: string; action: string; signal?: AbortSignal }): Promise<void> {
+    const textId = nextId('oit-feedback');
+    const button = h('button', { class: 'oit-btn oit-btn--primary', type: 'button' }, opts.action);
+    const el = h(
+      'div',
+      { class: 'oit-choice oit-choice--feedback', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': textId },
+      h(
+        'div',
+        { class: 'oit-choice-panel' },
+        h('p', { class: 'oit-feedback-text', id: textId }, opts.text),
+        opts.reference ? h('p', { class: 'oit-feedback-ref' }, opts.reference) : null,
+        h('div', { class: 'oit-choice-actions' }, button),
+      ),
+    );
+    return new Promise<void>((resolve, reject) => {
+      if (opts.signal?.aborted) {
+        reject(aborted());
+        return;
+      }
+      let done = false;
+      const close = openPanel(el, button);
+      button.addEventListener('click', () => {
+        if (done) return;
+        done = true;
+        close();
+        resolve();
+      });
+      opts.signal?.addEventListener('abort', () => {
+        if (done) return;
+        done = true;
+        close();
+        reject(aborted());
+      });
+    });
+  }
+
   /* ---------------------------------------------------------------- pause */
 
   let pausePromise: Promise<'resume' | 'exit'> | null = null;
@@ -549,6 +676,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
   function dispose(): void {
     if (disposed) return;
     askCancel?.();
+    panelEnd?.();
     pauseEnd?.('exit');
     cardEnd?.();
     fadeSettle?.();
@@ -561,7 +689,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     fadeEl.remove();
     textLayer.remove();
     overlayLayer.remove();
-    root.classList.remove('oit-root', 'oit-hud', 'is-hidden', 'is-asking');
+    root.classList.remove('oit-root', 'oit-hud', 'is-hidden', 'is-asking', 'is-choosing');
   }
 
   setFear(0);
@@ -581,6 +709,8 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     prompt,
     askText,
     pause,
+    choice,
+    feedback,
     dispose,
   };
 }

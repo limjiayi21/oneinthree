@@ -856,3 +856,115 @@
     transition: opacity 0.2s ease;
   }
 }
+
+/* --------------------------------------------------------- guided replay */
+
+/* While a choice is open the scene is frozen; the panel takes the lower third. */
+.oit-hud.is-choosing .oit-mic,
+.oit-hud.is-choosing .oit-hint,
+.oit-hud.is-choosing .oit-prompt,
+.oit-hud.is-choosing .oit-sub {
+  opacity: 0;
+}
+.oit-choice {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  justify-content: center;
+  padding: 80px 24px 28px;
+  background: linear-gradient(180deg, transparent, rgba(7, 8, 11, 0.86) 34%, rgba(7, 8, 11, 0.94));
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.24s ease, transform 0.24s var(--oit-ease);
+}
+.oit-choice.is-on {
+  opacity: 1;
+  transform: none;
+}
+.oit-choice:not(.is-on) {
+  pointer-events: none;
+}
+.oit-choice-panel {
+  width: min(46rem, 100%);
+}
+.oit-choice-prompt,
+.oit-feedback-text {
+  margin: 0 0 18px;
+  color: var(--oit-ink);
+  font: 400 clamp(21px, 2.5vh, 27px)/1.3 var(--oit-serif);
+  letter-spacing: -0.006em;
+  text-wrap: balance;
+}
+.oit-choice-list {
+  display: grid;
+  gap: 8px;
+}
+.oit-choice-opt {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 14px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--oit-line-2);
+  border-radius: 3px;
+  background: rgba(7, 8, 11, 0.6);
+  color: var(--oit-ink);
+  font: 400 16px/1.45 var(--oit-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.oit-choice-opt:hover {
+  border-color: rgba(233, 228, 218, 0.55);
+  background: rgba(19, 22, 29, 0.85);
+}
+.oit-root .oit-choice-opt:focus-visible {
+  outline: 2px solid var(--oit-accent);
+  outline-offset: 2px;
+}
+.oit-choice-opt .oit-key {
+  height: 24px;
+  min-width: 24px;
+  font-size: 11px;
+}
+.oit-choice-note {
+  color: var(--oit-ink-3);
+  font-size: 14px;
+}
+.oit-choice-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 0;
+  color: var(--oit-ink-3);
+  font: 500 12px/1 var(--oit-sans);
+}
+.oit-choice-keys .oit-key {
+  height: 20px;
+  min-width: 20px;
+  font-size: 10px;
+}
+.oit-feedback-ref {
+  margin: -6px 0 18px;
+  color: var(--oit-ink-2);
+  font: 400 15px/1.5 var(--oit-sans);
+}
+.oit-choice-actions {
+  display: flex;
+  gap: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oit-choice {
+    transform: none;
+    transition: opacity 0.2s ease;
+  }
+  .oit-choice-opt {
+    transition: none;
+  }
+}

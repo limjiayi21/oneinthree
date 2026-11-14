@@ -8,6 +8,7 @@ import { getHealth, getSummary } from './net/api';
 import { createPhoneLink } from './net/phoneLink';
 import { runWomanWalkHome } from './scenarios/womanWalkHome';
 import { runBystanderWalkHome } from './scenarios/bystanderWalkHome';
+import { GUIDED, runGuidedWalkHome } from './scenarios/guidedWalkHome';
 import type { SceneDeps, SceneResult } from './scenarios/common';
 import type { OutcomeKind, Pov, SummaryData } from '../shared/types';
 import { createEyeTracker } from './player/eyes';
@@ -49,7 +50,7 @@ async function debrief(result: SceneResult, pov: Pov): Promise<SummaryData> {
 
 async function main(): Promise<void> {
   const params = new URLSearchParams(location.search);
-  // Dev shortcuts: ?skip=intro,part1
+  // Dev shortcuts: ?skip=intro,part1,part2 (skipping part2 goes straight to the guided replay)
   const skip = new Set((params.get('skip') ?? '').split(',').filter(Boolean));
   const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
   const phone = createPhoneLink();
@@ -143,19 +144,31 @@ async function main(): Promise<void> {
       }
     }
 
-    if (!exited) {
+    if (!exited && !skip.has('part2')) {
       for (;;) {
         await screens.briefing('bystander');
         await audio.resume();
         world.setDoorOpen('home', false);
         const result = await runBystanderWalkHome(deps);
         hud.setVisible(false);
-        if (result.outcome === 'exited') break;
+        if (result.outcome === 'exited') {
+          exited = true;
+          break;
+        }
         screens.loading('…');
         const summary = await debrief(result, 'bystander');
         screens.loading(null);
         if ((await screens.summary(summary)) === 'continue') break;
       }
+    }
+
+    // Guided replay: Part 2 again, paused at set moments. Skipped if the player left the simulation.
+    if (!exited) {
+      await audio.resume();
+      world.setDoorOpen('home', false);
+      const guided = await runGuidedWalkHome(deps);
+      hud.setVisible(false);
+      if (!guided.exited) await screens.guidedEnd({ used: guided.used, closing: GUIDED.closing });
     }
 
     audio.stopAmbience(1);

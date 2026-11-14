@@ -827,6 +827,72 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     });
   }
 
+  /* ---------------------------------------------------------- guided replay */
+
+  function joinNames(names: string[]): string {
+    if (names.length <= 1) return names[0] ?? '';
+    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  }
+
+  function guidedEnd(opts: { used: Array<{ name: string; what: string }>; closing: string }): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const titleId = nextId('oit-guided');
+      const el = h('section', { class: 'oit-screen oit-summary oit-guided-end', 'aria-labelledby': titleId });
+      const next = h(
+        'button',
+        {
+          class: 'oit-btn oit-btn--primary',
+          type: 'button',
+          onclick: () => {
+            close(el);
+            resolve();
+          },
+        },
+        'Continue',
+      );
+      const names = opts.used.map((u) => u.name);
+      add(
+        el,
+        h(
+          'div',
+          { class: 'oit-frame' },
+          h('div', { class: 'oit-topbar oit-topbar--static' }, wordmark()),
+          h(
+            'article',
+            { class: 'oit-article' },
+            h(
+              'header',
+              { class: 'oit-sum-head' },
+              h('p', { class: 'oit-eyebrow oit-rise' }, 'Guided replay'),
+              h('h1', { class: 'oit-sum-title oit-rise', id: titleId, tabindex: -1, 'data-focus': true }, names.length ? `You used ${joinNames(names)}.` : 'The replay ends here.'),
+              h('div', { class: 'oit-sum-lede oit-rise' }, h('p', null, opts.closing)),
+            ),
+            opts.used.length
+              ? section(
+                  'What you did',
+                  'oit-sec--checklist',
+                  h(
+                    'ul',
+                    { class: 'oit-checklist' },
+                    opts.used.map((u) =>
+                      h(
+                        'li',
+                        null,
+                        h('span', { class: 'oit-checklist-mark', 'aria-hidden': 'true' }),
+                        h('span', null, h('span', { class: 'oit-checklist-name' }, u.name), h('span', { class: 'oit-checklist-what' }, u.what)),
+                      ),
+                    ),
+                  ),
+                )
+              : null,
+            h('section', { class: 'oit-sec oit-sec--plain oit-sec--end' }, h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }), h('div', { class: 'oit-sec-body' }, h('div', { class: 'oit-actions' }, next))),
+          ),
+        ),
+      );
+      show(el);
+    });
+  }
+
   /* ---------------------------------------------------------------- closing */
 
   const REGION_ORDER: SupportResource['region'][] = ['us', 'nyc', 'uk', 'international'];
@@ -1049,5 +1115,5 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     focusStart(el);
   }
 
-  return { intro, briefing, summary, closing, loading, error };
+  return { intro, briefing, summary, guidedEnd, closing, loading, error };
 }

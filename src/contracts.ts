@@ -358,6 +358,14 @@ export interface Hud {
   askText(placeholder?: string): Promise<string | null>;
   /** Pause overlay shown when pointer lock is lost. Resolves with the user's choice. */
   pause(): Promise<'resume' | 'exit'>;
+  /**
+   * Guided replay: a prompt with numbered options over the frozen scene.
+   * Buttons, or keys 1-9. Resolves with the index chosen.
+   */
+  choice(opts: { prompt: string; options: Array<{ label: string; note?: string }>; signal?: AbortSignal }): Promise<number>;
+  /** Guided replay: one line of feedback, an optional reference, and a button. Resolves when the button is pressed. */
+  feedback(opts: { text: string; reference?: string; action: string; signal?: AbortSignal }): Promise<void>;
+  /* Both close and reject with an AbortError when `signal` aborts (the scene uses this to open the pause dialog). */
   dispose(): void;
 }
 
@@ -368,6 +376,8 @@ export interface Screens {
   briefing(pov: Pov): Promise<void>;
   /** Debrief for a part. */
   summary(data: SummaryData): Promise<'continue' | 'retry'>;
+  /** End of the guided replay: the best tactics used, then the closing line. */
+  guidedEnd(opts: { used: Array<{ name: string; what: string }>; closing: string }): Promise<void>;
   /** Closing screen: resources and sources. */
   closing(): Promise<'restart'>;
   /** Loading / error states. */

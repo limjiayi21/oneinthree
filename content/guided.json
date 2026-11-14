@@ -1,0 +1,167 @@
+{
+  "_about": "Guided replay of Part 2. The scene pauses at three moments and offers three choices each: one best, one weaker, one that backfires. Outcomes are fixed here: no microphone, no live model, no dice. Lines with an audioId reuse a pre-rendered file in public/audio/vo/; lines without one are new and play as subtitles (speaker 'you' and 'self' are the player and are never voiced). Every man's line is an existing line bank or script line. cardId points to a part2 card in content/cards.json. filming: true raises the player's phone for that consequence.",
+  "moments": [
+    {
+      "id": "m1",
+      "beat": "alongside",
+      "prompt": "He has fallen in beside her and will not let it go. She is trying to keep walking. What do you do?",
+      "choices": [
+        {
+          "id": "m1_distract",
+          "text": "Walk up to her as if you know her: \"Hey! Sorry I'm late, you ready?\"",
+          "tactic": "Distract",
+          "rating": "best",
+          "lines": [
+            { "speaker": "you", "text": "Hey! Sorry I'm late, you ready?" },
+            { "speaker": "woman", "text": "Hey! Yes. Yes, I'm coming.", "audioId": "lb_b_w_play_3" },
+            { "speaker": "man", "text": "You two know each other? Alright. Whatever.", "audioId": "lb_b_thrown_2" }
+          ],
+          "manAction": "leave",
+          "womanAction": "walk_with_player",
+          "feedback": "Talking to her, not to him, took away the one thing he was relying on, a woman by herself, and gave him nothing to argue with.",
+          "cardId": "p2_help"
+        },
+        {
+          "id": "m1_wait",
+          "text": "Hang back and see what happens.",
+          "tactic": "Wait and see",
+          "rating": "weaker",
+          "lines": [
+            { "speaker": "woman", "text": "I'm good, thanks. Have a good night.", "audioId": "b_w1" },
+            { "speaker": "man", "text": "Come on, slow down. Let me walk you home. Where you live at?", "audioId": "b_m3" },
+            { "speaker": "thought", "text": "Is anyone seeing this?", "audioId": "b_t2" }
+          ],
+          "manAction": "block_path",
+          "womanAction": "freeze",
+          "feedback": "Waiting felt safer, but it left her alone with him while he went from talking at her to standing in her way.",
+          "cardId": "p2_nobody"
+        },
+        {
+          "id": "m1_shout",
+          "text": "Shout at him: \"Back off, creep!\"",
+          "tactic": "Aggressive (a risky form of Direct)",
+          "rating": "backfires",
+          "lines": [
+            { "speaker": "you", "text": "Back off, creep!" },
+            { "speaker": "man", "text": "You got something to say to me? Say it to my face.", "audioId": "lb_b_turn_2" },
+            { "speaker": "thought", "text": "Don't get hurt because of me.", "audioId": "lb_b_turn_3_t" }
+          ],
+          "manAction": "turn_on_player",
+          "womanAction": "freeze",
+          "feedback": "An insult made you his target and kept the scene about the two of you; talking to her, or one calm sentence, does the same job with less risk.",
+          "cardId": "p2_turns"
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "beat": "blocks",
+      "lead": "Back to the same street. This time you were further behind, and he has already stepped into her path.",
+      "prompt": "He is standing in her way and she cannot get past. The shop is a few doors down, and the shopkeeper is inside. What do you do?",
+      "choices": [
+        {
+          "id": "m2_delegate",
+          "text": "Go to the shop, tell the shopkeeper what is happening and ask him to come out.",
+          "tactic": "Delegate",
+          "rating": "best",
+          "lines": [
+            { "speaker": "you", "text": "There's a guy out there who won't let a woman past. Can you come to the door?" },
+            { "speaker": "clerk", "text": "What's going on out there? Him? Yeah. Hold on.", "audioId": "c_ask" },
+            { "speaker": "clerk", "text": "Hey! Hey, leave her alone, man. I got cameras out here.", "audioId": "c_help_1" },
+            { "speaker": "man", "text": "Alright, alright. I didn't do anything. I'm going.", "audioId": "lb_b_clerk_1" }
+          ],
+          "manAction": "leave",
+          "womanAction": "stay",
+          "feedback": "Bringing in the shopkeeper meant you were not the only one acting, and gave him a second person, with standing on that street, to answer to.",
+          "cardId": "p2_5ds"
+        },
+        {
+          "id": "m2_direct",
+          "text": "Walk up and say one calm sentence to him: \"Leave her alone, man.\" Then turn to her.",
+          "tactic": "Direct",
+          "rating": "weaker",
+          "lines": [
+            { "speaker": "you", "text": "Leave her alone, man." },
+            { "speaker": "man", "text": "Relax, relax. It's not that serious.", "audioId": "lb_b_defensive_3" },
+            { "speaker": "you", "text": "Are you okay? Come on, walk with me." },
+            { "speaker": "woman", "text": "Let's go. Please, let's just go.", "audioId": "lb_b_w_leaving_2" }
+          ],
+          "manAction": "glare_then_leave",
+          "womanAction": "move_to_player",
+          "feedback": "It worked, and it also turned his attention to you: Direct is the riskiest of the five, so keep it to one calm sentence and then turn to her.",
+          "cardId": "p2_turns"
+        },
+        {
+          "id": "m2_film",
+          "text": "Stay across the street and film it on your phone.",
+          "tactic": "Document",
+          "rating": "backfires",
+          "filming": true,
+          "lines": [
+            { "speaker": "self", "text": "Get it on video. Someone should have proof." },
+            { "speaker": "woman", "text": "Please. I just want to get home.", "audioId": "b_w2" },
+            { "speaker": "man", "text": "Stuck-up bitch. You think you're too good for me?", "audioId": "b_m5" },
+            { "speaker": "thought", "text": "Nobody's coming.", "audioId": "b_t4" }
+          ],
+          "manAction": "close_in",
+          "womanAction": "step_back",
+          "feedback": "While you filmed, nobody was helping her: a recording is worth making only once someone is already stepping in.",
+          "cardId": "p2_5ds"
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "beat": "after",
+      "prompt": "He has gone. She is still standing there, shaking. What do you do?",
+      "choices": [
+        {
+          "id": "m3_delay",
+          "text": "Check on her: \"Are you okay? That wasn't cool. Want me to walk with you?\"",
+          "tactic": "Delay",
+          "rating": "best",
+          "lines": [
+            { "speaker": "you", "text": "Are you okay? That wasn't cool. Want me to walk with you?" },
+            { "speaker": "woman", "text": "Thank you. I didn't know what to do.", "audioId": "lb_b_w_thanks_1" },
+            { "speaker": "thought", "text": "My hands won't stop shaking.", "audioId": "lb_b_w_thanks_1_t" }
+          ],
+          "manAction": "stay",
+          "womanAction": "walk_with_player",
+          "feedback": "Checking in cannot undo it, but it changes what she takes home: that someone saw, and that it was not acceptable.",
+          "cardId": "p2_froze"
+        },
+        {
+          "id": "m3_leave",
+          "text": "He's gone, so it's over. Head home.",
+          "tactic": "Leave",
+          "rating": "weaker",
+          "lines": [
+            { "speaker": "self", "text": "She's fine now. It's over." },
+            { "speaker": "thought", "text": "Just get home. Don't think about it." }
+          ],
+          "manAction": "stay",
+          "womanAction": "walk_home_alone",
+          "feedback": "He was gone, but she walked the rest of the way alone with it; asking whether she is okay is the one option that is always open.",
+          "cardId": "p2_froze"
+        },
+        {
+          "id": "m3_post",
+          "text": "Post the video you took online, without asking her.",
+          "tactic": "Document",
+          "rating": "backfires",
+          "filming": true,
+          "lines": [
+            { "speaker": "self", "text": "Posted. People need to see this." },
+            { "speaker": "woman", "text": "Wait. Were you filming me? Please don't put that online." },
+            { "speaker": "thought", "text": "Everyone's going to see me like that." }
+          ],
+          "manAction": "stay",
+          "womanAction": "step_back",
+          "feedback": "The footage belongs to her: posting it without asking takes away her say over who sees the worst moment of her night.",
+          "cardId": "p2_5ds"
+        }
+      ]
+    }
+  ],
+  "closing": "In real life no tactic is guaranteed, but these give her the best chance with the least risk to you."
+}

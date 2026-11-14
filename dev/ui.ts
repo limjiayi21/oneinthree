@@ -7,7 +7,7 @@
  *   http://localhost:5185/dev/ui.html?view=summary-woman&evidence=mock
  *
  * view      intro | briefing-woman | briefing-bystander | hud | summary-woman |
- *           summary-woman-escalated | summary-bystander | closing | pause |
+ *           summary-woman-escalated | summary-bystander | guided-end | closing | pause |
  *           card | loading | error | selftest (scripted checks, see selftest.ts)
  * evidence  real (content/evidence.json as bundled) | mock (dev/mock.ts) | empty
  *           default: real once the file has content, mock until then
@@ -27,6 +27,10 @@ import { bundledEvidence, EMPTY_EVIDENCE } from '../src/ui/evidence';
 import type { Hud, MicState } from '../src/contracts';
 import type { Evidence } from '../shared/evidence';
 import { minimalSummary, mockEvidence, mockSummary, type MockSummaryKind } from './mock';
+import guidedJson from '../content/guided.json';
+import type { GuidedData } from '../shared/content';
+
+const GUIDED = guidedJson as unknown as GuidedData;
 import { runSelfTest } from './selftest';
 
 const params = new URLSearchParams(location.search);
@@ -217,6 +221,14 @@ function hudPanel(): void {
       button('filming off', () => hud.setFilming(false)),
       button('askText', () => void hud.askText('Say something…').then((t) => log(`askText() resolved: ${JSON.stringify(t)}`))),
       button('pause', () => void hud.pause().then((c) => log(`pause() resolved: ${c}`))),
+      button('choice', () => {
+        const m = GUIDED.moments[0]!;
+        void hud.choice({ prompt: m.prompt, options: m.choices.map((c, i) => ({ label: c.text, note: i === 1 ? '(tried)' : undefined })) }).then((i) => log(`choice() resolved: ${i}`));
+      }),
+      button('feedback', () => {
+        const c = GUIDED.moments[0]!.choices[1]!;
+        void hud.feedback({ text: c.feedback, reference: 'See the question “Why does nobody do anything?”', action: 'Back to the same moment' }).then(() => log('feedback() resolved'));
+      }),
       button('visible off', () => hud.setVisible(false)),
       button('visible on', () => hud.setVisible(true)),
     );
@@ -239,6 +251,7 @@ const VIEWS = [
   'summary-woman',
   'summary-woman-escalated',
   'summary-bystander',
+  'guided-end',
   'closing',
   'pause',
   'card',
@@ -343,6 +356,13 @@ async function run(): Promise<void> {
       const data = params.get('minimal') === '1' ? minimalSummary(kind === 'bystander' ? 'bystander' : 'woman') : mockSummary(kind, evidence);
       const choice = await screens.summary(data);
       log(`summary() resolved: ${choice}`);
+      return;
+    }
+
+    case 'guided-end': {
+      const used = GUIDED.moments.map((m) => m.choices.find((c) => c.rating === 'best')!).map((c) => ({ name: c.tactic, what: c.text }));
+      await screens.guidedEnd({ used, closing: GUIDED.closing });
+      log('guidedEnd() resolved');
       return;
     }
 
