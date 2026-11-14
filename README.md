@@ -58,6 +58,18 @@ npm run agent:create
 
 In the dashboard the same agent is "One in Three — Dex": LLM Gemini 3.5 Flash, TTS Eleven v4 Turbo, expressive mode on, authentication required. The browser only receives a signed websocket URL from `GET /api/session/:id/agent`. The API key never leaves the Worker.
 
+## Who picks his next move
+
+By default the seeded stance machine in `worker/model/` decides, and it is what runs in tests. Set `DECISION_PROVIDER` to ask a hosted model first. It has about 400 ms. If the key is missing, the call fails, or it is slow, the seeded machine is what the trainee sees.
+
+| `DECISION_PROVIDER` | Key | Request |
+|---|---|---|
+| `seeded` (default) | none | no network call |
+| `typesafe` | `TYPESAFE_API_KEY` | `POST https://api.typesafe.ai/v1/systemone` with model `jev-1.14.0`. Yes/no questions use `noul`. Choice and score use the System One shapes in the [TypeSafe docs](https://docs.typesafe.ai/api/system-one). |
+| `openai` | `OPENAI_API_KEY` | `POST https://api.openai.com/v1/decisions` with model `gpt-6-luna` and predicate, choice, and score questions. [Decisions guide](https://developers.openai.com/api/docs/guides/decisions). |
+
+Each call asks whether she set a firm boundary, her tone, whether a bystander stepped in, his next stance, his expression, and how heated the beat is. Code then applies the training rules: a firm boundary together with a bystander makes him back off, and the provider cannot choose a physical escalation the seeded model did not already reach. The expression is clamped to the faces that stance is allowed to wear, then handed to the line writer and, in live voice, to the agent. The keys stay in `.dev.vars` or as Worker secrets.
+
 ## How a turn works
 
 1. The browser records a push-to-talk clip and posts it to the Worker.

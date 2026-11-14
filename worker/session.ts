@@ -18,6 +18,7 @@ import type {
   ManDecision,
   ManStance,
   OutcomeKind,
+  Pov,
   TurnEvent,
   TurnRequest,
   WomanStrategy,
@@ -39,6 +40,7 @@ import {
   type BystanderRead,
   type WomanRead,
 } from './read';
+import { applyToDecision, composeBeat, judgeTurn, type JudgeEnv } from './judge';
 import { agentVariables } from '../shared/liveVoice';
 import { coarseExpression } from '../shared/expression';
 import { agentTurnSkipsVoice, mintSignedUrl } from './agent';
@@ -56,6 +58,10 @@ export interface Env {
   ELEVENLABS_API_KEY?: string;
   /** Set after `npm run agent:create`. Without it the sim stays on the STT → line model → TTS path. */
   ELEVENLABS_AGENT_ID?: string;
+  /** seeded (default) | typesafe | openai. Keys never leave the Worker. */
+  DECISION_PROVIDER?: string;
+  TYPESAFE_API_KEY?: string;
+  OPENAI_API_KEY?: string;
 }
 
 interface Persisted {
@@ -409,6 +415,37 @@ export class SessionDO extends DurableObject<Env> {
     finish();
   }
 
+  /**
+   * Ask TypeSafe or OpenAI, when configured, then let the training rules
+   * rewrite the beat. Null keeps the seeded decision.
+   */
+  private async judgeDecision(
+    pov: Pov,
+    event: ClientEventType,
+    text: string,
+    recent: string[],
+    ctx: WorldContext,
+    decision: ManDecision | null,
+    tension: number,
+    ms: Record<string, number>,
+  ): Promise<{ decision: ManDecision; tension: number; rule: string | null } | null> {
+    if (!decision || !['speech', 'silence', 'filming_start', 'stood_between', 'asked_clerk'].includes(event)) return null;
+    const t0 = Date.now();
+    const reading = await judgeTurn(this.env as JudgeEnv, { pov, event, stance: decision.stance, text, recent, ctx });
+    ms.judge = Date.now() - t0;
+    if (!reading) {
+      ms.judgeFallback = 1;
+      return null;
+    }
+    ms[reading.provider === 'openai' ? 'judgeOpenai' : 'judgeTypesafe'] = 1;
+    const beat = composeBeat(
+      { stance: decision.stance, emotion: decision.emotion, emotionIntensity: decision.emotionIntensity, action: decision.action, tension },
+      reading,
+      { bystanderIntervened: pov === 'bystander' && event !== 'silence' },
+    );
+    return { decision: applyToDecision(decision, beat), tension: beat.tension, rule: beat.rule };
+  }
+
   /* ------------------------------------------------------------------ woman POV */
 
   private async womanTurn(
@@ -463,6 +500,13 @@ export class SessionDO extends DurableObject<Env> {
     const t1 = Date.now();
     const out = decideWoman(state, { event, ctx, strategyProbs: read?.strategyProbs, signals: read?.signals, reaction: read?.reaction }, rng);
     ms.decide = Date.now() - t1;
+    const judged = await this.judgeDecision(s.meta.pov, event, text, s.transcript, ctx, out.decision, out.tension, ms);
+    if (judged && out.decision) {
+      out.decision = judged.decision;
+      out.state.stance = judged.decision.stance;
+      out.tension = judged.tension;
+      if (judged.rule && out.rationale) out.rationale = { ...out.rationale, text: judged.rule, basis: 'assumption' };
+    }
     s.woman = out.state;
     s.rng = rng.state;
 
@@ -658,6 +702,13 @@ export class SessionDO extends DurableObject<Env> {
       rng,
     );
     ms.decide = Date.now() - t1;
+    const judged = await this.judgeDecision(s.meta.pov, event, text, s.transcript, ctx, out.man, out.tension, ms);
+    if (judged && out.man) {
+      out.man = judged.decision;
+      out.state.manStance = judged.decision.stance;
+      out.tension = judged.tension;
+      if (judged.rule && out.rationale) out.rationale = { ...out.rationale, text: judged.rule, basis: 'assumption' };
+    }
     s.bystander = out.state;
     s.rng = rng.state;
 
