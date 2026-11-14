@@ -865,17 +865,18 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     });
   }
 
-  /* ---------------------------------------------------------- guided replay */
+  /* ---------------------------------------------------------- teaching replay */
 
-  function joinNames(names: string[]): string {
-    if (names.length <= 1) return names[0] ?? '';
-    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-  }
-
-  function guidedEnd(opts: { used: Array<{ name: string; what: string }>; closing: string }): Promise<void> {
+  function recap(opts: {
+    title: string;
+    fiveDs: Array<{ name: string; line: string; firstPick: boolean }>;
+    stepsTitle: string;
+    steps: Array<{ name: string; line: string }>;
+    closing: string;
+  }): Promise<void> {
     return new Promise<void>((resolve) => {
-      const titleId = nextId('oit-guided');
-      const el = h('section', { class: 'oit-screen oit-summary oit-guided-end', 'aria-labelledby': titleId });
+      const titleId = nextId('oit-recap');
+      const el = h('section', { class: 'oit-screen oit-summary oit-recap', 'aria-labelledby': titleId });
       const next = h(
         'button',
         {
@@ -888,7 +889,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
         },
         'Continue',
       );
-      const names = opts.used.map((u) => u.name);
+      const picked = opts.fiveDs.filter((d) => d.firstPick).length;
       add(
         el,
         h(
@@ -901,29 +902,51 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
             h(
               'header',
               { class: 'oit-sum-head' },
-              h('p', { class: 'oit-eyebrow oit-rise' }, 'Guided replay'),
-              h('h1', { class: 'oit-sum-title oit-rise', id: titleId, tabindex: -1, 'data-focus': true }, names.length ? `You used ${joinNames(names)}.` : 'The replay ends here.'),
-              h('div', { class: 'oit-sum-lede oit-rise' }, h('p', null, opts.closing)),
+              h('p', { class: 'oit-eyebrow oit-rise' }, 'Part 2 · How to help'),
+              h('h1', { class: 'oit-sum-title oit-rise', id: titleId, tabindex: -1, 'data-focus': true }, opts.title),
             ),
-            opts.used.length
-              ? section(
-                  'What you did',
-                  'oit-sec--checklist',
+            section(
+              'The 5 Ds',
+              'oit-sec--recap',
+              h(
+                'p',
+                { class: 'oit-sec-lede' },
+                picked ? 'A tick marks the ones you chose first in the replay.' : 'None of these was your first choice in the replay. Each one is open to you.',
+              ),
+              h(
+                'ul',
+                { class: 'oit-recap-ds' },
+                opts.fiveDs.map((d) =>
                   h(
-                    'ul',
-                    { class: 'oit-checklist' },
-                    opts.used.map((u) =>
-                      h(
-                        'li',
-                        null,
-                        h('span', { class: 'oit-checklist-mark', 'aria-hidden': 'true' }),
-                        h('span', null, h('span', { class: 'oit-checklist-name' }, u.name), h('span', { class: 'oit-checklist-what' }, u.what)),
-                      ),
+                    'li',
+                    { class: d.firstPick ? 'is-picked' : null },
+                    h('span', { class: 'oit-recap-tick', 'aria-hidden': 'true' }),
+                    h(
+                      'span',
+                      null,
+                      h('span', { class: 'oit-recap-name' }, d.name),
+                      d.firstPick ? h('span', { class: 'oit-sr' }, ' (your first choice)') : null,
+                      h('span', { class: 'oit-recap-line' }, d.line),
                     ),
                   ),
-                )
-              : null,
-            h('section', { class: 'oit-sec oit-sec--plain oit-sec--end' }, h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }), h('div', { class: 'oit-sec-body' }, h('div', { class: 'oit-actions' }, next))),
+                ),
+              ),
+            ),
+            section(
+              opts.stepsTitle,
+              'oit-sec--steps',
+              h(
+                'ol',
+                { class: 'oit-recap-steps' },
+                opts.steps.map((s) => h('li', null, h('span', null, h('span', { class: 'oit-recap-name' }, s.name), h('span', { class: 'oit-recap-line' }, s.line)))),
+              ),
+            ),
+            h(
+              'section',
+              { class: 'oit-sec oit-sec--plain oit-sec--end' },
+              h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }),
+              h('div', { class: 'oit-sec-body' }, h('p', { class: 'oit-recap-closing' }, opts.closing), h('div', { class: 'oit-actions' }, next)),
+            ),
           ),
         ),
       );
@@ -1153,5 +1176,5 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     focusStart(el);
   }
 
-  return { intro, briefing, summary, guidedEnd, closing, loading, error };
+  return { intro, briefing, summary, recap, closing, loading, error };
 }

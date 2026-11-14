@@ -7,7 +7,7 @@
  *   http://localhost:5185/dev/ui.html?view=summary-woman&evidence=mock
  *
  * view      intro | briefing-woman | briefing-bystander | hud | summary-woman |
- *           summary-woman-escalated | summary-bystander | guided-end | closing | pause |
+ *           summary-woman-escalated | summary-bystander | recap | closing | pause |
  *           card | loading | error | selftest (scripted checks, see selftest.ts)
  * evidence  real (content/evidence.json as bundled) | mock (dev/mock.ts) | empty
  *           default: real once the file has content, mock until then
@@ -268,7 +268,7 @@ const VIEWS = [
   'summary-woman',
   'summary-woman-escalated',
   'summary-bystander',
-  'guided-end',
+  'recap',
   'closing',
   'pause',
   'card',
@@ -376,9 +376,10 @@ async function run(): Promise<void> {
       return;
     }
 
-    case 'guided-end': {
-      await screens.guidedEnd({ used: [], closing: GUIDED.recap.closing });
-      log('guidedEnd() resolved');
+    case 'recap': {
+      const picked = params.get('picked')?.split(',') ?? ['distract', 'delay'];
+      await screens.recap({ ...GUIDED.recap, fiveDs: GUIDED.recap.fiveDs.map((d) => ({ name: d.name, line: d.line, firstPick: picked.includes(d.key) })) });
+      log('recap() resolved');
       return;
     }
 

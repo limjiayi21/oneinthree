@@ -13,6 +13,14 @@ import type { SceneDeps, SceneResult } from './scenarios/common';
 import type { OutcomeKind, Pov, SummaryData } from '../shared/types';
 import { createEyeTracker } from './player/eyes';
 import { createHandTracker } from './player/hands';
+import { firstPickTactics } from '../shared/content';
+
+/** The recap screen after the teaching replay, ticking the Ds the player chose first. */
+function recapFor(firstChoices: Record<string, string>) {
+  const picked = firstPickTactics(GUIDED, firstChoices);
+  const { title, stepsTitle, steps, closing } = GUIDED.recap;
+  return { title, stepsTitle, steps, closing, fiveDs: GUIDED.recap.fiveDs.map((d) => ({ name: d.name, line: d.line, firstPick: picked.has(d.key) })) };
+}
 
 /** Used only if the server cannot produce a debrief (offline, error). No statistics are invented here. */
 const FALLBACK_OUTCOME: Record<OutcomeKind, { title: string; body: string }> = {
@@ -165,14 +173,14 @@ async function main(): Promise<void> {
       }
     }
 
-    // Guided replay: Part 2 again, paused at set moments. Skipped if the player left the simulation.
+    // Teaching replay: Part 2 again, frozen at five moments, then the recap. Skipped if the player left the simulation.
     if (!exited) {
       await audio.resume();
       world.setDoorOpen('home', false);
       const guided = await runGuidedWalkHome(deps);
       hud.setVisible(false);
       if (part2?.sessionId && Object.keys(guided.firstChoices).length) void postGuided(part2.sessionId, guided.firstChoices, part2.outcome);
-      if (!guided.exited) await screens.guidedEnd({ used: [], closing: GUIDED.recap.closing });
+      if (!guided.exited) await screens.recap(recapFor(guided.firstChoices));
     }
 
     audio.stopAmbience(1);

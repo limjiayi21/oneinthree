@@ -1535,39 +1535,76 @@
   color: var(--oit-ink-2);
   font: 400 15px/1.55 var(--oit-sans);
   overflow-wrap: anywhere;
+}
 
-/* ------------------------------------------------- guided replay: end screen */
+/* ------------------------------------------------- teaching replay: recap */
 
-.oit-checklist {
+.oit-recap-ds,
+.oit-recap-steps {
   max-width: 40rem;
   margin: 0;
   padding: 0;
   list-style: none;
   border-top: 1px solid var(--oit-line);
 }
-.oit-checklist li {
+.oit-recap-ds li,
+.oit-recap-steps li {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
   column-gap: 16px;
   align-items: baseline;
-  padding: 16px 0;
+  padding: 14px 0;
   border-bottom: 1px solid var(--oit-line);
 }
-.oit-checklist-mark {
-  width: 10px;
-  height: 10px;
-  border: 1px solid var(--oit-accent);
-  border-radius: 50%;
-  background: var(--oit-accent);
+.oit-recap-steps {
+  counter-reset: oit-step;
 }
-.oit-checklist-name {
+.oit-recap-steps li::before {
+  counter-increment: oit-step;
+  content: counter(oit-step);
+  color: var(--oit-ink-3);
+  font: 500 14px/1.5 var(--oit-sans);
+}
+/* An empty ring; a tick when it was the player's first choice. */
+.oit-recap-tick {
+  position: relative;
+  top: 1px;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--oit-line-2);
+  border-radius: 50%;
+}
+.oit-recap-ds li.is-picked .oit-recap-tick {
+  border-color: var(--oit-accent);
+}
+.oit-recap-ds li.is-picked .oit-recap-tick::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--oit-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.oit-recap-name {
   color: var(--oit-ink);
   font: 500 16px/1.5 var(--oit-sans);
 }
-.oit-checklist-what {
+.oit-recap-line {
   display: block;
   color: var(--oit-ink-2);
   font: 400 15px/1.55 var(--oit-sans);
+}
+.oit-recap-closing {
+  max-width: 40rem;
+  margin: 0;
+  color: var(--oit-ink);
+  font: 400 clamp(19px, 2.2vw, 23px)/1.45 var(--oit-serif);
+}
+.oit-recap .oit-sec--end .oit-actions {
+  margin-top: 28px;
 }
 
 /* ------------------------------------------- Part 2 outcome: what next, full details */

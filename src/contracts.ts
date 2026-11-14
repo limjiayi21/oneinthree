@@ -392,8 +392,14 @@ export interface Screens {
   briefing(pov: Pov): Promise<void>;
   /** Debrief for a part. */
   summary(data: SummaryData): Promise<'continue' | 'retry'>;
-  /** End of the guided replay: the best tactics used, then the closing line. */
-  guidedEnd(opts: { used: Array<{ name: string; what: string }>; closing: string }): Promise<void>;
+  /** After the teaching replay: the 5 Ds (ticked where they were the player's first pick), the two steps before helping, the closing line. */
+  recap(opts: {
+    title: string;
+    fiveDs: Array<{ name: string; line: string; firstPick: boolean }>;
+    stepsTitle: string;
+    steps: Array<{ name: string; line: string }>;
+    closing: string;
+  }): Promise<void>;
   /** Closing screen: resources and sources. */
   closing(): Promise<'restart'>;
   /** Loading / error states. */
