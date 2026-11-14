@@ -24,6 +24,12 @@ npm run dev
 
 Controls: W A S D to walk, mouse to look, Shift to hurry, hold Space to speak, T to type instead, Esc to pause. In Part 2, F films and E asks the shopkeeper for help.
 
+Head look (optional): press G to look around by turning your head in front of the webcam, and Shift+G to recalibrate. Turning or tilting your head turns hers; holding a turn near the left or right edge turns her body. Your eyes are not tracked, so they stay free to read the screen. The mouse keeps working. Frames are processed in the browser by MediaPipe Face Landmarker and never uploaded. `?eyes=1` starts it automatically after the intro, `?eyegain=1.4` makes it more sensitive, and `?eyegainy=1.5` changes only up and down.
+
+Headphones recommended: in Part 1, when he follows behind you, his footsteps fall into step with yours and keep going a beat after you stop.
+
+Hand tracking (optional): press H. In Part 2, look down and pinch your thumb and index finger to take out or put away your phone (same as F), and hold up an open hand near the shop to ask the shopkeeper for help (same as E). Head look and hand tracking share one webcam and can run together. `?hands=1` starts it after the intro.
+
 ## How a turn works
 
 1. The browser records a push-to-talk clip and posts it to the Worker.
@@ -64,7 +70,7 @@ No study measures how a street harasser reacts to a specific response. Every "sh
 | `npm run build` | Typecheck and production build |
 | `npm run deploy` | Build and deploy to Cloudflare; set the key first with `npx wrangler secret put ELEVENLABS_API_KEY` |
 
-Dev shortcuts: `?nolock=1` runs without pointer lock, `?skip=intro,part1` jumps ahead, `?seed=7` fixes the random seed.
+Dev shortcuts: `?eyes=1` starts head look, `?hands=1` starts hand tracking, `?nolock=1` runs without pointer lock, `?skip=intro,part1` jumps ahead, `?seed=7` fixes the random seed.
 
 ## Known limits
 

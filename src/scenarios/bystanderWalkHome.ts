@@ -11,12 +11,13 @@ import { createPlayer } from '../player/player';
 import { createHuman } from '../characters/human';
 import { createNpc } from '../characters/npc';
 import { SCRIPT, SceneKit, clamp01, inRect, voUrl, type SceneDeps, type SceneResult } from './common';
+import { bindHandActions } from './handActions';
 
 export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const { engine, world, audio, hud } = deps;
   const P = world.points;
 
-  const player = createPlayer(engine, world, { body: 'bystander', requireLock: deps.requireLock });
+  const player = createPlayer(engine, world, { body: 'bystander', requireLock: deps.requireLock, eyes: deps.eyes });
   const kit = new SceneKit(deps, player, 'bystander');
 
   /* ---------------------------------------------------------------- cast */
@@ -498,6 +499,15 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     prevOnKey(code);
   };
 
+  // Webcam hands: look down and pinch for the phone (F); raise an open palm to ask the shopkeeper (E).
+  const unbindHands = bindHandActions(deps, player, kit, {
+    lookDownPinch: { key: 'KeyF', hint: () => (filming ? 'Pinch to put your phone away' : 'Pinch to take out your phone') },
+    palm: {
+      key: 'KeyE',
+      hint: () => (!once.has('clerkAsked') && (clerk.distanceTo(player.position) < 4.2 || player.position.distanceTo(P.shopDoor) < 3) ? 'Raise an open hand to ask the shopkeeper for help' : null),
+    },
+  });
+
   kit.exposeDebug({ man, woman, clerk, world, mode: () => ({ started, dynamic, beat, manFocus, manGone, womanGone }) });
 
   /* ---------------------------------------------------------------- run */
@@ -533,6 +543,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   const sessionId = kit.sessionId;
   await hud.fade(true, 400);
   player.setPhoneRaised(false);
+  unbindHands();
   kit.dispose();
   player.dispose();
   return { sessionId, outcome };

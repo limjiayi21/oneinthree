@@ -11,6 +11,7 @@ import { createPlayer } from '../player/player';
 import { createHuman } from '../characters/human';
 import { createNpc } from '../characters/npc';
 import { SceneKit, clamp01, inRect, pick, pickSide, type SceneDeps, type SceneResult } from './common';
+import { bindEchoSteps, laggedTarget } from './echoSteps';
 
 const GESTURE_FOR: Partial<Record<ManStance, Gesture[]>> = {
   opening: ['beckon', 'wave'],
@@ -38,7 +39,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const P = world.points;
   const Z = world.zones;
 
-  const player = createPlayer(engine, world, { body: 'woman', requireLock: deps.requireLock });
+  const player = createPlayer(engine, world, { body: 'woman', requireLock: deps.requireLock, eyes: deps.eyes });
   const kit = new SceneKit(deps, player, 'woman');
 
   /* ---------------------------------------------------------------- cast */
@@ -109,6 +110,10 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   const toward = () => player.position;
   const towardFwd = () => player.getForward(new THREE.Vector3());
+  const towardLagged = laggedTarget(kit, player);
+  // With him behind her, his footsteps land just after hers (headphones make it spatial).
+  bindEchoSteps({ deps, kit, player, npc: man, active: () => !manGone && man.behaviour === 'followBehind' });
+  let farFromMan = true; // re-arms the snap glance once he has backed off
 
   function applyDecision(d: ManDecision): void {
     decision = d;
@@ -130,7 +135,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, gap), gap: Math.max(0.9, gap) });
         break;
       case 'follow_behind':
-        man.setBehaviour({ type: 'followBehind', target: toward, gap: Math.max(2.2, gap), speed: 2.4 });
+        // He follows where she was a beat ago: he reacts late, like someone matching her.
+        man.setBehaviour({ type: 'followBehind', target: towardLagged, gap: Math.max(2.2, gap), speed: 2.4 });
         break;
       case 'step_closer':
         man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(0.75, gap), speed: 1.3 });
@@ -391,6 +397,13 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         player.flinch(man.position, 0.7);
         kit.scare(0.22);
         if (kit.secondsSinceThought > 4) kit.think(pick(['w_close_1', 'w_close_2', 'w_close_3']));
+      }
+      // He moves in close: her head snaps to his face before she decides to look.
+      if (d > 2.8) farFromMan = true;
+      else if (farFromMan && d < 2.0 && !player.isLookingAt(man.human.getHeadPosition(manHead), 25)) {
+        farFromMan = false;
+        lastGlance = kit.time;
+        player.glanceAt(man.human.getHeadPosition(manHead), 0.75, 0.8);
       }
       // He is behind her and she is not looking: the glance she cannot stop herself taking.
       if (man.behaviour === 'followBehind' && d < 9 && kit.time - lastGlance > 11 && !player.isLookingAt(man.position, 60)) {

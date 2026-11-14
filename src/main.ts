@@ -9,6 +9,8 @@ import { runWomanWalkHome } from './scenarios/womanWalkHome';
 import { runBystanderWalkHome } from './scenarios/bystanderWalkHome';
 import type { SceneDeps, SceneResult } from './scenarios/common';
 import type { OutcomeKind, Pov, SummaryData } from '../shared/types';
+import { createEyeTracker } from './player/eyes';
+import { createHandTracker } from './player/hands';
 
 /** Used only if the server cannot produce a debrief (offline, error). No statistics are invented here. */
 const FALLBACK_OUTCOME: Record<OutcomeKind, { title: string; body: string }> = {
@@ -72,6 +74,22 @@ async function main(): Promise<void> {
   const idle = engine.onUpdate((dt, t) => world.update(dt, t));
   engine.start();
 
+  // Webcam head look (G, Shift+G recalibrates) and hand gestures (H) share one camera.
+  // ?eyes=1 / ?hands=1 start them after the intro; ?eyegain=1.4 makes head look more sensitive, ?eyegainy=1.5 only up/down.
+  const eyes = createEyeTracker({
+    sensitivity: params.has('eyegain') ? Number(params.get('eyegain')) : 1,
+    verticalSensitivity: params.has('eyegainy') ? Number(params.get('eyegainy')) : undefined,
+  });
+  const hands = createHandTracker();
+  window.addEventListener('keydown', (e) => {
+    if ((e.code !== 'KeyG' && e.code !== 'KeyH') || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    const el = document.activeElement;
+    if (el instanceof HTMLElement && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    if (e.code === 'KeyH') hands.toggle();
+    else if (e.shiftKey) eyes.recalibrate();
+    else eyes.toggle();
+  });
+
   const health = await getHealth();
   const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
   const deps: SceneDeps = {
@@ -83,6 +101,8 @@ async function main(): Promise<void> {
     voice: health.voice,
     requireLock: params.get('nolock') !== '1',
     seed,
+    eyes,
+    hands,
   };
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__oit = deps;
 
@@ -92,6 +112,8 @@ async function main(): Promise<void> {
   } else {
     void mic.init();
   }
+  if (params.get('eyes') === '1') void eyes.enable();
+  if (params.get('hands') === '1') void hands.enable();
   await audio.resume();
   await audio.load((f) => screens.loading('Preparing the street…', f));
   screens.loading(null);

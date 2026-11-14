@@ -22,6 +22,7 @@ import type { DynamicCollider, Engine, Player, PlayerEvents, StreetWorld } from 
 import { createBody, type BodyFrame, type BodyKind } from './body';
 import { circlePenetration, clampToBounds, pushOutOfCircle, pushOutOfRect, type Vec2 } from './collision';
 import { createInput, type MoveIntent } from './input';
+import type { EyeLookSource } from './eyes';
 import { DEG, Spring, clamp, clamp01, createRng, damp, easeOutCubic, forwardX, forwardZ, lerp, smoothstep, wrapAngle, yawOf } from './mathx';
 
 export interface PlayerOptions {
@@ -33,6 +34,8 @@ export interface PlayerOptions {
    * true and 'unlock' is never emitted.
    */
   requireLock?: boolean;
+  /** Optional webcam eye-look; read every frame while input is live. */
+  eyes?: EyeLookSource;
 }
 
 /** Additive reaction layers, for tests and the dev harness. Everything is 0 at rest. */
@@ -70,6 +73,8 @@ export interface ReactionState {
 export interface PlayerController extends Player {
   /** Look pitch in radians (+ up), without reaction offsets. */
   readonly pitch: number;
+  /** Pitch the camera actually shows, including head look and reactions. */
+  readonly viewPitch: number;
   readonly radius: number;
   readonly body: BodyKind;
   /** Set the look direction directly (harness / cutscenes). */
@@ -197,6 +202,9 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
   let glance: Glance | null = null;
   let glanceYaw = 0;
   let glancePitch = 0;
+  // webcam eye-look: a head turn on top of the body yaw, like a glance
+  let eyeYaw = 0;
+  let eyePitch = 0;
   const rng = createRng(0x51ed270b);
 
   // camera bookkeeping
@@ -377,8 +385,8 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     const recoilRoll = clamp(rRoll.x, -4, 4) * DEG;
     const lift = clamp(jolt.x + dip.x + sag.x, -0.07, 0.08);
 
-    viewYaw = yaw + glanceYaw + recoilYaw + swayYaw + tremYaw;
-    viewPitch = clamp(pitch + glancePitch + recoilPitch + swayPitch + tremPitch + bobPitch, T.pitchMin - 4 * DEG, T.pitchMax + 4 * DEG);
+    viewYaw = yaw + eyeYaw + glanceYaw + recoilYaw + swayYaw + tremYaw;
+    viewPitch = clamp(pitch + eyePitch + glancePitch + recoilPitch + swayPitch + tremPitch + bobPitch, T.pitchMin - 4 * DEG, T.pitchMax + 4 * DEG);
     const roll = strafeLean + recoilRoll + bobRoll + swayRoll + tremRoll;
 
     // The eyes sit in front of the neck pivot: looking down carries them forward and a little lower.
@@ -454,6 +462,15 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     const wantTurn = inputEnabled ? intent.turn * T.keyTurnRate : 0;
     turnVel = damp(turnVel, wantTurn, 12, dt);
     if (Math.abs(turnVel) > 1e-4) yaw = wrapAngle(yaw + turnVel * dt);
+
+    /* --- webcam eye-look: glance offset plus a body turn at the edges */
+    // An involuntary glance (glanceAt) takes the head away from the player: head look lets go
+    // quickly while it runs, then comes back at its normal pace.
+    const look = inputEnabled && input.locked && !glance ? (opts.eyes?.read() ?? null) : null;
+    const lookRate = glance ? 14 : 9;
+    eyeYaw = damp(eyeYaw, look ? look.yawOffset : 0, lookRate, dt);
+    eyePitch = damp(eyePitch, look ? look.pitchOffset : 0, lookRate, dt);
+    if (look && look.yawRate !== 0) yaw = wrapAngle(yaw + look.yawRate * dt);
 
     /* --- wanted velocity */
     let lf = 0; // forward, m/s
@@ -750,6 +767,9 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     get pitch() {
       return pitch;
     },
+    get viewPitch() {
+      return viewPitch;
+    },
 
     get inputEnabled() {
       return inputEnabled;
@@ -780,6 +800,8 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
       glance = null;
       glanceYaw = 0;
       glancePitch = 0;
+      eyeYaw = 0;
+      eyePitch = 0;
       gait = 0;
       gaitSpeed = 0;
       strafeLean = 0;

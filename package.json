@@ -15,6 +15,7 @@
     "gen:sfx": "node scripts/gen-sfx.mjs"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.2.3",
     "three": "^0.187.0"
   },
   "devDependencies": {

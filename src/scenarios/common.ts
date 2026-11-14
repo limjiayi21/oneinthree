@@ -16,6 +16,8 @@ import type {
 } from '../../shared/types';
 import { createSession, sendTurn } from '../net/api';
 import scriptJson from '../../content/script.json';
+import type { EyeLookSource } from '../player/eyes';
+import type { HandGestureSource } from '../player/hands';
 
 export interface ScriptLine {
   speaker: 'thought' | 'woman' | 'man' | 'clerk' | 'self';
@@ -38,6 +40,10 @@ export interface SceneDeps {
   requireLock: boolean;
   /** Optional fixed seed for reproducible runs. */
   seed?: number;
+  /** Optional webcam eye-look (G toggles it). */
+  eyes?: EyeLookSource;
+  /** Optional webcam hand gestures (H toggles it). */
+  hands?: HandGestureSource;
 }
 
 export interface SceneResult {
@@ -69,6 +75,8 @@ export class SceneKit {
   private nextTask = 1;
   private cleanups: Array<() => void> = [];
   private frameHooks: Array<(dt: number) => void> = [];
+  /** NPCs whose own footstep sounds are silenced (another system voices them, see echoSteps.ts). */
+  readonly muteSteps = new Set<Npc>();
   private npcs: Npc[] = [];
 
   /* turn pipeline */
@@ -119,6 +127,7 @@ export class SceneKit {
     this.npcs.push(npc);
     npc.setObstacles(this.deps.world.colliders, this.deps.world.bounds);
     npc.onStep((pos, speed) => {
+      if (this.muteSteps.has(npc)) return;
       this.deps.audio.footstep('concrete', { position: pos, volume: 0.5 + Math.min(0.5, speed / 4), heavy: heavySteps });
     });
     this.cleanups.push(this.player.addCollider(npc));
