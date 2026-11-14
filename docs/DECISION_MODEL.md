@@ -24,6 +24,8 @@ line --TTS--> VOICE
 
 The language model never chooses what he does. It is handed a stance that has already been sampled and writes one line in that stance. Clef never chooses either: it produces probabilities that the model blends into its own.
 
+The patterns he is allowed to sound like, and the rule that a firm boundary plus a bystander makes him leave, are the cited notes in `data/harassment_research.md`. That file does not add a probability: no study measures the rate.
+
 A judge may run beside that sample. The default is Workers AI (`@cf/google/gemma-4-26b-a4b-it`, JSON schema, no extra key), started in parallel with the line writer and dropped if it takes more than 400 ms or returns an enum outside the allowed sets. TypeSafe, OpenAI, and Gemini are optional and each needs its own key. Code, not the judge, applies the training rules: a firm boundary together with a bystander forces `back_off`, and the judge cannot invent a physical escalation this model did not already reach. `DECISION_PROVIDER=seeded` skips the judge, which is what the tests do.
 
 ## Part 1: her walk home

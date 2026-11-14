@@ -85,7 +85,7 @@ The language model never decides what he does; it only writes words for a stance
 
 ## What the evidence does and does not support
 
-Every statistic, case study and phone number shown comes from [content/evidence.json](content/evidence.json), with sources. The readable version is [docs/research/evidence.md](docs/research/evidence.md).
+Every statistic, case study and phone number shown comes from [content/evidence.json](content/evidence.json), with sources. The readable version is [docs/research/evidence.md](docs/research/evidence.md). The short file the line writer, the live agent, and the debrief read is [data/harassment_research.md](data/harassment_research.md) (and `data/harassment_research.json`). It only includes figures that have a URL, and it does not invent a rate for how he reacts.
 
 No study measures how a street harasser reacts to a specific response. Every "she did X, he does Y" probability is therefore a labelled assumption. The debrief tags each of his reactions as from data, inferred, or assumption.
 

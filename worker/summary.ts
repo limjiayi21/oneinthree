@@ -21,6 +21,7 @@ import type {
 } from '../shared/types';
 import type { LogEntry, SessionMeta } from './log';
 import { EVIDENCE, PARAMS, type Params } from './model/params';
+import { HARASSMENT_RESEARCH } from './research';
 
 const STRATEGY_LABEL: Record<Strategy, string> = {
   ignore: 'Said nothing',
@@ -260,7 +261,13 @@ function fiveDs(log: LogEntry[], outcome: OutcomeKind): FiveDResult[] {
         : `You named it and told him to stop${turned ? ', and he turned on you: that is the known risk of Direct, not a mistake in how you did it' : ''}. Direct is effective and it is the riskiest of the five. Keep it to one calm sentence, do not argue, and turn your attention to her.`
       : 'Not used. Direct means one short, calm sentence telling him to leave her alone, or asking her in front of him whether she is okay. It works, and it is the riskiest of the five because he may turn on you, so check first that you and she are physically safe.',
   };
-  return (['distract', 'delegate', 'document', 'delay', 'direct'] as const).map((key) => ({ key, used: used(key), moments: moments[key], feedback: feedback[key] }));
+  const cited = HARASSMENT_RESEARCH.debrief.fiveDCitation.text;
+  return (['distract', 'delegate', 'document', 'delay', 'direct'] as const).map((key) => ({
+    key,
+    used: used(key),
+    moments: moments[key],
+    feedback: `${feedback[key]} ${cited}`,
+  }));
 }
 
 /* ------------------------------------------------------------------ the summary */
@@ -339,9 +346,10 @@ export function buildSummary(meta: SessionMeta, log: LogEntry[], finalOutcome: O
     if (sawStance('back_off', 'gone')) did.push('eventually gave up');
     const triedText = tried.length ? `You ${joinPhrases(tried.slice(0, 4))}.` : 'You kept walking.';
     const didText = did.length ? ` He ${joinPhrases(did)}.` : '';
+    const usedFirm = players.some((p) => p.strategy === 'firm_boundary' || p.event === 'pushed_past');
     add(
       'There was no right answer',
-      `${triedText}${didText} Researchers who have studied women's own accounts find every kind of outcome after every kind of response, and the people who train on this are blunt about it: there is no right or wrong way to respond, because the harassment is never caused by the response. Most of what he did was decided by the kind of man he is, before you said a word.`,
+      `${triedText}${didText} Researchers who have studied women's own accounts find every kind of outcome after every kind of response, and the people who train on this are blunt about it: there is no right or wrong way to respond, because the harassment is never caused by the response. Most of what he did was decided by the kind of man he is, before you said a word. ${HARASSMENT_RESEARCH.debrief.noRightResponse.text}${usedFirm ? ` ${HARASSMENT_RESEARCH.debrief.firmBoundary.text}` : ''}`,
       findStats(evidence, { topic: 'response', n: 2 }),
     );
     if (sawStance('hostile', 'intimidate', 'escalate')) {
@@ -431,7 +439,7 @@ export function buildSummary(meta: SessionMeta, log: LogEntry[], finalOutcome: O
           aggressive ? 'Meeting his aggression with yours' : 'Direct works, and it is the risky one',
           aggressive
             ? `Threats and insults put you in his sights${turned ? ', as you saw' : ''} and keep the scene about the two of you. The same result usually comes from one calm sentence and then turning to her.`
-            : `Harassment is more likely to stop when a bystander confronts it. It is also the tactic most likely to turn him on the person who speaks${turned ? ', which is what happened here' : ''}. Short, calm, no argument, then your attention goes to her.`,
+            : `Harassment is more likely to stop when a bystander confronts it. It is also the tactic most likely to turn him on the person who speaks${turned ? ', which is what happened here' : ''}. Short, calm, no argument, then your attention goes to her. ${HARASSMENT_RESEARCH.debrief.bystanderStops.text}`,
           findStats(evidence, { topic: 'bystander', regions: ['nyc', 'us'], n: 1 }),
         );
       }
