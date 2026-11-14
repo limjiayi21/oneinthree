@@ -16,6 +16,7 @@ import type { BystanderStrategy, ManStance, SpeechTarget, WomanStrategy, WorldCo
 import type { InterventionResult } from './model/bystander';
 import { BYSTANDER_STRATEGIES } from './model/bystander';
 import { REACTION_STANCES, WOMAN_STRATEGIES } from './model/woman';
+import { isClearFirm, isEngagedUtterance } from './model/stanceGate';
 
 /**
  * Two Clef models answer every read, in parallel. Measured on 41 labelled
@@ -378,9 +379,8 @@ const RX = {
   police: /\b(police|cops?|911|nine one one|call(ing)? (someone|somebody|my)|scream|help!|somebody help|security|cameras?)\b/i,
   insult: /\b(fuck|fucking|creep|creepy|asshole|loser|disgusting|pervert|perv|pig|freak|ugly|pathetic|piece of shit|dick|scum|weirdo|shut up)\b/i,
   excuse: /\b(boyfriend|husband|married|fianc|girlfriend|waiting for me|on the phone|meeting (someone|my)|my (dad|father|brother|friend)s? (is|are)|running late|in a hurry|late for)\b/i,
-  firm: /\b(leave me alone|stop|back off|go away|get away|don'?t touch|not interested|i said no|no means no|step back|move|let me (through|pass|by)|get out of my way)\b/i,
   plead: /\bplease\b.*\b(let me|don'?t|go home|stop|leave)\b|\bplease,? please\b/i,
-  polite: /\b(no thanks|no,? thank you|i'?m good|i'?m fine|i'?m okay|have a (good|nice) (night|evening|one)|sorry|not tonight|maybe another time|excuse me)\b/i,
+  polite: /\b(no thanks|no,? thank you|i'?m good|i'?m fine|i'?m okay|have a (good|nice) (night|evening|one)|not tonight|maybe another time)\b/i,
   engage: /\b(thanks|thank you|hi|hello|hey|my name|i'?m (just )?(heading|going|walking)|just (heading|going)|nice to meet|how are you|what'?s your name)\b/i,
   seek: /\b(store|shop|bodega|sir|ma'?am|can (you|someone) help|somebody|anyone)\b/i,
 };
@@ -391,12 +391,13 @@ export function heuristicWomanRead(text: string): WomanRead {
   if (RX.insult.test(t)) strategy = 'hostile';
   else if (RX.police.test(t)) strategy = 'threaten_attention';
   else if (RX.plead.test(t)) strategy = 'plead';
-  else if (RX.firm.test(t)) strategy = 'firm_boundary';
+  else if (isClearFirm(text)) strategy = 'firm_boundary';
   else if (RX.excuse.test(t)) strategy = 'excuse';
+  else if (isEngagedUtterance(text)) strategy = 'engage';
   else if (RX.polite.test(t)) strategy = 'polite_deflect';
   else if (RX.seek.test(t)) strategy = 'seek_help';
   else if (RX.engage.test(t)) strategy = 'engage';
-  else if (t.trim().split(/\s+/).length <= 1) strategy = 'unclear';
+  else if (t.trim().split(/\s+/).length <= 2) strategy = 'engage';
   const p = strategy === 'unclear' ? 0.5 : 0.65;
   return {
     strategy,

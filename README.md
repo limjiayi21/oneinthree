@@ -31,6 +31,10 @@ Without a key the simulation still runs, with subtitles instead of voices. The d
 
 Controls: W A S D to walk, mouse to look, Shift to hurry, hold Space to speak, T to type instead, H to toggle hands-free, Esc to pause. In Part 2, F films and E asks the shopkeeper for help. A clip is capped at 8 seconds. The indicator under the scene says Listening…, Transcribing…, or Didn't catch that.
 
+### Why the microphone dropped speech
+
+Chromium can fire the recorder's `stop` event before the only `dataavailable` when `MediaRecorder.start()` is called with no timeslice. The whole utterance is that one event. The old code sealed the clip inside `onstop`. If no chunk had arrived yet, it treated the clip as silence and never sent the turn, so the player spoke and nothing on screen explained the miss. Recording now starts with a 200 ms timeslice, waits a moment after stop so a late chunk is kept, and only calls a clip silent when the level meter actually saw sound and the peak was room tone.
+
 ### Check voice and the microphone on a laptop
 
 The VM this was built on has no microphone and no ElevenLabs key, so this part is for a real machine.
@@ -112,7 +116,7 @@ No study measures how a street harasser reacts to a specific response. Every "sh
 | `npm run build` | Typecheck and production build |
 | `npm run deploy` | Build and deploy to Cloudflare; set the key first with `npx wrangler secret put ELEVENLABS_API_KEY` |
 
-Dev shortcuts: `?nolock=1` runs without pointer lock, `?skip=intro,part1` jumps ahead, `?seed=7` fixes the random seed.
+Dev shortcuts: `?nolock=1` runs without pointer lock, `?skip=intro,part1` jumps ahead, `?seed=7` fixes the random seed. `?demo=1` is the demo config: seed `20261114`, so his decisions repeat. A numeric `?seed=` still overrides it. The line model can still vary; the stance machine does not.
 
 ## Known limits
 

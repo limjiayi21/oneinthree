@@ -702,6 +702,17 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     arousal = Math.min(1, arousal + 0.08);
   }
 
+  function pullToward(to: THREE.Vector3, distance = 0.7, duration = 0.45): void {
+    if (disposed) return;
+    const dx = to.x - position.x;
+    const dz = to.z - position.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const dist = clamp(distance, 0.05, 1.4);
+    pushes.push({ dx: dx / len, dz: dz / len, distance: dist, duration: Math.max(0.3, duration), t: 0, steps: 2, ease: 'steps', suppress: true });
+    suppressTail = 0.2;
+    arousal = Math.min(1, arousal + 0.2);
+  }
+
   function startle(strength = 0.7): void {
     if (disposed) return;
     const s = clamp01(strength);
@@ -839,6 +850,7 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
 
     flinch,
     stepBack,
+    pullToward,
     startle,
     glanceAt,
 

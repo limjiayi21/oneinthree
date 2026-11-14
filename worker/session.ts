@@ -41,10 +41,12 @@ import {
   type WomanRead,
 } from './read';
 import { applyToDecision, composeBeat, judgeTurn, type JudgeEnv, type TurnReading } from './judge';
+import { emptyMemory, memoryBlock, noteTurn, type ConversationMemory } from './memory';
 import { agentVariables } from '../shared/liveVoice';
 import { coarseExpression } from '../shared/expression';
-import { agentTurnSkipsVoice, mintSignedUrl } from './agent';
-import { addressOf, addressOfBystander, groundedLine } from './model/address';
+import { agentTurnSkipsVoice, ensureLiveAgent, mintSignedUrl } from './agent';
+import { planReply } from './converse';
+import { addressOf, addressOfBystander, groundedLine, lineAcknowledges } from './model/address';
 import { MAX_CLIP_BYTES, transcribe } from './stt';
 import { buildSummary } from './summary';
 import { LiveAudio, startTts, type AudioSpec } from './tts';
@@ -81,6 +83,8 @@ interface Persisted {
   thoughts: string[];
   lastMan: ManDecision | null;
   outcome: OutcomeKind | null;
+  /** Rolling summary and facts. Absent on sessions saved before this existed. */
+  memory?: ConversationMemory;
 }
 
 const CLIENT_EVENTS: ClientEventType[] = [
@@ -256,6 +260,7 @@ export class SessionDO extends DurableObject<Env> {
     const agentId = this.env.ELEVENLABS_AGENT_ID;
     if (!key || !agentId || !this.s) return json({ error: 'Live voice is not configured' }, 404);
     try {
+      await ensureLiveAgent(key, agentId);
       const signedUrl = await mintSignedUrl(key, agentId);
       const man = this.s.lastMan;
       const vars = agentVariables({
@@ -441,6 +446,7 @@ export class SessionDO extends DurableObject<Env> {
     decision: ManDecision | null,
     tension: number,
     ms: Record<string, number>,
+    gate: { fromStance: ManStance; text: string; turn: number; rejections: number; seekingHelp: boolean },
   ): Promise<{ decision: ManDecision; tension: number; rule: string | null } | null> {
     if (!decision || !['speech', 'silence', 'filming_start', 'stood_between', 'asked_clerk'].includes(event)) return null;
     const reading = await pending;
@@ -454,7 +460,14 @@ export class SessionDO extends DurableObject<Env> {
     const beat = composeBeat(
       { stance: decision.stance, emotion: decision.emotion, emotionIntensity: decision.emotionIntensity, action: decision.action, tension },
       reading,
-      { bystanderIntervened: pov === 'bystander' && event !== 'silence' },
+      {
+        bystanderIntervened: pov === 'bystander' && event !== 'silence',
+        text: gate.text,
+        fromStance: gate.fromStance,
+        turn: gate.turn,
+        rejections: gate.rejections,
+        seekingHelp: gate.seekingHelp,
+      },
     );
     return { decision: applyToDecision(decision, beat), tension: beat.tension, rule: beat.rule };
   }
@@ -473,6 +486,9 @@ export class SessionDO extends DurableObject<Env> {
     agentVoice = false,
   ): Promise<void> {
     const state = s.woman as WomanState;
+    const fromStance = state.stance;
+    const rejectionsBefore = state.rejections;
+    const turnBefore = state.turn;
     const rng = new Rng(s.rng);
     const pendingJudge = this.prefetchJudge(s.meta.pov, event, text, s.transcript, ctx, state.stance);
     // Wording choices draw from their own stream, so the decisions replay under a fixed seed whichever path writes the line.
@@ -482,11 +498,15 @@ export class SessionDO extends DurableObject<Env> {
     // Start writing his line before Clef has answered, on a quick keyword guess at her words. If the real
     // decision lands on the same stance (it usually does) the line is already on its way; if not, it is dropped.
     let early: LineJob | null = null;
+    if (event === 'speech' && text) this.rememberTurn(s, 'player', text);
     if (event === 'speech' && !agentVoice) {
       s.transcript.push(`HER: ${text}`);
       if (this.env.AI) {
         const guess = heuristicWomanRead(text);
-        const trial = decideWoman(state, { event, ctx, strategyProbs: guess.strategyProbs, signals: guess.signals }, new Rng(s.rng));
+        // A copy: the real decision still has to run on the untouched state. The old call
+        // advanced the live machine, so one "hello" was decided twice and the line could
+        // be written for a retreat the player never earned.
+        const trial = decideWoman({ ...state }, { event, ctx, text, strategyProbs: guess.strategyProbs, signals: guess.signals }, new Rng(s.rng));
         if (trial.decision && trial.speak && !FIXED_COPY_STANCES.includes(trial.decision.stance)) {
           early = this.startWomanLine(s, trial.decision, trial.strategy, event, text, ctx, copy);
         }
@@ -512,14 +532,53 @@ export class SessionDO extends DurableObject<Env> {
     }
 
     const t1 = Date.now();
-    const out = decideWoman(state, { event, ctx, strategyProbs: read?.strategyProbs, signals: read?.signals, reaction: read?.reaction }, rng);
+    const out = decideWoman(state, { event, ctx, text, strategyProbs: read?.strategyProbs, signals: read?.signals, reaction: read?.reaction }, rng);
     ms.decide = Date.now() - t1;
-    const judged = await this.finishJudge(pendingJudge, s.meta.pov, event, out.decision, out.tension, ms);
+    const judged = await this.finishJudge(pendingJudge, s.meta.pov, event, out.decision, out.tension, ms, {
+      fromStance,
+      text,
+      turn: turnBefore,
+      rejections: rejectionsBefore,
+      seekingHelp: event === 'entered_shop',
+    });
     if (judged && out.decision) {
       out.decision = judged.decision;
       out.state.stance = judged.decision.stance;
       out.tension = judged.tension;
       if (judged.rule && out.rationale) out.rationale = { ...out.rationale, text: judged.rule, basis: 'assumption' };
+    }
+    let plannedLine: string | null = null;
+    if (event === 'speech' && text && this.env.AI && out.decision && !agentVoice) {
+      const planned = await planReply(this.env.AI, {
+        fromStance,
+        text,
+        recent: s.transcript,
+        distance: ctx.distanceToMan,
+        speed: ctx.playerSpeed,
+        turn: turnBefore,
+        rejections: rejectionsBefore,
+      });
+      if (planned) {
+        out.decision = {
+          ...out.decision,
+          stance: planned.stance,
+          action: planned.action,
+          emotion: planned.emotion,
+          emotionIntensity: planned.intensity,
+          proximity: planned.proximity,
+        };
+        out.state.stance = planned.stance;
+        out.delivery = planned.delivery;
+        out.speak = planned.stance !== 'gone';
+        if (planned.stance === 'escalate' || planned.action === 'grab') out.outcome = 'escalated';
+        else if (out.outcome === 'escalated') out.outcome = undefined;
+        plannedLine = planned.line;
+        ms.converse = 1;
+        if (early) {
+          early.abort.abort();
+          early = null;
+        }
+      }
     }
     s.woman = out.state;
     s.rng = rng.state;
@@ -549,7 +608,7 @@ export class SessionDO extends DurableObject<Env> {
     if (out.decision) {
       const d = out.decision;
       s.lastMan = d;
-      emit({ type: 'decision', man: d, fear: out.fear, tension: out.tension, rationale: out.rationale });
+      emit({ type: 'decision', man: d, fear: out.fear, tension: out.tension, rationale: out.rationale, ...this.memoryField(s) });
       this.log({ kind: 'decision', t, turn, man: d, fear: out.fear, tension: out.tension, rationale: out.rationale, drivers: out.drivers });
 
       if (agentVoice) {
@@ -585,6 +644,12 @@ export class SessionDO extends DurableObject<Env> {
       if (!out.speak) {
         // He says nothing this beat (he is only trailing her): she still reacts.
         if (d.stance === 'follow') fromBank(false);
+      } else if (plannedLine) {
+        ms.converseLine = 1;
+        const voiced = this.speak(`m${turn}`, { role: 'man', text: plannedLine, emotion: d.emotion, delivery: out.delivery });
+        emit({ type: 'line', speaker: 'man', text: plannedLine, audioUrl: voiced.url, emotion: d.emotion, delivery: out.delivery });
+        this.noteLine(s, 'man', plannedLine, 'llm', turn, t);
+        thoughtFromBank();
       } else if (FIXED_COPY_STANCES.includes(d.stance)) {
         // Pre-rendered on purpose: the opening answers 'begin' with no latency, and the moment of escalation is fixed copy.
         fromBank(false);
@@ -663,9 +728,14 @@ export class SessionDO extends DurableObject<Env> {
         avoidLines: s.hisLines,
         avoidThoughts: s.thoughts,
         dice: [copy.next(), copy.next()],
+        memory: s.memory,
       }),
       keys: ['line', 'thought'],
-      validate: (key, value) => (key === 'line' ? cleanLine(value, { maxWords: 20, avoid: s.hisLines }) : cleanLine(value, { maxWords: 14, avoid: s.thoughts })),
+      validate: (key, value) => {
+        const cleaned = key === 'line' ? cleanLine(value, { maxWords: 20, avoid: s.hisLines }) : cleanLine(value, { maxWords: 14, avoid: s.thoughts });
+        if (key === 'line' && cleaned && text && !lineAcknowledges(cleaned, text)) return null;
+        return cleaned;
+      },
       onField: (key, value) => fields.push(key, value),
       signal: abort.signal,
     });
@@ -687,6 +757,9 @@ export class SessionDO extends DurableObject<Env> {
     agentVoice = false,
   ): Promise<void> {
     const state = s.bystander as BystanderState;
+    const fromStance = state.manStance;
+    const turnBefore = state.dynamicTurns;
+    if (event === 'speech' && text) this.rememberTurn(s, 'player', text);
     const pendingJudge = this.prefetchJudge(s.meta.pov, event, text, s.transcript, ctx, state.manStance);
     const rng = new Rng(s.rng);
     const t = ctx.elapsed;
@@ -717,7 +790,13 @@ export class SessionDO extends DurableObject<Env> {
       rng,
     );
     ms.decide = Date.now() - t1;
-    const judged = await this.finishJudge(pendingJudge, s.meta.pov, event, out.man, out.tension, ms);
+    const judged = await this.finishJudge(pendingJudge, s.meta.pov, event, out.man, out.tension, ms, {
+      fromStance,
+      text,
+      turn: turnBefore,
+      rejections: 0,
+      seekingHelp: event === 'asked_clerk',
+    });
     if (judged && out.man) {
       out.man = judged.decision;
       out.state.manStance = judged.decision.stance;
@@ -757,7 +836,7 @@ export class SessionDO extends DurableObject<Env> {
     if (out.man || out.woman) {
       const man: ManDecision = out.man ?? s.lastMan ?? { stance: 'gone', action: 'leave', emotion: 'neutral', emotionIntensity: 0.3, proximity: 3 };
       s.lastMan = man;
-      emit({ type: 'decision', man, woman: out.woman ?? undefined, fear: out.fear, tension: out.tension, rationale: out.rationale });
+      emit({ type: 'decision', man, woman: out.woman ?? undefined, fear: out.fear, tension: out.tension, rationale: out.rationale, ...this.memoryField(s) });
       this.log({ kind: 'decision', t, turn, man, woman: out.woman ?? undefined, fear: out.fear, tension: out.tension, rationale: out.rationale, drivers: out.drivers });
     }
 
@@ -844,6 +923,7 @@ export class SessionDO extends DurableObject<Env> {
             wantThought: Boolean(out.thought),
             avoidLines: s.hisLines,
             dice: cues.map(() => copy.next()),
+            memory: s.memory,
           }),
           keys,
           validate: (key, value) => (key === 'thought' ? cleanLine(value, { maxWords: 14, avoid: s.thoughts }) : cleanLine(value, { maxWords: 20, avoid: s.hisLines })),
@@ -892,6 +972,15 @@ export class SessionDO extends DurableObject<Env> {
 
   /* ------------------------------------------------------------------ shared emit helpers */
 
+  private rememberTurn(s: Persisted, who: 'player' | 'him', text: string): void {
+    s.memory = noteTurn(s.memory ?? emptyMemory(), who, text);
+  }
+
+  private memoryField(s: Persisted): { memory?: string } {
+    const memory = memoryBlock(s.memory);
+    return memory ? { memory } : {};
+  }
+
   private noteLine(s: Persisted, speaker: 'man' | 'woman' | 'clerk', text: string, source: 'llm' | 'bank' | 'script', turn: number, t: number): void {
     const who = speaker === 'man' ? 'HIM' : speaker === 'woman' ? 'HER' : 'SHOPKEEPER';
     s.transcript.push(`${who}: ${text}`);
@@ -899,6 +988,7 @@ export class SessionDO extends DurableObject<Env> {
     if (speaker === 'man') {
       s.hisLines.push(text);
       if (s.hisLines.length > 8) s.hisLines = s.hisLines.slice(-8);
+      this.rememberTurn(s, 'him', text);
     }
     this.log({ kind: 'line', t, turn, speaker, text, source });
   }

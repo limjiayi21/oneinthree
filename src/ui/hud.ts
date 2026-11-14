@@ -102,6 +102,16 @@ export function createHud(root: HTMLElement): Hud {
   );
 
   const objectiveEl = h('div', { class: 'oit-objective', role: 'status' });
+  const modeEl = h('p', { class: 'oit-status-mode' }, 'Push to talk');
+  const moodEl = h('p', { class: 'oit-status-mood' }, '');
+  const statusEl = h(
+    'aside',
+    { class: 'oit-status', 'aria-live': 'polite' },
+    h('p', { class: 'oit-status-k' }, 'Mode'),
+    modeEl,
+    h('p', { class: 'oit-status-k' }, 'His mood'),
+    moodEl,
+  );
   const reticleEl = h('div', { class: 'oit-reticle', 'aria-hidden': 'true' });
   const promptEl = h('div', { class: 'oit-prompt', role: 'status' });
   const hintEl = h('div', { class: 'oit-hint', role: 'status' });
@@ -125,12 +135,15 @@ export function createHud(root: HTMLElement): Hud {
       h('span', { class: 'oit-mic-r' }),
     ),
     h('div', { class: 'oit-mic-face', 'data-face': 'missed' }, h('span', { class: 'oit-mic-l' }), h('span', null, "Didn't catch that"), h('span', { class: 'oit-mic-r' })),
-    h('div', { class: 'oit-mic-face', 'data-face': 'live' }, h('span', { class: 'oit-mic-l' }, 'Live voice'), h('span', null, 'Listening…'), h('span', { class: 'oit-mic-r' }, 'L to stop')),
+    h('div', { class: 'oit-mic-face', 'data-face': 'live' }, h('span', { class: 'oit-mic-l' }, 'Live'), h('span', null, 'Speak normally'), h('span', { class: 'oit-mic-r' })),
     h('div', { class: 'oit-mic-face', 'data-face': 'unavailable' }, h('span', { class: 'oit-mic-l' }, 'Press'), keycap('T'), h('span', { class: 'oit-mic-r' }, 'to type instead')),
   );
+  const partialEl = h('p', { class: 'oit-mic-partial' });
+  const liveOfferEl = h('p', { class: 'oit-mic-offer' }, 'Press L for live voice');
+  micEl.append(partialEl, liveOfferEl);
   const micStatus = h('div', { class: 'oit-sr', role: 'status' });
 
-  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, reticleEl, promptEl, hintEl, micEl, micStatus);
+  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, statusEl, reticleEl, promptEl, hintEl, micEl, micStatus);
 
   const fadeEl = h('div', { class: 'oit-fade', 'aria-hidden': 'true' });
 
@@ -286,7 +299,9 @@ export function createHud(root: HTMLElement): Hud {
   let micIntroduced = false;
 
   function setMic(state: MicState, level = 0): void {
-    if (state === 'recording') micEl.style.setProperty('--level', clamp01(level).toFixed(3));
+    if (state === 'recording' || state === 'live') micEl.style.setProperty('--level', clamp01(level).toFixed(3));
+    micEl.dataset.hot = (state === 'recording' || state === 'live') && level > 0.04 ? '1' : state === 'recording' || state === 'live' ? '0' : '';
+    if (state !== 'recording' && state !== 'live') setPartial(null);
     if (state === micState) return;
     const previous = micState;
     micState = state;
@@ -322,6 +337,28 @@ export function createHud(root: HTMLElement): Hud {
     } else if (state === 'hidden') {
       micStatus.textContent = '';
     }
+  }
+
+  function setLiveVoice(on: boolean): void {
+    micEl.dataset.offer = on ? '1' : '0';
+  }
+
+  function setTalkMode(mode: 'live' | 'push' | 'off'): void {
+    statusEl.dataset.mode = mode;
+    modeEl.textContent = mode === 'live' ? 'Live' : mode === 'push' ? 'Push to talk' : 'Off';
+    statusEl.classList.toggle('is-on', mode !== 'off');
+  }
+
+  function setMood(label: string | null): void {
+    const clean = label?.replace(/\s+/g, ' ').trim() ?? '';
+    moodEl.textContent = clean || '—';
+    statusEl.classList.toggle('has-mood', clean.length > 0);
+  }
+
+  function setPartial(text: string | null): void {
+    const clean = text?.replace(/\s+/g, ' ').trim() ?? '';
+    partialEl.textContent = clean;
+    partialEl.classList.toggle('is-on', clean.length > 0);
   }
 
   /* ----------------------------------------------------------------- fear */
@@ -585,6 +622,10 @@ export function createHud(root: HTMLElement): Hud {
     hint,
     objective,
     setMic,
+    setLiveVoice,
+    setTalkMode,
+    setMood,
+    setPartial,
     setFear,
     fade,
     card,

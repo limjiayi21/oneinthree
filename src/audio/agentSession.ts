@@ -1,9 +1,8 @@
 /**
- * Live voice over an ElevenLabs Agent. The browser only ever sees a signed
- * URL minted by the Worker. The SDK owns the microphone, playback, and
- * barge-in. The stance machine still runs on each tool call.
+ * Live voice over an ElevenLabs Agent. Gemini talks as the man.
+ * The browser only receives a signed URL. The SDK owns the microphone.
  */
-import { contextualUpdate, type AgentVariables } from '../../shared/liveVoice';
+import { AGENT_FIRST_MESSAGE, AGENT_PROMPT, contextualUpdate, type AgentVariables } from '../../shared/liveVoice';
 
 export interface LiveVoiceHandlers {
   signedUrl: string;
@@ -12,6 +11,7 @@ export interface LiveVoiceHandlers {
   commit(heard: string, expression: string): Promise<string>;
   onLine(who: 'you' | 'man', text: string): void;
   onSpeaking(speaking: boolean): void;
+  onHearing?(hearing: boolean): void;
   onError(message: string): void;
 }
 
@@ -25,7 +25,12 @@ export async function startLiveVoice(handlers: LiveVoiceHandlers): Promise<LiveV
   const conv = await Conversation.startSession({
     signedUrl: handlers.signedUrl,
     dynamicVariables: handlers.variables,
-    // Tags such as [angry] are for the voice, not the subtitle.
+    overrides: {
+      agent: {
+        prompt: { prompt: AGENT_PROMPT },
+        firstMessage: AGENT_FIRST_MESSAGE,
+      },
+    },
     stripAudioTags: true,
     clientTools: {
       commit_player_turn: async (params: { heard?: unknown; expression?: unknown }) => {
@@ -39,6 +44,7 @@ export async function startLiveVoice(handlers: LiveVoiceHandlers): Promise<LiveV
       if (!text) return;
       handlers.onLine(payload.role === 'user' || payload.source === 'user' ? 'you' : 'man', text);
     },
+    onVadScore: ({ vadScore }) => handlers.onHearing?.(vadScore > 0.45),
     onModeChange: ({ mode }) => handlers.onSpeaking(mode === 'speaking'),
     onInterruption: () => handlers.onSpeaking(false),
     onError: (message) => handlers.onError(message),

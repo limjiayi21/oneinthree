@@ -9,6 +9,7 @@ import { runWomanWalkHome } from './scenarios/womanWalkHome';
 import { runBystanderWalkHome } from './scenarios/bystanderWalkHome';
 import type { SceneDeps, SceneResult } from './scenarios/common';
 import type { OutcomeKind, Pov, SummaryData } from '../shared/types';
+import { resolveSeed } from '../shared/demo';
 
 /** Used only if the server cannot produce a debrief (offline, error). No statistics are invented here. */
 const FALLBACK_OUTCOME: Record<OutcomeKind, { title: string; body: string }> = {
@@ -73,7 +74,8 @@ async function main(): Promise<void> {
   engine.start();
 
   const health = await getHealth();
-  const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
+  console.info(`[oneinthree] ELEVENLABS_AGENT_ID ${health.agentId ? 'loaded' : 'not loaded'}; live voice ${health.agent ? 'available' : 'unavailable'}`);
+  const seed = resolveSeed({ seed: params.get('seed'), demo: params.get('demo') });
   const deps: SceneDeps = {
     engine,
     world,
@@ -86,6 +88,8 @@ async function main(): Promise<void> {
     seed,
   };
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__oit = deps;
+  hud.setLiveVoice(Boolean(health.agent));
+  const liveVoice = Boolean(health.agent);
 
   screens.loading(null);
   if (!skip.has('intro')) {
@@ -103,7 +107,7 @@ async function main(): Promise<void> {
 
     if (!skip.has('part1')) {
       for (;;) {
-        await screens.briefing('woman');
+        await screens.briefing('woman', { liveVoice });
         await audio.resume();
         world.setDoorOpen('home', false);
         const result = await runWomanWalkHome(deps);
@@ -121,7 +125,7 @@ async function main(): Promise<void> {
 
     if (!exited) {
       for (;;) {
-        await screens.briefing('bystander');
+        await screens.briefing('bystander', { liveVoice });
         await audio.resume();
         world.setDoorOpen('home', false);
         const result = await runBystanderWalkHome(deps);

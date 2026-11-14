@@ -13,7 +13,8 @@
     "set-key": "sh scripts/set-key.sh",
     "gen:voice": "node scripts/gen-voice.mjs",
     "gen:sfx": "node scripts/gen-sfx.mjs",
-    "agent:create": "node scripts/create-agent.mjs"
+    "agent:create": "node scripts/create-agent.mjs",
+    "sync": "sh scripts/sync.sh"
   },
   "dependencies": {
     "@elevenlabs/client": "^1.36.1",

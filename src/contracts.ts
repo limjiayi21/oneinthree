@@ -143,6 +143,8 @@ export interface Player {
   flinch(from: THREE.Vector3, strength?: number): void;
   /** A deliberate, forced step (or two) back from `from`, over `duration` seconds. */
   stepBack(from: THREE.Vector3, distance?: number, duration?: number): void;
+  /** Pull her a step toward `to` (a hand on the arm). Not a depicted assault. */
+  pullToward(to: THREE.Vector3, distance?: number, duration?: number): void;
   /** Whole-body jump: vertical jolt, shoulders up, breath caught. strength 0..1 */
   startle(strength?: number): void;
   /** Pulls the gaze toward a point for `duration` seconds (a nervous glance), then releases. */
@@ -307,6 +309,8 @@ export interface AudioEngine {
   setMuffle(level: number): void;
   /** Stream and play speech from a URL (audio/mpeg). */
   speak(url: string, opts: SpeakOptions): SpeechHandle;
+  /** A short huh, scoff, or sigh at a world position. Instant: no network. */
+  playFiller(kind: 'huh' | 'scoff' | 'sigh', position?: THREE.Vector3): { stop(fade?: number): void };
   stopAllSpeech(): void;
   /** Hard cut of everything except the tinnitus tone: used for the cut to black. */
   cutToSilence(): void;
@@ -347,6 +351,14 @@ export interface Hud {
   /** Top-left one-line objective ("Get home."). null clears. */
   objective(text: string | null): void;
   setMic(state: MicState, level?: number): void;
+  /** Show "Press L for live voice" on the idle mic when the server has an agent id. */
+  setLiveVoice(on: boolean): void;
+  /** Which way she is talking. Shown on the side of the view. */
+  setTalkMode(mode: 'live' | 'push' | 'off'): void;
+  /** His current mood, in plain words. null hides it. */
+  setMood(label: string | null): void;
+  /** Words heard so far while the mic is open. null clears them. */
+  setPartial(text: string | null): void;
   /** 0..1: DOM-side fear cues (pulsing edge darkness). */
   setFear(level: number): void;
   /** Fade the whole view to/from black. */
@@ -368,7 +380,7 @@ export interface Screens {
   /** Landing + content note + how it works + headphone/mic check. Resolves when the user starts. */
   intro(opts: { voiceAvailable: boolean; requestMic: () => Promise<boolean> }): Promise<void>;
   /** Short brief before a part. */
-  briefing(pov: Pov): Promise<void>;
+  briefing(pov: Pov, opts?: { liveVoice?: boolean }): Promise<void>;
   /** Debrief for a part. */
   summary(data: SummaryData): Promise<'continue' | 'retry'>;
   /** Closing screen: resources and sources. */

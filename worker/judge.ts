@@ -32,6 +32,7 @@
 import type { Emotion, ManAction, ManDecision, ManStance, Pov, WorldContext } from '../shared/types';
 import { clampSuggestedExpression } from '../shared/expression';
 import { FIRM_BYSTANDER_RULE } from './research';
+import { gateStance, isClearFirm, isEngagedUtterance } from './model/stanceGate';
 
 export const JUDGE_BUDGET_MS = 400;
 export const WORKERS_JUDGE_MODEL = '@cf/google/gemma-4-26b-a4b-it';
@@ -387,13 +388,19 @@ export interface ComposedBeat extends SeededBeat {
  * A firm boundary together with a bystander makes him leave. Physical
  * escalation is kept only when the seeded model had already reached it.
  */
-export function composeBeat(seeded: SeededBeat, reading: TurnReading | null, scene: { bystanderIntervened: boolean }): ComposedBeat {
-  if (!reading) return { ...seeded, rule: null, provider: 'seeded' };
-  let stance = reading.stance ?? seeded.stance;
+export function composeBeat(
+  seeded: SeededBeat,
+  reading: TurnReading | null,
+  scene: { bystanderIntervened: boolean; text?: string; fromStance?: ManStance; turn?: number; rejections?: number; seekingHelp?: boolean },
+): ComposedBeat {
+  if (!reading && scene.fromStance === undefined) return { ...seeded, rule: null, provider: 'seeded' };
+  let stance = reading?.stance ?? seeded.stance;
   let rule: string | null = null;
-  const firm = reading.firmBoundary >= 0.55 || reading.tone === 'firm';
-  const bystander = scene.bystanderIntervened || reading.bystander >= 0.55;
-  if (firm && bystander && stance !== 'gone') {
+  const uttered = scene.text ?? '';
+  const greeting = uttered.length > 0 && isEngagedUtterance(uttered) && !isClearFirm(uttered);
+  const firm = isClearFirm(uttered) || (uttered.length === 0 && !!reading && (reading.firmBoundary >= 0.55 || reading.tone === 'firm'));
+  const bystander = scene.bystanderIntervened;
+  if (reading && firm && bystander && !greeting && stance !== 'gone') {
     stance = 'back_off';
     rule = FIRM_BYSTANDER_RULE;
   }
@@ -401,20 +408,37 @@ export function composeBeat(seeded: SeededBeat, reading: TurnReading | null, sce
     stance = seeded.stance === 'intimidate' || seeded.stance === 'hostile' ? seeded.stance : 'hostile';
     rule = 'The provider does not get to choose a physical escalation.';
   }
-  if (reading.tone === 'silent' && !firm && stance === 'escalate') {
+  if (reading && reading.tone === 'silent' && !firm && stance === 'escalate') {
     stance = seeded.stance;
   }
-  const suggested = reading.expression ? EXPRESSION_EMOTION[reading.expression] : null;
-  const face = clampSuggestedExpression(stance, suggested, Math.max(seeded.tension, reading.escalation));
+  if (scene.fromStance) {
+    const gated = gateStance(scene.fromStance, stance, {
+      text: uttered,
+      turn: scene.turn ?? 1,
+      rejections: scene.rejections ?? 0,
+      bystander,
+      seekingHelp: scene.seekingHelp ?? false,
+      clearFirm: isClearFirm(uttered),
+      insult: false,
+      clampSteps: true,
+    });
+    if (gated !== stance) {
+      stance = gated;
+      rule = rule ?? 'A greeting, or a first pushback, does not make him leave.';
+    }
+  }
+  const suggested = reading?.expression ? EXPRESSION_EMOTION[reading.expression] : null;
+  const heat = reading?.escalation ?? seeded.tension;
+  const face = clampSuggestedExpression(stance, suggested, Math.max(seeded.tension, heat));
   const stanceChanged = stance !== seeded.stance;
   return {
     stance,
     emotion: face.emotion,
     emotionIntensity: face.intensity,
     action: stanceChanged ? ACTION_FOR[stance] : seeded.action,
-    tension: clamp01(Math.max(seeded.tension, reading.escalation)),
+    tension: clamp01(Math.max(seeded.tension, heat)),
     rule,
-    provider: reading.provider,
+    provider: reading?.provider ?? 'seeded',
   };
 }
 

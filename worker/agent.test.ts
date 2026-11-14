@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AGENT_TOOL, agentVariables, commitToolResult, contextualUpdate } from '../shared/liveVoice';
+import { agentVariables, commitToolResult, contextualUpdate } from '../shared/liveVoice';
 import { TTS_LIVE_MODEL, VOICES } from './voices';
 import { AGENT_LLM, AGENT_PROMPT, agentTurnSkipsVoice, buildAgentDraft, mintSignedUrl } from './agent';
 
@@ -19,18 +19,17 @@ describe('ElevenLabs agent draft', () => {
     expect(config.tts.voice_id).toBe(VOICES.man.id);
     expect(config.tts.stability).toBe(VOICES.man.settings.stability);
     expect(config.tts.similarity_boost).toBe(VOICES.man.settings.similarity_boost);
-    expect(config.agent.prompt.tools[0].name).toBe(AGENT_TOOL);
-    expect(config.agent.prompt.prompt).toContain('{{stance}}');
+    expect(config.agent.prompt.tools).toEqual([]);
+    expect(config.agent.prompt.prompt).toMatch(/live voice conversation/i);
     expect(AGENT_PROMPT).toMatch(/never use a slur/i);
+    expect(AGENT_PROMPT).not.toMatch(/call commit_player_turn/i);
   });
 
-  it('requires auth and a client tool that waits for the stance machine', () => {
-    const tool = config.agent.prompt.tools[0];
-    expect(tool.type).toBe('client');
-    expect(tool.name).toBe(AGENT_TOOL);
-    expect(tool.expects_response).toBe(true);
-    expect(draft.platform_settings).toEqual({ auth: { enable_auth: true } });
+  it('lets him talk without waiting on the stance machine', () => {
+    expect(config.agent.prompt.tools).toEqual([]);
+    expect(draft.platform_settings).toMatchObject({ auth: { enable_auth: true } });
     expect(JSON.stringify(draft)).not.toMatch(/xi-api-key|sk_/);
+    expect(JSON.stringify(draft.conversation_config)).toContain('Hey, excuse me, miss');
   });
 });
 
@@ -53,11 +52,10 @@ describe('live-voice contract', () => {
     });
   });
 
-  it('tells him to call out once, and later updates must not make him speak again', () => {
+  it('tells him where she is without ordering him to stay quiet', () => {
     const vars = agentVariables({ pov: 'woman', stance: 'opening', emotion: 'smirk', distanceMetres: 6 });
-    expect(contextualUpdate(vars, 'opening')).toMatch(/^OPENING\./);
-    expect(contextualUpdate(vars, 'state')).toMatch(/^STATE\./);
-    expect(contextualUpdate(vars, 'state')).toMatch(/Do not speak/);
+    expect(contextualUpdate(vars, 'opening')).toMatch(/6 metres/);
+    expect(contextualUpdate(vars, 'state')).not.toMatch(/Do not speak/);
   });
 
   it('clamps an illegal expression and never hands the key to the agent', () => {
@@ -71,6 +69,7 @@ describe('live-voice contract', () => {
     const parsed = JSON.parse(allowed.result) as { stance: string; say: string };
     expect(parsed.stance).toBe('back_off');
     expect(parsed.say).toMatch(/No slurs/);
+    expect(parsed.say).toMatch(/\[nervous\]/);
   });
 });
 

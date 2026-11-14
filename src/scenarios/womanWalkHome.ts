@@ -85,6 +85,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   let lastFlinch = -99;
   let lastGlance = -99;
   let lastBumpEvent = -99;
+  let lastShove = -99;
+  let pursuit: 'none' | 'follow' | 'block' = 'none';
   let lastSpeedEvent = -99;
   let lastCrossEvent = -99;
   let fastFor = 0;
@@ -112,6 +114,39 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const toward = () => player.position;
   const towardFwd = () => player.getForward(new THREE.Vector3());
 
+  /** Keeps her position between lines. Once he is worked up he steps into her path. */
+  function pursue(d: number): void {
+    if (manGone || stance === 'back_off' || stance === 'gone' || stance === 'escalate' || man.behaviour === 'leave') {
+      pursuit = 'none';
+      return;
+    }
+    const hot = stance === 'hostile' || stance === 'intimidate' || stance === 'block';
+    if (hot && man.behaviour === 'closeIn' && d < 2.2) return;
+    if (!hot && d < 2.5 && man.behaviour === 'followBehind') {
+      pursuit = 'none';
+      man.setBehaviour({
+        type: 'walkAlongside',
+        target: toward,
+        targetForward: towardFwd,
+        side: pickSide(player, 1.15),
+        gap: 1.15,
+      });
+      return;
+    }
+    const want = hot ? (d > 2.8 ? 'follow' : 'block') : d > 4 ? 'follow' : 'none';
+    if (want === 'none') {
+      pursuit = 'none';
+      return;
+    }
+    if (want === pursuit && ((want === 'follow' && man.behaviour === 'followBehind') || (want === 'block' && man.behaviour === 'block'))) return;
+    pursuit = want;
+    if (want === 'block') {
+      man.setBehaviour({ type: 'block', target: toward, targetForward: towardFwd, gap: 0.95 });
+    } else {
+      man.setBehaviour({ type: 'followBehind', target: toward, gap: hot ? 1.15 : 1.7, speed: hot ? 3.15 : 2.85 });
+    }
+  }
+
   function applyDecision(d: ManDecision): void {
     decision = d;
     const prev = stance;
@@ -132,7 +167,13 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, gap), gap: Math.max(0.9, gap) });
         break;
       case 'follow_behind':
-        man.setBehaviour({ type: 'followBehind', target: toward, gap: Math.max(2.2, gap), speed: 2.4 });
+        man.setBehaviour({ type: 'followBehind', target: toward, gap: Math.max(1.6, gap), speed: 2.9 });
+        break;
+      case 'stalk':
+        man.setBehaviour({ type: 'followBehind', target: toward, gap: Math.max(3.2, gap), speed: 1.35 });
+        break;
+      case 'run_after':
+        man.setBehaviour({ type: 'followBehind', target: toward, gap: 1.15, speed: 3.2 });
         break;
       case 'step_closer':
         man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(0.75, gap), speed: 1.3 });
@@ -142,6 +183,17 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(0.75, gap), speed: 1.4 });
         man.human.playGesture('lean_in');
         kit.after(0.45, () => involuntaryStepBack(0.5));
+        break;
+      case 'pull_arm':
+        man.setBehaviour({ type: 'closeIn', target: toward, gap: 0.65, speed: 2.4 });
+        man.human.playGesture('reach');
+        kit.after(0.35, () => {
+          if (kit.ended || manGone || man.distanceTo(player.position) > 1.7) return;
+          player.pullToward(man.position, 0.8, 0.4);
+          player.freeze(0.35);
+          kit.scare(0.4);
+          if (kit.secondsSinceThought > 2) kit.think(pick(['w_close_1', 'w_close_2']));
+        });
         break;
       case 'block_path':
         man.setBehaviour({ type: 'block', target: toward, targetForward: towardFwd, gap: Math.max(1.0, gap) });
@@ -341,7 +393,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     // ambient beats on the way
     if (first('start') ) {
       kit.after(1.6, () => kit.think('w_start_1', { intensity: 0.1 }));
-      kit.after(2.2, () => hud.hint('W A S D to walk  ·  mouse to look  ·  Shift to hurry', 7000));
+      kit.after(2.2, () => hud.hint('W A S D to walk  ·  mouse to look  ·  Shift to hurry  ·  then just speak', 7000));
     }
     if (pos.z < P.subwayExit.z - 7 && first('keys')) {
       audio.play('keys_jingle', { volume: 0.5 });
@@ -380,13 +432,14 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         kit.refreshMic();
         hud.objective('Get home.');
         kit.event('begin');
-        kit.after(3.5, () => hud.hint(kit.agentLive ? 'Live voice. Speak normally. L switches back.' : 'Hold SPACE to speak.  L for a live voice.  Or say nothing.', 8000));
+        kit.after(3.5, () => hud.hint('Live. Speak normally. He answers out loud.', 8000));
       }
     }
 
     if (encounter && !manGone) {
       man.human.setGaze(eye);
       const d = man.distanceTo(pos);
+      pursue(d);
 
       // Her body reacts before she does.
       if (d < 0.95 && man.speed > 0.2 && kit.time - lastFlinch > 3.5) {
@@ -442,6 +495,12 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   const offBump = player.on('bumped', ({ collider }) => {
     if (collider !== man || manGone || !encounter) return;
+    const hot = stance === 'hostile' || stance === 'intimidate' || stance === 'block' || man.behaviour === 'block';
+    if (hot && kit.time - lastShove > 0.7) {
+      lastShove = kit.time;
+      player.stepBack(man.position, 0.32, 0.24);
+      player.freeze(0.2);
+    }
     if (man.behaviour === 'block' && kit.time - lastBumpEvent > 5) {
       lastBumpEvent = kit.time;
       kit.scare(0.12);

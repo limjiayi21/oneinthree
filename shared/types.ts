@@ -44,9 +44,12 @@ export type ManAction =
   | 'approach'
   | 'walk_alongside'
   | 'follow_behind'
+  | 'stalk' // trails her without closing, watching
+  | 'run_after' // hurries to catch her
   | 'step_closer'
   | 'block_path'
   | 'lean_in'
+  | 'pull_arm' // yanks her back a step. Not a depicted assault.
   | 'back_away'
   | 'leave'
   | 'turn_on_bystander' // bystander POV: he squares up to the player instead
@@ -203,6 +206,8 @@ export type TurnEvent =
       /** 0..1 how volatile he is. */
       tension: number;
       rationale?: Rationale;
+      /** Rolling memory for the live agent. Empty when nothing has been said. */
+      memory?: string;
     }
   | {
       type: 'line';
@@ -236,8 +241,10 @@ export interface HealthResponse {
   ok: boolean;
   voice: boolean;
   ai: boolean;
-  /** True when the Worker can mint an ElevenLabs Agent signed URL. */
+  /** True when the Worker can mint an ElevenLabs Agent signed URL (key and agent id). */
   agent?: boolean;
+  /** True when ELEVENLABS_AGENT_ID is set. The id itself is never sent. */
+  agentId?: boolean;
 }
 
 export interface TimelineEntry {

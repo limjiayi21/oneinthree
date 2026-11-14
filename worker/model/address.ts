@@ -9,6 +9,7 @@
  */
 import type { ManStance } from '../../shared/types';
 import { cleanLine } from '../write';
+import { isEngagedUtterance } from './stanceGate';
 import type { Rng } from './rng';
 
 export type Address = 'silence' | 'firm' | 'polite' | 'excuse' | 'police' | 'help' | 'hostile' | 'plead' | 'engage' | 'film' | 'unclear';
@@ -162,6 +163,20 @@ function fallback(stance: ManStance, move: Address): string[] {
   return LINES[move][stance] ?? LINES[move].persist ?? LINES.unclear.persist ?? ['Hey. I am talking to you.'];
 }
 
+/** A bare hello is an opening, not a prompt to repeat her word and ask for more. */
+const GREETING: Bank = {
+  persist: [
+    '{q}. I was hoping you would actually stop.',
+    'There we go, {q}. I am walking this way too.',
+    '{q}. Do not just keep walking.',
+  ],
+  follow: ['{q}. Good. We can talk while we walk.'],
+  guilt: ['{q}. That is all I was asking for.'],
+  opening: ['{q}. Come here a second.'],
+  hostile: ['{q}? Took you long enough.'],
+  back_off: ['{q}. Alright. Have a night.'],
+};
+
 export interface GroundedInput {
   stance: ManStance;
   move: Address;
@@ -176,8 +191,9 @@ export interface GroundedInput {
  */
 export function groundedLine(input: GroundedInput): string | null {
   const quote = input.move === 'silence' ? '' : quoteFragment(input.text);
-  const templates = withQuote(quote, fallback(input.stance, input.move)).filter((line) => !line.includes('{q}'));
-  if (!templates.length) return null;
+  const greeting = input.move === 'engage' && isEngagedUtterance(input.text);
+  const bank = greeting ? (GREETING[input.stance] ?? fallback(input.stance, input.move)) : fallback(input.stance, input.move);
+  const templates = withQuote(quote, bank).filter((line) => !line.includes('{q}'));
   const avoid = new Set((input.avoid ?? []).map((s) => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()));
   const fresh = templates.filter((line) => !avoid.has(line.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()));
   const pool = fresh.length ? fresh : templates;
@@ -194,6 +210,13 @@ export function groundedLine(input: GroundedInput): string | null {
 }
 
 /** A word from the player's line that a logical reply should pick up, if any. */
+/** True when the line picks up something she actually said, or there was nothing to pick up. */
+export function lineAcknowledges(line: string, utterance: string): boolean {
+  const quote = quoteFragment(utterance);
+  if (!quote) return true;
+  return line.toLowerCase().includes(quote.toLowerCase());
+}
+
 export function contentWord(text: string): string | null {
   const skip = new Set(['the', 'a', 'an', 'i', 'you', 'me', 'my', 'to', 'and', 'of', 'it', 'is', 'am', 'im', "i'm", 'just', 'that', 'this']);
   const words = text

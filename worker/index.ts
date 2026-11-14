@@ -33,6 +33,7 @@ export default {
         voice: Boolean(env.ELEVENLABS_API_KEY),
         ai: Boolean(env.AI),
         agent: Boolean(env.ELEVENLABS_API_KEY && env.ELEVENLABS_AGENT_ID),
+        agentId: Boolean(env.ELEVENLABS_AGENT_ID?.trim()),
       };
       return json(body);
     }
