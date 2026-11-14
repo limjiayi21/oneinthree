@@ -1569,3 +1569,51 @@
   color: var(--oit-ink-2);
   font: 400 15px/1.55 var(--oit-sans);
 }
+
+/* ------------------------------------------- Part 2 outcome: what next, full details */
+
+.oit-sec--next .oit-actions {
+  margin-top: 18px;
+}
+.oit-next-note {
+  margin: 0;
+  color: var(--oit-ink-2);
+  font: 400 16px/1.55 var(--oit-sans);
+}
+.oit-full {
+  margin-top: 8px;
+  border-top: 1px solid var(--oit-line);
+}
+.oit-full > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 22px 0;
+  cursor: pointer;
+  list-style: none;
+}
+.oit-full > summary::-webkit-details-marker {
+  display: none;
+}
+.oit-root .oit-full > summary:focus-visible {
+  outline: 2px solid var(--oit-accent);
+  outline-offset: 4px;
+}
+.oit-full-title {
+  color: var(--oit-ink);
+  font: 500 17px/1.4 var(--oit-sans);
+}
+.oit-full-title::before {
+  content: '+';
+  display: inline-block;
+  width: 22px;
+  color: var(--oit-ink-3);
+}
+.oit-full[open] .oit-full-title::before {
+  content: '\2212';
+}
+.oit-full-hint {
+  color: var(--oit-ink-3);
+  font: 400 14px/1.4 var(--oit-sans);
+}

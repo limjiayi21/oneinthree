@@ -806,6 +806,44 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
       const fiveDs = pov === 'bystander' ? renderFiveDs(Array.isArray(data.fiveDs) ? data.fiveDs : []) : null;
       const model = renderModel(Array.isArray(data.modelNotes) ? data.modelNotes : []);
 
+      // Part 2: the outcome, then straight on to the teaching replay. The full debrief is kept, unchanged, behind a disclosure.
+      if (pov === 'bystander') {
+        const learnBtn = h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => finish('continue') }, 'Learn how to help');
+        const fullId = nextId('oit-full');
+        add(
+          el,
+          h(
+            'div',
+            { class: 'oit-frame' },
+            h('div', { class: 'oit-topbar oit-topbar--static' }, wordmark()),
+            h(
+              'article',
+              { class: 'oit-article' },
+              header,
+              h(
+                'section',
+                { class: 'oit-sec oit-sec--plain oit-sec--next', 'aria-label': 'What next' },
+                h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }),
+                h(
+                  'div',
+                  { class: 'oit-sec-body' },
+                  h('p', { class: 'oit-next-note' }, 'Next: the same street once more. It will stop at five moments and show what helps.'),
+                  h('div', { class: 'oit-actions' }, learnBtn, retryBtn),
+                ),
+              ),
+              h(
+                'details',
+                { class: 'oit-full', id: fullId },
+                h('summary', null, h('span', { class: 'oit-full-title' }, 'See full details'), h('span', { class: 'oit-full-hint' }, 'Timeline, the 5 Ds, research, the model')),
+                h('div', { class: 'oit-full-body' }, timeline, fiveDs, insights, stats, caseStudy, model),
+              ),
+            ),
+          ),
+        );
+        show(el);
+        return;
+      }
+
       const actionsId = nextId('oit-sum-actions');
       add(
         el,
