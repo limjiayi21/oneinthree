@@ -47,8 +47,7 @@
           "strip": {
             "concept": "Noticing",
             "conceptId": "five_steps",
-            "sentence": "Helping starts with noticing, and most people never get past it.",
-            "statId": "loreal_dontknow_86"
+            "sentence": "Helping starts with noticing, and most people never get past it."
           }
         },
         {
@@ -132,7 +131,8 @@
           "strip": {
             "concept": "The bystander effect",
             "conceptId": "bystander_effect",
-            "sentence": "When everyone waits for someone else, nobody acts."
+            "sentence": "When everyone waits for someone else, nobody acts.",
+            "statId": "loreal_dontknow_86"
           }
         }
       ]

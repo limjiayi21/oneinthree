@@ -88,7 +88,7 @@ describe('content/guided.json', () => {
 
   it('cites only stats that exist in evidence.json, each with a linked source', () => {
     const cited = choices.flatMap((c) => stripStatIds(c.strip));
-    expect(cited).toEqual(['loreal_dontknow_86', 'cctv_9in10', 'loreal_helped_25']);
+    expect(cited).toEqual(['cctv_9in10', 'loreal_helped_25', 'loreal_dontknow_86']);
     for (const id of cited) {
       const stat = evidence.stats.find((s) => s.id === id);
       expect(stat, id).toBeDefined();
