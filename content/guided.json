@@ -37,20 +37,6 @@
       "innerVoice": ["Probably nothing."],
       "choices": [
         {
-          "id": "m1_watch",
-          "text": "Slow down and keep an eye on it.",
-          "rating": "best",
-          "player": "follow_close",
-          "lines": [{ "speaker": "man", "text": "Hey. Hey, beautiful. Where you headed?", "audioId": "b_m1" }],
-          "manAction": "call_out",
-          "womanAction": "keep_walking",
-          "strip": {
-            "concept": "Noticing",
-            "conceptId": "five_steps",
-            "sentence": "Helping starts with noticing, and most people never get past it."
-          }
-        },
-        {
           "id": "m1_phone",
           "text": "Check your phone.",
           "rating": "weaker",
@@ -62,6 +48,20 @@
             "concept": "Noticing",
             "conceptId": "five_steps",
             "sentence": "You missed the start. Noticing early gives you more options."
+          }
+        },
+        {
+          "id": "m1_watch",
+          "text": "Slow down and keep an eye on it.",
+          "rating": "best",
+          "player": "follow_close",
+          "lines": [{ "speaker": "man", "text": "Hey. Hey, beautiful. Where you headed?", "audioId": "b_m1" }],
+          "manAction": "call_out",
+          "womanAction": "keep_walking",
+          "strip": {
+            "concept": "Noticing",
+            "conceptId": "five_steps",
+            "sentence": "Helping starts with noticing, and most people never get past it."
           }
         },
         {
@@ -86,21 +86,6 @@
       "caption": "Her eyes are down. She's walking faster.",
       "innerVoice": ["Is it my business?", "Someone else will say something."],
       "choices": [
-        {
-          "id": "m2_my_business",
-          "text": "She's not okay. This is my business.",
-          "rating": "best",
-          "player": "follow_close",
-          "lines": [],
-          "manAction": "none",
-          "womanAction": "none",
-          "strip": {
-            "concept": "Seeing it as a problem",
-            "conceptId": "five_steps",
-            "sentence": "People step into most street fights, but few step in when it's harassment. The difference is deciding it's your business.",
-            "statIds": ["cctv_9in10", "loreal_helped_25"]
-          }
-        },
         {
           "id": "m2_just_hi",
           "text": "It's just a guy saying hi.",
@@ -134,6 +119,21 @@
             "sentence": "When everyone waits for someone else, nobody acts.",
             "statId": "loreal_dontknow_86"
           }
+        },
+        {
+          "id": "m2_my_business",
+          "text": "She's not okay. This is my business.",
+          "rating": "best",
+          "player": "follow_close",
+          "lines": [],
+          "manAction": "none",
+          "womanAction": "none",
+          "strip": {
+            "concept": "Seeing it as a problem",
+            "conceptId": "five_steps",
+            "sentence": "People step into most street fights, but few step in when it's harassment. The difference is deciding it's your business.",
+            "statIds": ["cctv_9in10", "loreal_helped_25"]
+          }
         }
       ]
     },
@@ -162,6 +162,25 @@
           }
         },
         {
+          "id": "m3_film",
+          "text": "Film it from where you are.",
+          "rating": "weaker",
+          "tactic": "document",
+          "player": "film",
+          "lines": [
+            { "speaker": "self", "text": "At least I'm getting it on video." },
+            { "speaker": "man", "text": "Come on, slow down. Let me walk you home. Where you live at?", "audioId": "b_m3" },
+            { "speaker": "thought", "text": "Is anyone seeing this?", "audioId": "b_t2" }
+          ],
+          "manAction": "walk_alongside",
+          "womanAction": "hurry",
+          "strip": {
+            "concept": "Document",
+            "conceptId": "five_ds",
+            "sentence": "It helps only once someone else is helping and you're safe. Give her the footage; never post it without asking."
+          }
+        },
+        {
           "id": "m3_delegate",
           "text": "Tell the shopkeeper what's happening and ask him to come out.",
           "rating": "good",
@@ -180,25 +199,6 @@
             "conceptId": "five_ds",
             "sentence": "Now you're not the only one acting. Low risk."
           }
-        },
-        {
-          "id": "m3_film",
-          "text": "Film it from where you are.",
-          "rating": "weaker",
-          "tactic": "document",
-          "player": "film",
-          "lines": [
-            { "speaker": "self", "text": "At least I'm getting it on video." },
-            { "speaker": "man", "text": "Come on, slow down. Let me walk you home. Where you live at?", "audioId": "b_m3" },
-            { "speaker": "thought", "text": "Is anyone seeing this?", "audioId": "b_t2" }
-          ],
-          "manAction": "walk_alongside",
-          "womanAction": "hurry",
-          "strip": {
-            "concept": "Document",
-            "conceptId": "five_ds",
-            "sentence": "It helps only once someone else is helping and you're safe. Give her the footage; never post it without asking."
-          }
         }
       ]
     },
@@ -209,26 +209,6 @@
       "caption": "He's blocking her way. She can't get past.",
       "prompt": "Now you're close enough to speak. What do you say?",
       "choices": [
-        {
-          "id": "m4_direct",
-          "text": "\"Leave her alone, man.\" Then to her: \"You okay? Want to walk with me?\"",
-          "rating": "best",
-          "tactic": "direct",
-          "player": "to_him",
-          "lines": [
-            { "speaker": "you", "text": "Leave her alone, man." },
-            { "speaker": "you", "text": "You okay? Want to walk with me?" },
-            { "speaker": "man", "text": "Nobody's bothering her. Alright, I'm going.", "audioId": "lb_b_defensive_2" },
-            { "speaker": "woman", "text": "Let's go. Please, let's just go.", "audioId": "lb_b_w_leaving_2" }
-          ],
-          "manAction": "leave",
-          "womanAction": "move_to_player",
-          "strip": {
-            "concept": "Direct, done safely",
-            "conceptId": "five_ds",
-            "sentence": "One short, calm sentence, no arguing, then turn to her. It keeps the focus on getting her out."
-          }
-        },
         {
           "id": "m4_argue",
           "text": "Argue with him: \"You think that's how you talk to women?\"",
@@ -263,6 +243,26 @@
             "concept": "Insults escalate",
             "sentence": "Insults turn it into a fight between you and him, with her still stuck in the middle."
           }
+        },
+        {
+          "id": "m4_direct",
+          "text": "\"Leave her alone, man.\" Then to her: \"You okay? Want to walk with me?\"",
+          "rating": "best",
+          "tactic": "direct",
+          "player": "to_him",
+          "lines": [
+            { "speaker": "you", "text": "Leave her alone, man." },
+            { "speaker": "you", "text": "You okay? Want to walk with me?" },
+            { "speaker": "man", "text": "Nobody's bothering her. Alright, I'm going.", "audioId": "lb_b_defensive_2" },
+            { "speaker": "woman", "text": "Let's go. Please, let's just go.", "audioId": "lb_b_w_leaving_2" }
+          ],
+          "manAction": "leave",
+          "womanAction": "move_to_player",
+          "strip": {
+            "concept": "Direct, done safely",
+            "conceptId": "five_ds",
+            "sentence": "One short, calm sentence, no arguing, then turn to her. It keeps the focus on getting her out."
+          }
         }
       ]
     },
@@ -272,6 +272,22 @@
       "caption": "He's gone. She's shaken.",
       "prompt": "What do you say to her?",
       "choices": [
+        {
+          "id": "m5_blame",
+          "text": "\"Why didn't you say something to him?\"",
+          "rating": "backfires",
+          "player": "to_her",
+          "lines": [
+            { "speaker": "you", "text": "Why didn't you say something to him?" },
+            { "speaker": "thought", "text": "Say no. Why can't I say no?", "audioId": "lb_b_dismiss_5_t" }
+          ],
+          "manAction": "none",
+          "womanAction": "step_back",
+          "strip": {
+            "concept": "No blame",
+            "sentence": "That puts the blame on her. She did nothing wrong."
+          }
+        },
         {
           "id": "m5_delay",
           "text": "\"Are you okay? I saw that. It wasn't okay. Want me to walk with you for a bit?\"",
@@ -304,22 +320,6 @@
           "strip": {
             "concept": "Her decision",
             "sentence": "That's her decision. Offer help; don't push her to report."
-          }
-        },
-        {
-          "id": "m5_blame",
-          "text": "\"Why didn't you say something to him?\"",
-          "rating": "backfires",
-          "player": "to_her",
-          "lines": [
-            { "speaker": "you", "text": "Why didn't you say something to him?" },
-            { "speaker": "thought", "text": "Say no. Why can't I say no?", "audioId": "lb_b_dismiss_5_t" }
-          ],
-          "manAction": "none",
-          "womanAction": "step_back",
-          "strip": {
-            "concept": "No blame",
-            "sentence": "That puts the blame on her. She did nothing wrong."
           }
         }
       ]

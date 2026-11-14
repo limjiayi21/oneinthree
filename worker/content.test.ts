@@ -55,12 +55,15 @@ describe('content/guided.json', () => {
   it('rates the choices as the brief does, so every moment can be passed', () => {
     const ratings = guided.moments.map((m) => m.choices.map((c) => c.rating));
     expect(ratings).toEqual([
-      ['best', 'weaker', 'weaker'],
-      ['best', 'weaker', 'weaker'],
-      ['good', 'good', 'weaker'],
-      ['best', 'weaker', 'backfires'],
-      ['best', 'weaker', 'backfires'],
+      ['weaker', 'best', 'weaker'],
+      ['weaker', 'weaker', 'best'],
+      ['good', 'weaker', 'good'],
+      ['weaker', 'backfires', 'best'],
+      ['backfires', 'best', 'weaker'],
     ]);
+    // The right answer is not always in the same place.
+    const firstRight = guided.moments.map((m) => m.choices.findIndex((c) => CONTINUES.has(c.rating)));
+    expect(new Set(firstRight).size).toBeGreaterThan(1);
     for (const m of guided.moments) expect(m.choices.some((c) => CONTINUES.has(c.rating)), m.id).toBe(true);
   });
 
@@ -88,7 +91,7 @@ describe('content/guided.json', () => {
 
   it('cites only stats that exist in evidence.json, each with a linked source', () => {
     const cited = choices.flatMap((c) => stripStatIds(c.strip));
-    expect(cited).toEqual(['cctv_9in10', 'loreal_helped_25', 'loreal_dontknow_86']);
+    expect([...cited].sort()).toEqual(['cctv_9in10', 'loreal_dontknow_86', 'loreal_helped_25']);
     for (const id of cited) {
       const stat = evidence.stats.find((s) => s.id === id);
       expect(stat, id).toBeDefined();
