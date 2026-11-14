@@ -460,11 +460,11 @@ function actionFor(stance: ManStance, ph: Physical, rng: Rng): { action: ManActi
     case 'block':
       return { action: 'block_path', proximity: 1.1, delivery: 'normal' };
     case 'hostile':
-      if (ph.far || ph.across) return { action: 'stay', proximity: 3, delivery: 'shout' };
-      if (ph.hurrying) return { action: 'follow_behind', proximity: 2.4, delivery: 'shout' };
-      return { action: rng.chance(0.35) ? 'step_closer' : 'stay', proximity: 1.4, delivery: 'normal' };
+      if (ph.distance > 2.4) return { action: 'follow_behind', proximity: 1.4, delivery: 'shout' };
+      return { action: 'block_path', proximity: 1.0, delivery: 'normal' };
     case 'intimidate':
-      return { action: rng.chance(0.5) ? 'lean_in' : 'step_closer', proximity: 0.8, delivery: 'low' };
+      if (ph.distance > 1.8) return { action: 'follow_behind', proximity: 1.1, delivery: 'low' };
+      return { action: 'block_path', proximity: 0.9, delivery: 'low' };
     case 'back_off':
       return { action: 'back_away', proximity: 3, delivery: ph.far || ph.hurrying ? 'shout' : 'normal' };
     case 'gone':

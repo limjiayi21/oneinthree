@@ -85,6 +85,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   let lastFlinch = -99;
   let lastGlance = -99;
   let lastBumpEvent = -99;
+  let lastShove = -99;
+  let pursuit: 'none' | 'follow' | 'block' = 'none';
   let lastSpeedEvent = -99;
   let lastCrossEvent = -99;
   let fastFor = 0;
@@ -112,6 +114,38 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const toward = () => player.position;
   const towardFwd = () => player.getForward(new THREE.Vector3());
 
+  /** Keeps her position between lines. Once he is worked up he steps into her path. */
+  function pursue(d: number): void {
+    if (manGone || stance === 'back_off' || stance === 'gone' || stance === 'escalate' || man.behaviour === 'leave') {
+      pursuit = 'none';
+      return;
+    }
+    const hot = stance === 'hostile' || stance === 'intimidate' || stance === 'block';
+    if (!hot && d < 2.5 && man.behaviour === 'followBehind') {
+      pursuit = 'none';
+      man.setBehaviour({
+        type: 'walkAlongside',
+        target: toward,
+        targetForward: towardFwd,
+        side: pickSide(player, 1.15),
+        gap: 1.15,
+      });
+      return;
+    }
+    const want = hot ? (d > 2.8 ? 'follow' : 'block') : d > 4 ? 'follow' : 'none';
+    if (want === 'none') {
+      pursuit = 'none';
+      return;
+    }
+    if (want === pursuit && ((want === 'follow' && man.behaviour === 'followBehind') || (want === 'block' && man.behaviour === 'block'))) return;
+    pursuit = want;
+    if (want === 'block') {
+      man.setBehaviour({ type: 'block', target: toward, targetForward: towardFwd, gap: 0.95 });
+    } else {
+      man.setBehaviour({ type: 'followBehind', target: toward, gap: hot ? 1.15 : 1.7, speed: hot ? 3.15 : 2.85 });
+    }
+  }
+
   function applyDecision(d: ManDecision): void {
     decision = d;
     const prev = stance;
@@ -132,7 +166,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, gap), gap: Math.max(0.9, gap) });
         break;
       case 'follow_behind':
-        man.setBehaviour({ type: 'followBehind', target: toward, gap: Math.max(2.2, gap), speed: 2.4 });
+        man.setBehaviour({ type: 'followBehind', target: toward, gap: Math.max(1.6, gap), speed: 2.9 });
         break;
       case 'step_closer':
         man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(0.75, gap), speed: 1.3 });
@@ -387,6 +421,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     if (encounter && !manGone) {
       man.human.setGaze(eye);
       const d = man.distanceTo(pos);
+      pursue(d);
 
       // Her body reacts before she does.
       if (d < 0.95 && man.speed > 0.2 && kit.time - lastFlinch > 3.5) {
@@ -442,6 +477,12 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   const offBump = player.on('bumped', ({ collider }) => {
     if (collider !== man || manGone || !encounter) return;
+    const hot = stance === 'hostile' || stance === 'intimidate' || stance === 'block' || man.behaviour === 'block';
+    if (hot && kit.time - lastShove > 0.7) {
+      lastShove = kit.time;
+      player.stepBack(man.position, 0.32, 0.24);
+      player.freeze(0.2);
+    }
     if (man.behaviour === 'block' && kit.time - lastBumpEvent > 5) {
       lastBumpEvent = kit.time;
       kit.scare(0.12);
