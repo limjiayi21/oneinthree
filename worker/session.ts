@@ -40,7 +40,7 @@ import {
   type BystanderRead,
   type WomanRead,
 } from './read';
-import { applyToDecision, composeBeat, judgeTurn, type JudgeEnv } from './judge';
+import { applyToDecision, composeBeat, judgeTurn, type JudgeEnv, type TurnReading } from './judge';
 import { agentVariables } from '../shared/liveVoice';
 import { coarseExpression } from '../shared/expression';
 import { agentTurnSkipsVoice, mintSignedUrl } from './agent';
@@ -58,10 +58,14 @@ export interface Env {
   ELEVENLABS_API_KEY?: string;
   /** Set after `npm run agent:create`. Without it the sim stays on the STT → line model → TTS path. */
   ELEVENLABS_AGENT_ID?: string;
-  /** seeded (default) | typesafe | openai. Keys never leave the Worker. */
+  /**
+   * Unset uses Workers AI. seeded forces the built-in machine.
+   * typesafe, openai, and gemini need the matching key. Keys never leave the Worker.
+   */
   DECISION_PROVIDER?: string;
   TYPESAFE_API_KEY?: string;
   OPENAI_API_KEY?: string;
+  GEMINI_API_KEY?: string;
 }
 
 interface Persisted {
@@ -415,29 +419,38 @@ export class SessionDO extends DurableObject<Env> {
     finish();
   }
 
+  /** Start the judge immediately so it overlaps Clef and the line model. */
+  private prefetchJudge(pov: Pov, event: ClientEventType, text: string, recent: string[], ctx: WorldContext, stance: ManStance): Promise<TurnReading | null> {
+    if (!['speech', 'silence', 'filming_start', 'stood_between', 'asked_clerk'].includes(event)) return Promise.resolve(null);
+    const t0 = Date.now();
+    return judgeTurn(this.env as JudgeEnv, { pov, event, stance, text, recent, ctx }).then((reading) => {
+      this.judgeMs = Date.now() - t0;
+      return reading;
+    });
+  }
+
+  private judgeMs = 0;
+
   /**
-   * Ask TypeSafe or OpenAI, when configured, then let the training rules
-   * rewrite the beat. Null keeps the seeded decision.
+   * Apply a judge that was started earlier. Null keeps the seeded decision.
    */
-  private async judgeDecision(
+  private async finishJudge(
+    pending: Promise<TurnReading | null>,
     pov: Pov,
     event: ClientEventType,
-    text: string,
-    recent: string[],
-    ctx: WorldContext,
     decision: ManDecision | null,
     tension: number,
     ms: Record<string, number>,
   ): Promise<{ decision: ManDecision; tension: number; rule: string | null } | null> {
     if (!decision || !['speech', 'silence', 'filming_start', 'stood_between', 'asked_clerk'].includes(event)) return null;
-    const t0 = Date.now();
-    const reading = await judgeTurn(this.env as JudgeEnv, { pov, event, stance: decision.stance, text, recent, ctx });
-    ms.judge = Date.now() - t0;
+    const reading = await pending;
+    ms.judge = this.judgeMs;
     if (!reading) {
       ms.judgeFallback = 1;
       return null;
     }
-    ms[reading.provider === 'openai' ? 'judgeOpenai' : 'judgeTypesafe'] = 1;
+    const flag = { workers: 'judgeWorkers', typesafe: 'judgeTypesafe', openai: 'judgeOpenai', gemini: 'judgeGemini' } as const;
+    ms[flag[reading.provider]] = 1;
     const beat = composeBeat(
       { stance: decision.stance, emotion: decision.emotion, emotionIntensity: decision.emotionIntensity, action: decision.action, tension },
       reading,
@@ -461,6 +474,7 @@ export class SessionDO extends DurableObject<Env> {
   ): Promise<void> {
     const state = s.woman as WomanState;
     const rng = new Rng(s.rng);
+    const pendingJudge = this.prefetchJudge(s.meta.pov, event, text, s.transcript, ctx, state.stance);
     // Wording choices draw from their own stream, so the decisions replay under a fixed seed whichever path writes the line.
     const copy = copyRng(s.meta.seed, turn);
     const t = ctx.elapsed;
@@ -500,7 +514,7 @@ export class SessionDO extends DurableObject<Env> {
     const t1 = Date.now();
     const out = decideWoman(state, { event, ctx, strategyProbs: read?.strategyProbs, signals: read?.signals, reaction: read?.reaction }, rng);
     ms.decide = Date.now() - t1;
-    const judged = await this.judgeDecision(s.meta.pov, event, text, s.transcript, ctx, out.decision, out.tension, ms);
+    const judged = await this.finishJudge(pendingJudge, s.meta.pov, event, out.decision, out.tension, ms);
     if (judged && out.decision) {
       out.decision = judged.decision;
       out.state.stance = judged.decision.stance;
@@ -673,6 +687,7 @@ export class SessionDO extends DurableObject<Env> {
     agentVoice = false,
   ): Promise<void> {
     const state = s.bystander as BystanderState;
+    const pendingJudge = this.prefetchJudge(s.meta.pov, event, text, s.transcript, ctx, state.manStance);
     const rng = new Rng(s.rng);
     const t = ctx.elapsed;
     const manPresent = state.phase !== 'he_left' && state.manStance !== 'gone';
@@ -702,7 +717,7 @@ export class SessionDO extends DurableObject<Env> {
       rng,
     );
     ms.decide = Date.now() - t1;
-    const judged = await this.judgeDecision(s.meta.pov, event, text, s.transcript, ctx, out.man, out.tension, ms);
+    const judged = await this.finishJudge(pendingJudge, s.meta.pov, event, out.man, out.tension, ms);
     if (judged && out.man) {
       out.man = judged.decision;
       out.state.manStance = judged.decision.stance;

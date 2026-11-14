@@ -1,10 +1,12 @@
 /**
  * A turn judge in front of the seeded stance machine.
  *
- * Two providers share one reading. Code, not the provider, decides the beat
- * the trainee sees: a firm boundary plus a bystander makes him back off, and
- * neither provider is allowed to invent a physical escalation. If the provider
- * is unset, slow, or wrong, the seeded decision is what plays.
+ * The default judge is Workers AI (Gemma 4 26B-A4B, 4B active) in JSON schema
+ * mode. It needs no extra key. TypeSafe Jev, OpenAI Decisions, and Gemini are
+ * optional. Code, not the model, decides the beat the trainee sees: a firm
+ * boundary plus a bystander makes him back off, and no provider may invent a
+ * physical escalation. A missing key, a bad enum, a failed call, or anything
+ * slower than 400 ms keeps the seeded decision.
  *
  * TypeSafe System One (Jev): POST https://api.typesafe.ai/v1/systemone
  *   model jev-1.14.0, Authorization: Bearer. Yes/no questions are `noul`
@@ -16,17 +18,35 @@
  *   model gpt-6-luna, Authorization: Bearer. Predicate, choice, and score
  *   questions are an array. Score levels are ordered objects.
  *   https://developers.openai.com/api/docs/guides/decisions
+ *
+ * Workers AI JSON mode: env.AI.run('@cf/google/gemma-4-26b-a4b-it') with
+ * response_format json_schema. Thinking is off. The schema enums are the
+ * only legal answers; anything else is discarded.
+ * https://developers.cloudflare.com/workers-ai/features/json-mode/
+ *
+ * Gemini, optional, Google AI Studio: POST
+ * .../models/gemini-3.5-flash:generateContent with header x-goog-api-key
+ * and generationConfig.responseFormat.text = { mimeType, schema }.
+ * https://ai.google.dev/gemini-api/docs/structured-output
  */
 import type { Emotion, ManAction, ManDecision, ManStance, Pov, WorldContext } from '../shared/types';
 import { clampSuggestedExpression } from '../shared/expression';
 
 export const JUDGE_BUDGET_MS = 400;
+export const WORKERS_JUDGE_MODEL = '@cf/google/gemma-4-26b-a4b-it';
 export const TYPESAFE_MODEL = 'jev-1.14.0';
 export const OPENAI_MODEL = 'gpt-6-luna';
+export const GEMINI_MODEL = 'gemini-3.5-flash';
 export const TYPESAFE_URL = 'https://api.typesafe.ai/v1/systemone';
 export const OPENAI_URL = 'https://api.openai.com/v1/decisions';
+export const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-export type JudgeName = 'typesafe' | 'openai';
+export type JudgeName = 'workers' | 'typesafe' | 'openai' | 'gemini';
+
+/** Enough of the Workers AI binding to run one JSON call. */
+export interface AiRunner {
+  run(model: string, input: Record<string, unknown>): Promise<unknown>;
+}
 export type Tone = 'calm' | 'firm' | 'scared' | 'hostile' | 'joking' | 'silent';
 
 const TONES: Tone[] = ['calm', 'firm', 'scared', 'hostile', 'joking', 'silent'];
@@ -97,13 +117,114 @@ export interface JudgeEnv {
   DECISION_PROVIDER?: string;
   TYPESAFE_API_KEY?: string;
   OPENAI_API_KEY?: string;
+  GEMINI_API_KEY?: string;
+  /** Present on the Worker. The default judge uses it and no other key. */
+  AI?: AiRunner;
 }
 
+/**
+ * Unset means Workers AI when the binding exists, otherwise the seeded model.
+ * `seeded` forces the built-in machine even if AI is bound.
+ */
 export function selectJudge(env: JudgeEnv): JudgeName | null {
   const name = (env.DECISION_PROVIDER ?? '').trim().toLowerCase();
-  if (name === 'typesafe' && env.TYPESAFE_API_KEY) return 'typesafe';
-  if (name === 'openai' && env.OPENAI_API_KEY) return 'openai';
+  if (name === 'seeded' || name === 'off' || name === 'none') return null;
+  if (name === 'typesafe') return env.TYPESAFE_API_KEY ? 'typesafe' : null;
+  if (name === 'openai') return env.OPENAI_API_KEY ? 'openai' : null;
+  if (name === 'gemini') return env.GEMINI_API_KEY ? 'gemini' : null;
+  if (name === 'workers' || name === '' || name === 'default') return env.AI ? 'workers' : null;
   return null;
+}
+
+/** One object, enums only. Shared by Workers AI and Gemini. */
+export function judgeSchema(): Record<string, unknown> {
+  return {
+    type: 'object',
+    properties: {
+      firm_boundary: { type: 'boolean', description: 'True if the player just set a firm boundary.' },
+      bystander: { type: 'boolean', description: 'True if a bystander just intervened.' },
+      tone: { type: 'string', enum: [...TONES], description: 'The player’s tone.' },
+      stance: { type: 'string', enum: [...STANCES], description: 'His next stance. Do not pick escalate unless the scene is already cutting away.' },
+      expression: { type: 'string', enum: [...EXPRESSIONS], description: 'The face for the line he is about to say.' },
+      escalation: { type: 'number', description: 'Heat from 0 (only talking) to 1 (cut away). Do not describe violence.' },
+    },
+    required: ['firm_boundary', 'bystander', 'tone', 'stance', 'expression', 'escalation'],
+  };
+}
+
+export function workersInput(input: JudgeInput): Record<string, unknown> {
+  return {
+    messages: [
+      {
+        role: 'system',
+        content: 'You judge one beat of a street-harassment training simulation. Answer only with the JSON object. Do not describe violence, slurs, or anything sexual.',
+      },
+      { role: 'user', content: sceneState(input) },
+    ],
+    temperature: 0,
+    max_completion_tokens: 120,
+    chat_template_kwargs: { enable_thinking: false },
+    response_format: { type: 'json_schema', json_schema: judgeSchema() },
+  };
+}
+
+export function geminiBody(input: JudgeInput): Record<string, unknown> {
+  return {
+    contents: [{ role: 'user', parts: [{ text: sceneState(input) }] }],
+    generationConfig: {
+      temperature: 0,
+      maxOutputTokens: 200,
+      responseFormat: { text: { mimeType: 'application/json', schema: judgeSchema() } },
+    },
+  };
+}
+
+/** Pull the JSON object out of the shapes Workers AI actually returns. */
+export function workersPayload(result: unknown): unknown {
+  if (!result || typeof result !== 'object') return null;
+  const row = result as { response?: unknown; choices?: Array<{ message?: { content?: unknown } }> };
+  if (row.response && typeof row.response === 'object') return row.response;
+  if (typeof row.response === 'string') return parseJsonObject(row.response);
+  const content = row.choices?.[0]?.message?.content;
+  if (content && typeof content === 'object') return content;
+  if (typeof content === 'string') return parseJsonObject(content);
+  if ('stance' in row && 'tone' in row) return row;
+  return null;
+}
+
+export function geminiPayload(result: unknown): unknown {
+  const parts = (result as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> } | null)?.candidates?.[0]?.content?.parts;
+  const text = parts?.map((p) => p.text ?? '').join('') ?? '';
+  return parseJsonObject(text);
+}
+
+function parseJsonObject(text: string): unknown {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+/** Reject a reading whose enums are not in the allowed sets. */
+export function parseStructured(body: unknown): Omit<TurnReading, 'provider'> | null {
+  if (!body || typeof body !== 'object') return null;
+  const row = body as Record<string, unknown>;
+  const tone = asTone(row.tone);
+  const stance = asStance(row.stance);
+  const expression = asExpression(row.expression);
+  if (typeof row.tone === 'string' && tone === 'silent' && row.tone !== 'silent') return null;
+  if (!stance || !expression) return null;
+  if (typeof row.tone !== 'string' || !(TONES as string[]).includes(row.tone)) return null;
+  const firm = row.firm_boundary;
+  const by = row.bystander;
+  const firmBoundary = typeof firm === 'boolean' ? (firm ? 1 : 0) : clamp01(Number(firm));
+  const bystander = typeof by === 'boolean' ? (by ? 1 : 0) : clamp01(Number(by));
+  const escalation = clamp01(Number(row.escalation));
+  return { firmBoundary, bystander, tone, stance, expression, escalation };
 }
 
 export function sceneState(input: JudgeInput): string {
@@ -300,10 +421,20 @@ export function applyToDecision(decision: ManDecision, beat: ComposedBeat): ManD
   return { ...decision, stance: beat.stance, emotion: beat.emotion, emotionIntensity: beat.emotionIntensity, action: beat.action };
 }
 
-async function postJson(url: string, apiKey: string, body: unknown, signal: AbortSignal, fetchImpl: typeof fetch): Promise<unknown> {
+async function postJson(
+  url: string,
+  apiKey: string,
+  body: unknown,
+  signal: AbortSignal,
+  fetchImpl: typeof fetch,
+  auth: { authorization?: boolean; apiKeyHeader?: string } = {},
+): Promise<unknown> {
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (auth.apiKeyHeader) headers[auth.apiKeyHeader] = apiKey;
+  else headers.authorization = `Bearer ${apiKey}`;
   const res = await fetchImpl(url, {
     method: 'POST',
-    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
     signal,
   });
@@ -314,19 +445,49 @@ async function postJson(url: string, apiKey: string, body: unknown, signal: Abor
   return res.json();
 }
 
+function withBudget<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 /** Null means “use the seeded beat”. Never throws. */
 export async function judgeTurn(env: JudgeEnv, input: JudgeInput, fetchImpl: typeof fetch = fetch): Promise<TurnReading | null> {
   const name = selectJudge(env);
   if (!name) return null;
-  const key = name === 'typesafe' ? env.TYPESAFE_API_KEY! : env.OPENAI_API_KEY!;
-  const url = name === 'typesafe' ? TYPESAFE_URL : OPENAI_URL;
-  const body = name === 'typesafe' ? typesafeBody(input) : openaiBody(input);
-  const signal = AbortSignal.timeout(JUDGE_BUDGET_MS);
   try {
-    const json = await postJson(url, key, body, signal, fetchImpl);
-    const parsed = name === 'typesafe' ? parseTypesafe(json) : parseOpenai(json);
+    const parsed = await withBudget(runProvider(name, env, input, fetchImpl), JUDGE_BUDGET_MS);
     return parsed ? { ...parsed, provider: name } : null;
   } catch {
     return null;
   }
+}
+
+async function runProvider(name: JudgeName, env: JudgeEnv, input: JudgeInput, fetchImpl: typeof fetch): Promise<Omit<TurnReading, 'provider'> | null> {
+  if (name === 'workers') {
+    const result = await env.AI!.run(WORKERS_JUDGE_MODEL, workersInput(input));
+    return parseStructured(workersPayload(result));
+  }
+  if (name === 'gemini') {
+    const signal = AbortSignal.timeout(JUDGE_BUDGET_MS);
+    const json = await postJson(GEMINI_URL, env.GEMINI_API_KEY!, geminiBody(input), signal, fetchImpl, { authorization: false, apiKeyHeader: 'x-goog-api-key' });
+    return parseStructured(geminiPayload(json));
+  }
+  const signal = AbortSignal.timeout(JUDGE_BUDGET_MS);
+  if (name === 'typesafe') {
+    const json = await postJson(TYPESAFE_URL, env.TYPESAFE_API_KEY!, typesafeBody(input), signal, fetchImpl);
+    return parseTypesafe(json);
+  }
+  const json = await postJson(OPENAI_URL, env.OPENAI_API_KEY!, openaiBody(input), signal, fetchImpl);
+  return parseOpenai(json);
 }

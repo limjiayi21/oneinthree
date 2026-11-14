@@ -1,19 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WorldContext } from '../shared/types';
 import {
+  GEMINI_MODEL,
+  GEMINI_URL,
   JUDGE_BUDGET_MS,
   OPENAI_MODEL,
   OPENAI_URL,
   TYPESAFE_MODEL,
   TYPESAFE_URL,
+  WORKERS_JUDGE_MODEL,
   applyToDecision,
   composeBeat,
   judgeTurn,
   openaiBody,
   parseOpenai,
+  parseStructured,
   parseTypesafe,
   selectJudge,
   typesafeBody,
+  workersInput,
   type JudgeInput,
   type SeededBeat,
 } from './judge';
@@ -42,13 +47,18 @@ const input: JudgeInput = {
 const seeded: SeededBeat = { stance: 'persist', emotion: 'smirk', emotionIntensity: 0.6, action: 'stay', tension: 0.4 };
 
 describe('provider selection', () => {
-  it('stays on the seeded model unless a provider and its key are both set', () => {
+  it('uses Workers AI by default and keeps the seeded model when that is asked for', () => {
+    const ai = { run: async () => ({}) };
     expect(selectJudge({})).toBeNull();
-    expect(selectJudge({ TYPESAFE_API_KEY: 'ts' })).toBeNull();
+    expect(selectJudge({ AI: ai })).toBe('workers');
+    expect(selectJudge({ DECISION_PROVIDER: 'seeded', AI: ai })).toBeNull();
+    expect(selectJudge({ TYPESAFE_API_KEY: 'ts', AI: ai })).toBe('workers');
     expect(selectJudge({ DECISION_PROVIDER: 'typesafe' })).toBeNull();
     expect(selectJudge({ DECISION_PROVIDER: 'typesafe', TYPESAFE_API_KEY: 'ts' })).toBe('typesafe');
     expect(selectJudge({ DECISION_PROVIDER: 'openai', OPENAI_API_KEY: 'sk' })).toBe('openai');
-    expect(selectJudge({ DECISION_PROVIDER: 'seeded', OPENAI_API_KEY: 'sk', TYPESAFE_API_KEY: 'ts' })).toBeNull();
+    expect(selectJudge({ DECISION_PROVIDER: 'gemini' })).toBeNull();
+    expect(selectJudge({ DECISION_PROVIDER: 'gemini', GEMINI_API_KEY: 'g' })).toBe('gemini');
+    expect(selectJudge({ DECISION_PROVIDER: 'seeded', OPENAI_API_KEY: 'sk', TYPESAFE_API_KEY: 'ts', AI: ai })).toBeNull();
   });
 });
 
@@ -144,6 +154,63 @@ describe('parsing and composition', () => {
     expect(beat.stance).toBe('escalate');
     expect(beat.action).toBe('grab');
     expect(beat.emotion).toBe('angry');
+  });
+});
+
+describe('workers and gemini json', () => {
+  it('asks Gemma for a schema whose enums are the only legal answers', () => {
+    const body = workersInput(input);
+    expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
+    const schema = (body.response_format as { type: string; json_schema: { properties: Record<string, { enum?: string[] }> } }).json_schema;
+    expect((body.response_format as { type: string }).type).toBe('json_schema');
+    expect(schema.properties.tone.enum).toContain('firm');
+    expect(schema.properties.stance.enum).toContain('back_off');
+    expect(schema.properties.expression.enum).toEqual(expect.arrayContaining(['neutral', 'smug', 'backing_off']));
+  });
+
+  it('accepts a valid Workers AI object and rejects an enum that is not allowed', async () => {
+    const good = {
+      run: vi.fn(async (model: string) => {
+        expect(model).toBe(WORKERS_JUDGE_MODEL);
+        return { response: { firm_boundary: true, bystander: false, tone: 'firm', stance: 'guilt', expression: 'annoyed', escalation: 0.4 } };
+      }),
+    };
+    const reading = await judgeTurn({ AI: good }, input);
+    expect(reading?.provider).toBe('workers');
+    expect(reading?.stance).toBe('guilt');
+    expect(reading?.firmBoundary).toBe(1);
+
+    const bad = { run: vi.fn(async () => ({ choices: [{ message: { content: '{"tone":"furious","stance":"persist","expression":"smug","firm_boundary":false,"bystander":false,"escalation":0}' } }] })) };
+    expect(await judgeTurn({ AI: bad }, input)).toBeNull();
+    expect(parseStructured({ tone: 'firm', stance: 'not-a-stance', expression: 'smug', firm_boundary: false, bystander: false, escalation: 0 })).toBeNull();
+    expect(await judgeTurn({ AI: { run: async () => ({ response: 'not json at all' }) } }, input)).toBeNull();
+
+    const slow = { run: () => new Promise(() => {}) };
+    const started = Date.now();
+    expect(await judgeTurn({ AI: slow }, input)).toBeNull();
+    expect(Date.now() - started).toBeLessThan(JUDGE_BUDGET_MS + 250);
+  });
+
+  it('posts Gemini structured output with the AI Studio key header', async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(url)).toBe(GEMINI_URL);
+      expect(String(url)).toContain(GEMINI_MODEL);
+      expect(new Headers(init?.headers).get('x-goog-api-key')).toBe('gemini-test');
+      expect(new Headers(init?.headers).get('authorization')).toBeNull();
+      const sent = JSON.parse(String(init?.body));
+      expect(sent.generationConfig.responseFormat.text.mimeType).toBe('application/json');
+      expect(sent.generationConfig.responseFormat.text.schema.properties.stance.enum).toContain('back_off');
+      expect(JSON.stringify(sent)).not.toContain('gemini-test');
+      return new Response(
+        JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"firm_boundary":true,"bystander":true,"tone":"firm","stance":"intimidate","expression":"nervous","escalation":0.3}' }] } }] }),
+        { status: 200 },
+      );
+    });
+    const reading = await judgeTurn({ DECISION_PROVIDER: 'gemini', GEMINI_API_KEY: 'gemini-test' }, input, fetchImpl);
+    expect(reading?.provider).toBe('gemini');
+    expect(reading?.expression).toBe('nervous');
+    const beat = composeBeat(seeded, reading!, { bystanderIntervened: true });
+    expect(beat.stance).toBe('back_off');
   });
 });
 

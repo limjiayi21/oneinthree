@@ -16,9 +16,10 @@ ELEVENLABS_AGENT_ID=
 # routes live calls onto). gemini-4-argon is the larger Gemini.
 # ELEVENLABS_AGENT_LLM=gemini-3.5-flash
 
-# Who judges the next stance and face. seeded (default) keeps the built-in
-# model. typesafe and openai are used only when the matching key is set, and
-# only if they answer within 400ms. The browser never sees these keys.
-# DECISION_PROVIDER=seeded
-# TYPESAFE_API_KEY=
-# OPENAI_API_KEY=
+# Who judges the next stance and face. Unset uses Workers AI (no extra key)
+# and falls back to the seeded model if that call fails or exceeds 400ms.
+# DECISION_PROVIDER=seeded forces the built-in model.
+# DECISION_PROVIDER=typesafe   and TYPESAFE_API_KEY=
+# DECISION_PROVIDER=openai     and OPENAI_API_KEY=
+# DECISION_PROVIDER=gemini     and GEMINI_API_KEY=   (Google AI Studio / MLH credits)
+# The browser never sees these keys.
