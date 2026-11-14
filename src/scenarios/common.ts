@@ -16,6 +16,7 @@ import type {
 } from '../../shared/types';
 import { createSession, sendTurn } from '../net/api';
 import type { PhoneLink } from '../net/phoneLink';
+import type { PlayerController } from '../player/player';
 import scriptJson from '../../content/script.json';
 
 export interface ScriptLine {
@@ -94,7 +95,7 @@ export class SceneKit {
 
   constructor(
     readonly deps: SceneDeps,
-    readonly player: Player,
+    readonly player: PlayerController,
     readonly pov: Pov,
   ) {
     this.finished = new Promise((res) => (this.resolveEnd = res));
@@ -166,8 +167,10 @@ export class SceneKit {
     engine.setFear(f);
     hud.setFear(f);
     this.player.setTension(f);
-    audio.setHeartbeat(62 + f * 80, f < 0.06 ? 0 : 0.12 + f * 0.88);
-    audio.setBreathing(clamp01((f - 0.22) / 0.78));
+    // the body also answers effort: a sprint leaves her gasping even when she is not afraid
+    const body = Math.max(f, this.player.exertion * 0.85);
+    audio.setHeartbeat(62 + body * 80, body < 0.06 ? 0 : 0.12 + body * 0.88);
+    audio.setBreathing(Math.max(clamp01((f - 0.22) / 0.78), this.player.exertion));
     audio.setMuffle(clamp01((f - 0.55) / 0.45) * 0.85);
   }
 

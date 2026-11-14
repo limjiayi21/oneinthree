@@ -52,6 +52,13 @@ describe('createStepRhythm', () => {
     expect(r.state(1500 + 1150)).toBe('stopped'); // 2.3 x 500
   });
 
+  it('running in place: steps well under the normal interval read as running', () => {
+    const r = createStepRhythm();
+    feed(r, series(0, 600, 9)); // calibrates normal to 600 ms
+    feed(r, series(5100, 330, 4)); // 330 ms < 0.62 x 600
+    expect(r.state(5100 + 990)).toBe('running');
+  });
+
   it('ignores a pause longer than STOP_AFTER_MS for calibration', () => {
     const r = createStepRhythm();
     feed(r, series(0, 600, 5)); // 4 valid intervals, last step at 2400

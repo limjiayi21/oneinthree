@@ -310,6 +310,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               control(['W', 'A', 'S', 'D'], 'Walk'),
               control(['Mouse'], 'Look around'),
               control(['Shift'], 'Hurry'),
+              control(['Shift', 'Shift'], 'Double-tap and hold to run (only for a few seconds)'),
               control(['Space'], 'Hold to speak'),
               control(['T'], 'Type instead of speaking'),
               control(['Esc'], 'Pause'),

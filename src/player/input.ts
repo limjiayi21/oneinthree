@@ -22,6 +22,8 @@ export interface MoveIntent {
   /** -1 (turn right) .. 1 (turn left); only used without pointer lock */
   turn: number;
   hurry: boolean;
+  /** Sprint (double-tap and hold Shift, or the phone at a running pace). The player decides if stamina allows it. */
+  run: boolean;
 }
 
 export interface PlayerInput {
@@ -31,6 +33,8 @@ export interface PlayerInput {
   releaseLock(): void;
   /** Forget every held key (focus loss, lock loss, cutscene). */
   clear(): void;
+  /** A sprint ran out: the next one needs a fresh double-tap of Shift, not just Shift still held. */
+  endSprint(): void;
   dispose(): void;
 }
 
@@ -47,11 +51,13 @@ export interface InputOptions {
   onLock(): void;
   onUnlock(): void;
   /** Extra movement source (the phone). Adds to the keys; a held forward or back key wins. */
-  extraMove?(): { forward: number; hurry: boolean } | null;
+  extraMove?(): { forward: number; hurry: boolean; run?: boolean } | null;
 }
 
 const MOVE_CODES = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight']);
 const ARROWS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+/** Two Shift presses this close together (ms) start a sprint, held for as long as Shift is. */
+const DOUBLE_TAP_MS = 300;
 /** Largest believable single mouse delta; some browsers emit huge spurious jumps while locked. */
 const MAX_MOUSE_DELTA = 400;
 
@@ -70,6 +76,8 @@ export function createInput(dom: HTMLElement, opts: InputOptions): PlayerInput {
   let dragging = false;
   let disposed = false;
   let wantLock = false; // requestLock() was called and releaseLock() has not been since
+  let lastShiftTap = -Infinity;
+  let sprintKey = false; // Shift double-tapped and still held
 
   const active = () => (opts.requireLock ? pointerLocked : true);
 
@@ -83,6 +91,10 @@ export function createInput(dom: HTMLElement, opts: InputOptions): PlayerInput {
       held.clear();
       return;
     }
+    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) {
+      if (e.timeStamp - lastShiftTap < DOUBLE_TAP_MS) sprintKey = true;
+      lastShiftTap = e.timeStamp;
+    }
     held.add(e.code);
     if (ARROWS.has(e.code)) e.preventDefault(); // arrows would scroll the page
   };
@@ -93,10 +105,12 @@ export function createInput(dom: HTMLElement, opts: InputOptions): PlayerInput {
       return;
     }
     held.delete(e.code);
+    if (!held.has('ShiftLeft') && !held.has('ShiftRight')) sprintKey = false;
   };
 
   const clear = () => {
     held.clear();
+    sprintKey = false;
     dragging = false;
   };
 
@@ -178,6 +192,7 @@ export function createInput(dom: HTMLElement, opts: InputOptions): PlayerInput {
       out.strafe = 0;
       out.turn = 0;
       out.hurry = false;
+      out.run = false;
       if (!active()) return out;
       const extra = opts.extraMove?.() ?? null;
       if (isTextField(doc.activeElement)) {
@@ -188,6 +203,7 @@ export function createInput(dom: HTMLElement, opts: InputOptions): PlayerInput {
         if (extra && extra.forward > 0) {
           out.forward = extra.forward;
           out.hurry = extra.hurry;
+          out.run = !!extra.run;
         }
         return out;
       }
@@ -201,10 +217,12 @@ export function createInput(dom: HTMLElement, opts: InputOptions): PlayerInput {
         if (down('ArrowRight')) out.turn -= 1;
       }
       out.hurry = down('ShiftLeft') || down('ShiftRight');
+      out.run = sprintKey && out.hurry;
       // A held forward or back key always wins over the phone.
       if (extra && extra.forward > 0) {
         if (out.forward === 0 && !down('KeyW') && !down('KeyS') && !down('ArrowUp') && !down('ArrowDown')) out.forward = extra.forward;
         if (extra.hurry) out.hurry = true;
+        if (extra.run && out.forward > 0) out.run = true;
       }
       return out;
     },
@@ -233,6 +251,10 @@ export function createInput(dom: HTMLElement, opts: InputOptions): PlayerInput {
     },
 
     clear,
+
+    endSprint() {
+      sprintKey = false;
+    },
 
     dispose() {
       if (disposed) return;
