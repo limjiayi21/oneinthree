@@ -3,10 +3,11 @@
  *
  * One row per Part 2 session. It holds what the player did, never what they
  * said: the session id, a timestamp, the Part 2 free-play tactics in order,
- * the Part 2 outcome, and the first choice picked at each guided moment.
+ * the Part 2 outcome, and the first choice id picked at each of the five
+ * teaching-replay moments.
  * No transcripts, no spoken or typed words, no audio.
  *
- * Schema: migrations/0001_playthroughs.sql. Logging is best effort: if the
+ * Schema: migrations/0001_playthroughs.sql, then 0002_teaching_replay.sql. Logging is best effort: if the
  * DB binding is missing or a write fails, the simulation carries on.
  */
 import guidedJson from '../content/guided.json';
@@ -18,8 +19,12 @@ const GUIDED = guidedJson as unknown as GuidedData;
 
 /** moment id -> the choice ids it allows. */
 const GUIDED_CHOICES: Record<string, Set<string>> = Object.fromEntries(GUIDED.moments.map((m) => [m.id, new Set(m.choices.map((c) => c.id))]));
-/** The moments with a column in the playthroughs table (migrations/0001_playthroughs.sql). */
-export const GUIDED_MOMENT_IDS = GUIDED.moments.map((m) => m.id).filter((id) => ['m1', 'm2', 'm3'].includes(id));
+/** One column per moment in the playthroughs table (migrations/0001 and 0002). content.test checks these match content/guided.json. */
+export const GUIDED_MOMENT_IDS = ['m1', 'm2', 'm3', 'm4', 'm5'] as const;
+type MomentId = (typeof GUIDED_MOMENT_IDS)[number];
+
+/** choice id -> its rating, for the first-try counts. */
+const RATING: Record<string, string> = Object.fromEntries(GUIDED.moments.flatMap((m) => m.choices.map((c) => [c.id, c.rating])));
 
 const OUTCOMES: OutcomeKind[] = [
   'he_left',
@@ -80,15 +85,17 @@ export async function recordPlaythrough(db: D1Database | undefined, row: Playthr
   try {
     await db
       .prepare(
-        `INSERT INTO playthroughs (session_id, created_at, updated_at, tactics, outcome, guided_m1, guided_m2, guided_m3)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        `INSERT INTO playthroughs (session_id, created_at, updated_at, tactics, outcome, guided_m1, guided_m2, guided_m3, guided_m4, guided_m5)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
          ON CONFLICT(session_id) DO UPDATE SET
            updated_at = excluded.updated_at,
            tactics   = COALESCE(excluded.tactics, playthroughs.tactics),
            outcome   = COALESCE(excluded.outcome, playthroughs.outcome),
            guided_m1 = COALESCE(playthroughs.guided_m1, excluded.guided_m1),
            guided_m2 = COALESCE(playthroughs.guided_m2, excluded.guided_m2),
-           guided_m3 = COALESCE(playthroughs.guided_m3, excluded.guided_m3)`,
+           guided_m3 = COALESCE(playthroughs.guided_m3, excluded.guided_m3),
+           guided_m4 = COALESCE(playthroughs.guided_m4, excluded.guided_m4),
+           guided_m5 = COALESCE(playthroughs.guided_m5, excluded.guided_m5)`,
       )
       .bind(
         row.sessionId,
@@ -99,6 +106,8 @@ export async function recordPlaythrough(db: D1Database | undefined, row: Playthr
         g.m1 ?? null,
         g.m2 ?? null,
         g.m3 ?? null,
+        g.m4 ?? null,
+        g.m5 ?? null,
       )
       .run();
   } catch (err) {
@@ -117,7 +126,9 @@ export interface StatsResponse {
   firstTactic: Record<string, number>;
   /** Per guided moment: how often each choice was picked first. */
   guidedFirstChoice: Record<string, Record<string, number>>;
-  /** Playthroughs that reached the end of the guided replay. */
+  /** Per guided moment: how often the first pick was best, good, weaker or backfires. */
+  guidedFirstRating: Record<string, Record<string, number>>;
+  /** Playthroughs that reached the end of the teaching replay (a first choice at all five moments). */
   guidedCompleted: number;
 }
 
@@ -127,6 +138,8 @@ interface Row {
   guided_m1: string | null;
   guided_m2: string | null;
   guided_m3: string | null;
+  guided_m4: string | null;
+  guided_m5: string | null;
 }
 
 const bump = (map: Record<string, number>, key: string) => {
@@ -142,6 +155,7 @@ export function aggregate(rows: Row[]): StatsResponse {
     tacticsUsed: {},
     firstTactic: {},
     guidedFirstChoice: Object.fromEntries(GUIDED_MOMENT_IDS.map((id) => [id, {}])),
+    guidedFirstRating: Object.fromEntries(GUIDED_MOMENT_IDS.map((id) => [id, {}])),
     guidedCompleted: 0,
   };
   for (const r of rows) {
@@ -158,10 +172,15 @@ export function aggregate(rows: Row[]): StatsResponse {
     }
     for (const t of new Set(tactics)) bump(out.tacticsUsed, t);
     if (r.outcome || tactics.length) bump(out.firstTactic, tactics[0] ?? 'none');
-    const guided: Record<string, string | null> = { m1: r.guided_m1, m2: r.guided_m2, m3: r.guided_m3 };
+    // Ids from the earlier three-moment replay are not in the current content and are skipped.
+    const raw: Record<MomentId, string | null> = { m1: r.guided_m1, m2: r.guided_m2, m3: r.guided_m3, m4: r.guided_m4, m5: r.guided_m5 };
+    const guided: Partial<Record<MomentId, string>> = {};
     for (const id of GUIDED_MOMENT_IDS) {
-      const choice = guided[id];
-      if (choice) bump(out.guidedFirstChoice[id]!, choice);
+      const choice = raw[id];
+      if (!choice || !GUIDED_CHOICES[id]?.has(choice)) continue;
+      guided[id] = choice;
+      bump(out.guidedFirstChoice[id]!, choice);
+      bump(out.guidedFirstRating[id]!, RATING[choice] ?? 'unknown');
     }
     if (GUIDED_MOMENT_IDS.every((id) => guided[id])) out.guidedCompleted++;
   }
@@ -169,7 +188,7 @@ export function aggregate(rows: Row[]): StatsResponse {
 }
 
 export async function readStats(db: D1Database): Promise<StatsResponse> {
-  const { results } = await db.prepare('SELECT tactics, outcome, guided_m1, guided_m2, guided_m3 FROM playthroughs').all<Row>();
+  const { results } = await db.prepare('SELECT tactics, outcome, guided_m1, guided_m2, guided_m3, guided_m4, guided_m5 FROM playthroughs').all<Row>();
   return aggregate(results ?? []);
 }
 

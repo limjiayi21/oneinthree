@@ -14,6 +14,7 @@ import type { GuidedData } from '../shared/content';
 import { CONTINUES, firstPickTactics, stripStatIds } from '../shared/content';
 import type { Evidence } from '../shared/evidence';
 import { cleanLine } from './write';
+import { GUIDED_MOMENT_IDS } from './stats';
 
 const guided = guidedJson as unknown as GuidedData;
 const evidence = evidenceJson as unknown as Evidence;
@@ -105,6 +106,10 @@ describe('content/guided.json', () => {
       expect(typeof c.verified, c.id).toBe('boolean');
       expect(c.url === '' || /^https:\/\//.test(c.url), c.id).toBe(true);
     }
+  });
+
+  it('has exactly one stats column per moment', () => {
+    expect(guided.moments.map((m) => m.id)).toEqual([...GUIDED_MOMENT_IDS]);
   });
 
   it('has a recap with all five Ds, the two steps, and the closing line', () => {
