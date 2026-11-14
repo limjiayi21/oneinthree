@@ -4,14 +4,23 @@ import { createAudio } from './audio/engine';
 import { createMic } from './audio/mic';
 import { createHud } from './ui/hud';
 import { createScreens } from './ui/screens';
-import { getHealth, getSummary } from './net/api';
+import { getHealth, getSummary, postGuided } from './net/api';
 import { createPhoneLink } from './net/phoneLink';
 import { runWomanWalkHome } from './scenarios/womanWalkHome';
 import { runBystanderWalkHome } from './scenarios/bystanderWalkHome';
+import { GUIDED, runGuidedWalkHome } from './scenarios/guidedWalkHome';
 import type { SceneDeps, SceneResult } from './scenarios/common';
 import type { OutcomeKind, Pov, SummaryData } from '../shared/types';
 import { createEyeTracker } from './player/eyes';
 import { createHandTracker } from './player/hands';
+import { firstPickTactics } from '../shared/content';
+
+/** The recap screen after the teaching replay, ticking the Ds the player chose first. */
+function recapFor(firstChoices: Record<string, string>) {
+  const picked = firstPickTactics(GUIDED, firstChoices);
+  const { title, stepsTitle, steps, closing } = GUIDED.recap;
+  return { title, stepsTitle, steps, closing, fiveDs: GUIDED.recap.fiveDs.map((d) => ({ name: d.name, line: d.line, firstPick: picked.has(d.key) })) };
+}
 
 /** Used only if the server cannot produce a debrief (offline, error). No statistics are invented here. */
 const FALLBACK_OUTCOME: Record<OutcomeKind, { title: string; body: string }> = {
@@ -49,7 +58,7 @@ async function debrief(result: SceneResult, pov: Pov): Promise<SummaryData> {
 
 async function main(): Promise<void> {
   const params = new URLSearchParams(location.search);
-  // Dev shortcuts: ?skip=intro,part1
+  // Dev shortcuts: ?skip=intro,part1,part2 (skipping part2 goes straight to the guided replay)
   const skip = new Set((params.get('skip') ?? '').split(',').filter(Boolean));
   const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
   const phone = createPhoneLink();
@@ -124,6 +133,8 @@ async function main(): Promise<void> {
 
   for (;;) {
     let exited = false;
+    /** The Part 2 run the guided replay's choices are logged against (the last one, after any "Walk it again"). */
+    let part2: SceneResult | null = null;
 
     if (!skip.has('part1')) {
       for (;;) {
@@ -143,19 +154,33 @@ async function main(): Promise<void> {
       }
     }
 
-    if (!exited) {
+    if (!exited && !skip.has('part2')) {
       for (;;) {
         await screens.briefing('bystander');
         await audio.resume();
         world.setDoorOpen('home', false);
         const result = await runBystanderWalkHome(deps);
         hud.setVisible(false);
-        if (result.outcome === 'exited') break;
+        part2 = result;
+        if (result.outcome === 'exited') {
+          exited = true;
+          break;
+        }
         screens.loading('…');
         const summary = await debrief(result, 'bystander');
         screens.loading(null);
         if ((await screens.summary(summary)) === 'continue') break;
       }
+    }
+
+    // Teaching replay: Part 2 again, frozen at five moments, then the recap. Skipped if the player left the simulation.
+    if (!exited) {
+      await audio.resume();
+      world.setDoorOpen('home', false);
+      const guided = await runGuidedWalkHome(deps);
+      hud.setVisible(false);
+      if (part2?.sessionId && Object.keys(guided.firstChoices).length) void postGuided(part2.sessionId, guided.firstChoices, part2.outcome);
+      if (!guided.exited) await screens.recap(recapFor(guided.firstChoices));
     }
 
     audio.stopAmbience(1);

@@ -43,6 +43,7 @@ import { transcribe } from './stt';
 import { buildSummary } from './summary';
 import { LiveAudio, startTts, type AudioSpec } from './tts';
 import { voUrl, type Delivery } from './voices';
+import { cleanGuidedChoices, isOutcome, recordPlaythrough, tacticsFromLog } from './stats';
 import { BYSTANDER_SYSTEM, WOMAN_SYSTEM, bystanderUserPrompt, cleanLine, womanUserPrompt, writeFields, type WriteResult } from './write';
 
 export interface Env {
@@ -51,6 +52,10 @@ export interface Env {
   PHONE: DurableObjectNamespace;
   ASSETS: Fetcher;
   ELEVENLABS_API_KEY?: string;
+  /** Aggregate playthrough counts (worker/stats.ts). Optional: without it nothing is logged. */
+  DB?: D1Database;
+  /** Shared code that unlocks GET /api/stats. Without it the endpoint is off. */
+  STATS_CODE?: string;
 }
 
 interface Persisted {
@@ -204,6 +209,7 @@ export class SessionDO extends DurableObject<Env> {
     if (action === 'turn' && request.method === 'POST') return this.handleTurn(request);
     if (action === 'summary' && request.method === 'GET') return json(buildSummary(this.s.meta, this.readLog(), this.s.outcome));
     if (action === 'audio' && request.method === 'GET') return this.serveAudio(parts[4] ?? '');
+    if (action === 'guided' && request.method === 'POST') return this.recordGuided(request);
     return json({ error: 'Not found' }, 404);
   }
 
@@ -619,7 +625,36 @@ export class SessionDO extends DurableObject<Env> {
       s.outcome = out.outcome;
       emit({ type: 'outcome', outcome: out.outcome });
       this.log({ kind: 'outcome', t, turn, outcome: out.outcome });
+      this.ctx.waitUntil(this.recordStats());
     }
+  }
+
+  /* ------------------------------------------------------------------ playthrough stats */
+
+  /** Part 2 only: tactics in order and the outcome. Never any words. */
+  private recordStats(extra: { guided?: Record<string, string>; outcome?: OutcomeKind } = {}): Promise<void> {
+    const s = this.s;
+    if (!s || s.meta.pov !== 'bystander') return Promise.resolve();
+    return recordPlaythrough(this.env.DB, {
+      sessionId: s.meta.id,
+      createdAt: s.meta.createdAt,
+      tactics: tacticsFromLog(this.readLog()),
+      outcome: s.outcome ?? extra.outcome ?? null,
+      guided: extra.guided,
+    });
+  }
+
+  /**
+   * POST /api/session/:id/guided  { choices: { m1: "m1_wait", ... }, outcome?: OutcomeKind }
+   * The first choice picked at each guided moment. `outcome` is the client's own
+   * Part 2 ending, used only when this session never recorded one.
+   */
+  private async recordGuided(request: Request): Promise<Response> {
+    if (this.s?.meta.pov !== 'bystander') return json({ error: 'Not a Part 2 session' }, 400);
+    const body = (await request.json().catch(() => null)) as { choices?: unknown; outcome?: unknown } | null;
+    const guided = cleanGuidedChoices(body?.choices);
+    await this.recordStats({ guided, outcome: isOutcome(body?.outcome) ? body.outcome : undefined });
+    return json({ ok: true, recorded: Object.keys(guided).length });
   }
 
   private async bystanderLines(

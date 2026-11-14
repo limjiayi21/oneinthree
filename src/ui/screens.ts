@@ -806,6 +806,44 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
       const fiveDs = pov === 'bystander' ? renderFiveDs(Array.isArray(data.fiveDs) ? data.fiveDs : []) : null;
       const model = renderModel(Array.isArray(data.modelNotes) ? data.modelNotes : []);
 
+      // Part 2: the outcome, then straight on to the teaching replay. The full debrief is kept, unchanged, behind a disclosure.
+      if (pov === 'bystander') {
+        const learnBtn = h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => finish('continue') }, 'Learn how to help');
+        const fullId = nextId('oit-full');
+        add(
+          el,
+          h(
+            'div',
+            { class: 'oit-frame' },
+            h('div', { class: 'oit-topbar oit-topbar--static' }, wordmark()),
+            h(
+              'article',
+              { class: 'oit-article' },
+              header,
+              h(
+                'section',
+                { class: 'oit-sec oit-sec--plain oit-sec--next', 'aria-label': 'What next' },
+                h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }),
+                h(
+                  'div',
+                  { class: 'oit-sec-body' },
+                  h('p', { class: 'oit-next-note' }, 'Next: the same street once more. It will stop at five moments and show what helps.'),
+                  h('div', { class: 'oit-actions' }, learnBtn, retryBtn),
+                ),
+              ),
+              h(
+                'details',
+                { class: 'oit-full', id: fullId },
+                h('summary', null, h('span', { class: 'oit-full-title' }, 'See full details'), h('span', { class: 'oit-full-hint' }, 'Timeline, the 5 Ds, research, the model')),
+                h('div', { class: 'oit-full-body' }, timeline, fiveDs, insights, stats, caseStudy, model),
+              ),
+            ),
+          ),
+        );
+        show(el);
+        return;
+      }
+
       const actionsId = nextId('oit-sum-actions');
       add(
         el,
@@ -820,6 +858,95 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
             { class: 'oit-sum-foot', id: actionsId },
             h('p', { class: 'oit-sum-foot-note' }, pov === 'woman' ? 'Next: the same street, as a bystander.' : 'Next: support, and the sources behind this.'),
             h('div', { class: 'oit-sum-foot-actions' }, retryBtn, continueBtn),
+          ),
+        ),
+      );
+      show(el);
+    });
+  }
+
+  /* ---------------------------------------------------------- teaching replay */
+
+  function recap(opts: {
+    title: string;
+    fiveDs: Array<{ name: string; line: string; firstPick: boolean }>;
+    stepsTitle: string;
+    steps: Array<{ name: string; line: string }>;
+    closing: string;
+  }): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const titleId = nextId('oit-recap');
+      const el = h('section', { class: 'oit-screen oit-summary oit-recap', 'aria-labelledby': titleId });
+      const next = h(
+        'button',
+        {
+          class: 'oit-btn oit-btn--primary',
+          type: 'button',
+          onclick: () => {
+            close(el);
+            resolve();
+          },
+        },
+        'Continue',
+      );
+      const picked = opts.fiveDs.filter((d) => d.firstPick).length;
+      add(
+        el,
+        h(
+          'div',
+          { class: 'oit-frame' },
+          h('div', { class: 'oit-topbar oit-topbar--static' }, wordmark()),
+          h(
+            'article',
+            { class: 'oit-article' },
+            h(
+              'header',
+              { class: 'oit-sum-head' },
+              h('p', { class: 'oit-eyebrow oit-rise' }, 'Part 2 · How to help'),
+              h('h1', { class: 'oit-sum-title oit-rise', id: titleId, tabindex: -1, 'data-focus': true }, opts.title),
+            ),
+            section(
+              'The 5 Ds',
+              'oit-sec--recap',
+              h(
+                'p',
+                { class: 'oit-sec-lede' },
+                picked ? 'A tick marks the ones you chose first in the replay.' : 'None of these was your first choice in the replay. Each one is open to you.',
+              ),
+              h(
+                'ul',
+                { class: 'oit-recap-ds' },
+                opts.fiveDs.map((d) =>
+                  h(
+                    'li',
+                    { class: d.firstPick ? 'is-picked' : null },
+                    h('span', { class: 'oit-recap-tick', 'aria-hidden': 'true' }),
+                    h(
+                      'span',
+                      null,
+                      h('span', { class: 'oit-recap-name' }, d.name),
+                      d.firstPick ? h('span', { class: 'oit-sr' }, ' (your first choice)') : null,
+                      h('span', { class: 'oit-recap-line' }, d.line),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            section(
+              opts.stepsTitle,
+              'oit-sec--steps',
+              h(
+                'ol',
+                { class: 'oit-recap-steps' },
+                opts.steps.map((s) => h('li', null, h('span', null, h('span', { class: 'oit-recap-name' }, s.name), h('span', { class: 'oit-recap-line' }, s.line)))),
+              ),
+            ),
+            h(
+              'section',
+              { class: 'oit-sec oit-sec--plain oit-sec--end' },
+              h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }),
+              h('div', { class: 'oit-sec-body' }, h('p', { class: 'oit-recap-closing' }, opts.closing), h('div', { class: 'oit-actions' }, next)),
+            ),
           ),
         ),
       );
@@ -1049,5 +1176,5 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     focusStart(el);
   }
 
-  return { intro, briefing, summary, closing, loading, error };
+  return { intro, briefing, summary, recap, closing, loading, error };
 }

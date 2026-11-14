@@ -7,7 +7,7 @@
  *   http://localhost:5185/dev/ui.html?view=summary-woman&evidence=mock
  *
  * view      intro | briefing-woman | briefing-bystander | hud | summary-woman |
- *           summary-woman-escalated | summary-bystander | closing | pause |
+ *           summary-woman-escalated | summary-bystander | recap | closing | pause |
  *           card | loading | error | selftest (scripted checks, see selftest.ts)
  * evidence  real (content/evidence.json as bundled) | mock (dev/mock.ts) | empty
  *           default: real once the file has content, mock until then
@@ -27,6 +27,10 @@ import { bundledEvidence, EMPTY_EVIDENCE } from '../src/ui/evidence';
 import type { Hud, MicState } from '../src/contracts';
 import type { Evidence } from '../shared/evidence';
 import { minimalSummary, mockEvidence, mockSummary, type MockSummaryKind } from './mock';
+import guidedJson from '../content/guided.json';
+import type { GuidedData } from '../shared/content';
+
+const GUIDED = guidedJson as unknown as GuidedData;
 import { runSelfTest } from './selftest';
 
 const params = new URLSearchParams(location.search);
@@ -217,6 +221,31 @@ function hudPanel(): void {
       button('filming off', () => hud.setFilming(false)),
       button('askText', () => void hud.askText('Say something…').then((t) => log(`askText() resolved: ${JSON.stringify(t)}`))),
       button('pause', () => void hud.pause().then((c) => log(`pause() resolved: ${c}`))),
+      button('choice', () => {
+        const m = GUIDED.moments[1]!;
+        void hud
+          .choice({ caption: m.caption, prompt: m.prompt, innerVoice: m.innerVoice, options: m.choices.map((c, i) => ({ label: c.text, note: i === 1 ? '(tried)' : undefined })) })
+          .then((i) => log(`choice() resolved: ${i}`));
+      }),
+      button('freeze', () => hud.freeze({})),
+      button('freeze spot', () => hud.freeze({ spot: { x: 0.55, y: 0.45, r: 0.17 } })),
+      button('unfreeze', () => hud.freeze(null)),
+      button('strip', () => {
+        const c = GUIDED.moments[1]!.choices[0]!;
+        void hud
+          .strip({
+            concept: c.strip.concept,
+            sentence: c.strip.sentence,
+            credit: { text: 'Bibb Latané & John Darley, The Unresponsive Bystander, 1970' },
+            stats: [
+              { headline: 'In 9 of 10', text: 'public conflicts recorded by street cameras in the UK, the Netherlands and South Africa, at least one bystander did something to help.', source: { label: 'American Psychologist, 2020', url: 'https://pubmed.ncbi.nlm.nih.gov/31157529/' } },
+              { headline: 'Only 25%', text: 'of people who experienced sexual harassment in public spaces say someone helped them.', source: { label: "L'Oreal Paris via PR Newswire, 2020" } },
+            ],
+            action: 'Continue',
+          })
+          .then(() => log('strip() resolved'));
+      }),
+      button('you think', () => hud.subtitle('self', 'At least I am getting it on video.')),
       button('visible off', () => hud.setVisible(false)),
       button('visible on', () => hud.setVisible(true)),
     );
@@ -239,6 +268,7 @@ const VIEWS = [
   'summary-woman',
   'summary-woman-escalated',
   'summary-bystander',
+  'recap',
   'closing',
   'pause',
   'card',
@@ -343,6 +373,13 @@ async function run(): Promise<void> {
       const data = params.get('minimal') === '1' ? minimalSummary(kind === 'bystander' ? 'bystander' : 'woman') : mockSummary(kind, evidence);
       const choice = await screens.summary(data);
       log(`summary() resolved: ${choice}`);
+      return;
+    }
+
+    case 'recap': {
+      const picked = params.get('picked')?.split(',') ?? ['distract', 'delay'];
+      await screens.recap({ ...GUIDED.recap, fiveDs: GUIDED.recap.fiveDs.map((d) => ({ name: d.name, line: d.line, firstPick: picked.includes(d.key) })) });
+      log('recap() resolved');
       return;
     }
 

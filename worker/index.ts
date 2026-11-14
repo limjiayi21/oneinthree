@@ -8,6 +8,8 @@
  *   GET  /api/session/:id/summary        -> SummaryData
  *   POST /api/phone/pair                 -> PhonePairResponse
  *   GET  /api/phone/:code/ws?role=       -> WebSocket relay (worker/phoneRelay.ts)
+ *   POST /api/session/:id/guided         -> records the guided replay's first choices (worker/stats.ts)
+ *   GET  /api/stats                      -> aggregate playthrough counts; needs STATS_CODE
  *
  * Everything under /api/session/:id is handled by that session's Durable
  * Object (worker/session.ts). Static assets and the SPA are served by the
@@ -17,6 +19,7 @@ import type { CreateSessionRequest, HealthResponse } from '../shared/types';
 import { PHONE_CODE_ALPHABET, PHONE_CODE_LENGTH, isPhoneCode, phonePairPath, type PhonePairResponse } from '../shared/phone';
 import { PhoneRelayDO } from './phoneRelay';
 import { SessionDO, type Env } from './session';
+import { codeMatches, readStats } from './stats';
 
 export { PhoneRelayDO, SessionDO };
 export type { Env };
@@ -49,6 +52,20 @@ export default {
       return json(body);
     }
 
+    if (path === '/api/stats') {
+      if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+      // Off unless STATS_CODE is set. The code goes in the x-stats-code header (or ?code= for a quick look in a browser).
+      const given = request.headers.get('x-stats-code') ?? url.searchParams.get('code');
+      if (!env.STATS_CODE || !codeMatches(given, env.STATS_CODE)) return json({ error: 'Not found' }, 404);
+      if (!env.DB) return json({ error: 'No stats database is bound' }, 503);
+      try {
+        return json(await readStats(env.DB));
+      } catch (err) {
+        console.error('[stats] read failed', err);
+        return json({ error: 'Stats are unavailable' }, 500);
+      }
+    }
+
     if (path === '/api/session') {
       if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
       const body = (await request.json().catch(() => null)) as Partial<CreateSessionRequest> | null;
@@ -64,7 +81,7 @@ export default {
       );
     }
 
-    const match = path.match(/^\/api\/session\/([^/]+)\/(turn|summary|audio)(?:\/[^/]+)?$/);
+    const match = path.match(/^\/api\/session\/([^/]+)\/(turn|summary|audio|guided)(?:\/[^/]+)?$/);
     if (match) {
       const id = match[1];
       if (!SESSION_ID.test(id)) return json({ error: 'Unknown session' }, 404);

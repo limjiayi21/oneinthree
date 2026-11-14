@@ -856,3 +856,312 @@
     transition: opacity 0.2s ease;
   }
 }
+
+/* --------------------------------------------------------- guided replay */
+
+/* While a choice is open the scene is frozen; the panel takes the lower third. */
+.oit-hud.is-choosing .oit-mic,
+.oit-hud.is-choosing .oit-hint,
+.oit-hud.is-choosing .oit-prompt,
+.oit-hud.is-choosing .oit-sub {
+  opacity: 0;
+}
+.oit-choice {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  justify-content: center;
+  padding: 80px 24px 28px;
+  background: linear-gradient(180deg, transparent, rgba(7, 8, 11, 0.86) 34%, rgba(7, 8, 11, 0.94));
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.24s ease, transform 0.24s var(--oit-ease);
+}
+.oit-choice.is-on {
+  opacity: 1;
+  transform: none;
+}
+.oit-choice:not(.is-on) {
+  pointer-events: none;
+}
+.oit-choice-panel {
+  width: min(46rem, 100%);
+}
+.oit-choice-prompt {
+  margin: 0 0 18px;
+  color: var(--oit-ink);
+  font: 400 clamp(21px, 2.5vh, 27px)/1.3 var(--oit-serif);
+  letter-spacing: -0.006em;
+  text-wrap: balance;
+}
+.oit-choice-list {
+  display: grid;
+  gap: 8px;
+}
+.oit-choice-opt {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 14px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--oit-line-2);
+  border-radius: 3px;
+  background: rgba(7, 8, 11, 0.6);
+  color: var(--oit-ink);
+  font: 400 16px/1.45 var(--oit-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.oit-choice-opt:hover {
+  border-color: rgba(233, 228, 218, 0.55);
+  background: rgba(19, 22, 29, 0.85);
+}
+.oit-root .oit-choice-opt:focus-visible {
+  outline: 2px solid var(--oit-accent);
+  outline-offset: 2px;
+}
+.oit-choice-opt .oit-key {
+  height: 24px;
+  min-width: 24px;
+  font-size: 11px;
+}
+.oit-choice-note {
+  color: var(--oit-ink-3);
+  font-size: 14px;
+}
+.oit-choice-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 0;
+  color: var(--oit-ink-3);
+  font: 500 12px/1 var(--oit-sans);
+}
+.oit-choice-keys .oit-key {
+  height: 20px;
+  min-width: 20px;
+  font-size: 10px;
+}
+.oit-choice-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/*
+ * Side column: the guided replay turns the camera so the people sit in the
+ * other part of the frame. Its width is mirrored in SIDE_PANEL in
+ * src/scenarios/guidedWalkHome.ts; change both together.
+ */
+@media (min-width: 900px) {
+  .oit-choice--side {
+    inset: 0 auto 0 auto;
+    align-items: center;
+    width: calc(min(26rem, 38vw) + 64px);
+    padding: 24px 32px;
+    overflow-y: auto;
+  }
+  .oit-choice--right {
+    right: 0;
+    background: linear-gradient(90deg, transparent, rgba(7, 8, 11, 0.86) 10%, rgba(7, 8, 11, 0.94));
+  }
+  .oit-choice--left {
+    left: 0;
+    background: linear-gradient(270deg, transparent, rgba(7, 8, 11, 0.86) 10%, rgba(7, 8, 11, 0.94));
+  }
+  .oit-choice--side .oit-choice-panel {
+    width: 100%;
+    margin: auto 0;
+  }
+  .oit-choice--side .oit-choice-prompt {
+    font-size: clamp(20px, 2.3vh, 25px);
+  }
+}
+
+/* The frozen scene: dimmed, with an optional pool of light around one person. */
+.oit-freeze {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(4, 5, 7, 0.58);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.oit-freeze.has-spot {
+  background: radial-gradient(
+    circle at var(--sx, 50%) var(--sy, 45%),
+    rgba(4, 5, 7, 0) 0,
+    rgba(4, 5, 7, 0) var(--sr, 16vh),
+    rgba(4, 5, 7, 0.72) calc(var(--sr, 16vh) * 2.3)
+  );
+}
+.oit-freeze.is-on {
+  opacity: 1;
+}
+
+.oit-choice-caption {
+  margin: 0 0 10px;
+  color: var(--oit-ink-2);
+  font: italic 400 clamp(17px, 2vh, 21px)/1.4 var(--oit-serif);
+}
+.oit-choice-caption.is-lead {
+  margin-bottom: 16px;
+  color: var(--oit-ink);
+  font-size: clamp(21px, 2.5vh, 27px);
+}
+
+/* The player's own inner voice: labelled, sans, in the player's colour. Her thoughts stay serif and unlabelled. */
+.oit-inner {
+  margin: 0 0 18px;
+  padding-left: 14px;
+  border-left: 2px solid var(--oit-you);
+}
+.oit-inner-k,
+.oit-sub[data-speaker='self'] .oit-sub-who {
+  margin: 0 0 4px;
+  color: var(--oit-you);
+  font: 600 11px/1.2 var(--oit-sans);
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+.oit-inner-line {
+  margin: 0;
+  color: var(--oit-ink-2);
+  font: italic 400 16px/1.5 var(--oit-sans);
+}
+.oit-sub[data-speaker='self'] .oit-sub-who {
+  font-size: 0.54em;
+}
+.oit-sub[data-speaker='self'] .oit-sub-text {
+  color: var(--oit-ink-2);
+  font-style: italic;
+  font-weight: 400;
+}
+.oit-sub[data-speaker='self'] .oit-sub-box {
+  border-left: 2px solid var(--oit-you);
+}
+
+/* The strip that names what just happened. */
+.oit-strip {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  justify-content: center;
+  padding: 18px 24px 22px;
+  border-top: 1px solid var(--oit-line-2);
+  background: rgba(7, 8, 11, 0.95);
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.24s ease, transform 0.24s var(--oit-ease);
+}
+.oit-strip.is-on {
+  opacity: 1;
+  transform: none;
+}
+.oit-strip:not(.is-on) {
+  pointer-events: none;
+}
+.oit-strip-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 32px;
+  width: min(60rem, 100%);
+}
+.oit-strip-main {
+  flex: 1 1 28rem;
+  min-width: 0;
+}
+.oit-strip-concept {
+  margin: 0 0 6px;
+  color: var(--oit-accent);
+  font: 600 12px/1.2 var(--oit-sans);
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+.oit-strip-sentence {
+  margin: 0;
+  color: var(--oit-ink);
+  font: 400 clamp(18px, 2.2vh, 23px)/1.38 var(--oit-serif);
+  text-wrap: pretty;
+}
+.oit-strip-stats {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+}
+.oit-strip-stat,
+.oit-strip-credit {
+  margin: 0;
+  color: var(--oit-ink-2);
+  font: 400 14px/1.5 var(--oit-sans);
+}
+.oit-strip-num {
+  color: var(--oit-ink);
+  font-weight: 600;
+}
+.oit-strip-srcwrap {
+  color: var(--oit-ink-3);
+  white-space: nowrap;
+}
+.oit-strip-credit {
+  margin-top: 8px;
+  color: var(--oit-ink-3);
+  font-size: 13px;
+}
+span.oit-strip-src {
+  color: inherit;
+}
+a.oit-strip-src {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--oit-line-2);
+  text-underline-offset: 0.25em;
+}
+.oit-root .oit-strip-src:focus-visible {
+  outline: 2px solid var(--oit-accent);
+  outline-offset: 2px;
+}
+.oit-strip-btn {
+  gap: 10px;
+}
+.oit-strip-btn .oit-key {
+  height: 20px;
+  min-width: 20px;
+  border-color: rgba(11, 12, 16, 0.4);
+  background: rgba(11, 12, 16, 0.06);
+  color: inherit;
+  font-size: 10px;
+}
+.oit-strip-actions {
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .oit-strip-srcwrap {
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oit-choice,
+  .oit-strip {
+    transform: none;
+    transition: opacity 0.2s ease;
+  }
+  .oit-choice-opt {
+    transition: none;
+  }
+  .oit-freeze {
+    transition: none;
+  }
+}

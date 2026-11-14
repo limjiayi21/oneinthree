@@ -23,6 +23,17 @@
     { "tag": "v1", "new_sqlite_classes": ["SessionDO"] },
     { "tag": "v2", "new_sqlite_classes": ["PhoneRelayDO"] }
   ],
+  // Aggregate playthrough counts for the pitch (worker/stats.ts). No transcripts or words are stored.
+  // Schema: migrations/0001_playthroughs.sql, applied with `wrangler d1 migrations apply oneinthree-stats`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "oneinthree-stats",
+      "database_id": "9c7632e9-fee9-4d94-a96e-d463f589bc2f",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // GET /api/stats is off unless the STATS_CODE secret is set: `npx wrangler secret put STATS_CODE`.
   // Production secret (voice): `npx wrangler secret put ELEVENLABS_API_KEY`. Without it the Worker still runs, with voice off.
   "observability": { "enabled": true }
 }

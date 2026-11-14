@@ -334,8 +334,8 @@ export type MicState = 'hidden' | 'idle' | 'recording' | 'thinking' | 'unavailab
 
 export interface Hud {
   setVisible(visible: boolean): void;
-  /** Spoken-line subtitle. Auto-clears after `ms` (default scales with length). */
-  subtitle(speaker: 'man' | 'woman' | 'you' | 'clerk', text: string, ms?: number): void;
+  /** Spoken-line subtitle. Auto-clears after `ms` (default scales with length). 'self' is the player's own inner voice, labelled "You think:". */
+  subtitle(speaker: 'man' | 'woman' | 'you' | 'clerk' | 'self', text: string, ms?: number): void;
   clearSubtitle(): void;
   /** Her inner voice. Rendered differently from subtitles: centred, italic, breathing. intensity 0..1 */
   thought(text: string, intensity?: number, ms?: number): void;
@@ -358,6 +358,38 @@ export interface Hud {
   askText(placeholder?: string): Promise<string | null>;
   /** Pause overlay shown when pointer lock is lost. Resolves with the user's choice. */
   pause(): Promise<'resume' | 'exit'>;
+  /**
+   * Guided replay: dim the frozen scene. `spot` keeps a pool of light around one
+   * person (x, y as fractions of the viewport; r as a fraction of its height). null lifts it.
+   */
+  freeze(opts: { spot?: { x: number; y: number; r?: number } } | null): void;
+  /**
+   * Guided replay: a prompt (or caption) with optional "You think:" lines and
+   * numbered options over the frozen scene. Buttons, or keys 1-9. Resolves with the index chosen.
+   */
+  choice(opts: {
+    prompt?: string;
+    caption?: string;
+    innerVoice?: string[];
+    options: Array<{ label: string; note?: string }>;
+    /** 'left' or 'right': a side column (desktop widths only), so the people stay in view. Default: along the bottom. */
+    side?: 'left' | 'right' | 'bottom';
+    signal?: AbortSignal;
+  }): Promise<number>;
+  /**
+   * Guided replay: the strip that names what just happened. A concept, one
+   * sentence, optional stats with sources, an optional credit, and a button
+   * (Enter also continues). Resolves when the player continues.
+   */
+  strip(opts: {
+    concept: string;
+    sentence: string;
+    credit?: { text: string; url?: string };
+    stats?: Array<{ headline: string; text: string; source: { label: string; url?: string } }>;
+    action: string;
+    signal?: AbortSignal;
+  }): Promise<void>;
+  /* choice() and strip() close and reject with an AbortError when `signal` aborts (the scene uses this to open the pause dialog). */
   dispose(): void;
 }
 
@@ -368,6 +400,14 @@ export interface Screens {
   briefing(pov: Pov): Promise<void>;
   /** Debrief for a part. */
   summary(data: SummaryData): Promise<'continue' | 'retry'>;
+  /** After the teaching replay: the 5 Ds (ticked where they were the player's first pick), the two steps before helping, the closing line. */
+  recap(opts: {
+    title: string;
+    fiveDs: Array<{ name: string; line: string; firstPick: boolean }>;
+    stepsTitle: string;
+    steps: Array<{ name: string; line: string }>;
+    closing: string;
+  }): Promise<void>;
   /** Closing screen: resources and sources. */
   closing(): Promise<'restart'>;
   /** Loading / error states. */
