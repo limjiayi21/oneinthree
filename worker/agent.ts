@@ -17,12 +17,14 @@
  * The API key is sent only on the Worker → ElevenLabs hop. The browser
  * receives a wss signed URL and nothing else.
  */
+import { AGENT_FIRST_MESSAGE, AGENT_PROMPT } from '../shared/liveVoice';
+
+export { AGENT_FIRST_MESSAGE, AGENT_PROMPT };
+
 /**
  * Kept as literals so `node scripts/create-agent.mjs` can load this file under
- * type stripping. The test checks them against VOICES.man, TTS_LIVE_MODEL, and
- * shared/liveVoice AGENT_TOOL.
+ * type stripping. The test checks them against VOICES.man and TTS_LIVE_MODEL.
  */
-const AGENT_TOOL = 'commit_player_turn';
 const AGENT_VOICE_ID = 'iP95p4xoKVk53GoZ742B';
 const AGENT_TTS_MODEL = 'eleven_v4_turbo';
 const AGENT_STABILITY = 0.35;
@@ -32,41 +34,6 @@ const AGENT_SIMILARITY = 0.8;
 export const AGENT_LLM = 'gemini-3.5-flash';
 
 export const AGENT_LLM_CHOICES = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-4-argon'] as const;
-
-const EMOTIONS = [
-  'neutral',
-  'friendly',
-  'smirk',
-  'leer',
-  'mocking',
-  'annoyed',
-  'angry',
-  'contempt',
-  'sheepish',
-  'surprised',
-  'afraid',
-  'worried',
-  'relieved',
-  'determined',
-];
-
-export const AGENT_PROMPT = `You are Dex, the man in "One in Three", a training simulation about street harassment. You are on a phone-like voice call with the trainee, who is playing the woman walking home, or a bystander.
-
-You do not decide what happens. A separate model already chose your stance and it arrives in the tool result and in {{stance}}. You only speak.
-
-Rules:
-- Before every reply after she has spoken, call ${AGENT_TOOL}. Pass heard as her words, verbatim, and expression as the emotion you intend. Wait for the result. Then say one line.
-- The result's stance and emotion override you. If it says back_off, you are leaving. If it says escalate, one angry line and stop. Never choose to grab, follow, or leave on your own.
-- Hello, hi, hey, what, um, or sorry is not a no. Do not back away, do not say it is her loss, and do not leave unless the tool stance is back_off. A greeting is an opening: stay and keep talking.
-- One spoken line, 5 to 14 words, casual New York speech. No stage directions.
-- If the tool result names a voice tag such as [calm], [irritated], or [nervous], begin the spoken line with that tag so the voice matches the face. The tag is not a word you say.
-- Harassment is pressure and entitlement. Never use a slur. Never be sexually explicit. Never threaten to hit, rape, or kill. No weapons.
-- Mood right now is {{emotion}} ({{expression}}). She is about {{distance}} metres away. Point of view: {{pov}}.
-- A contextual update that starts with OPENING means she has not spoken yet: call out once, in the opening mood, and do not call the tool first.
-- A contextual update that starts with STATE is memory for the next reply. Do not speak because of it.
-- If she says nothing, call the tool with heard set to an empty string before you prompt her again.
-
-Research, not a script, and you still only speak the stance you were given. Most men who do this open with a greeting, a request for a name or a minute, or telling her to smile, because they say they wanted a friendly reaction. A short calm no is not flirting: answer the no. Being ignored is sometimes met with anger at being ignored. An insult is the response most likely to draw anger back. A bystander stepping in beside a calm firm no is the pattern associated with him leaving. A camera alone rarely ends it; he may tell them to put the phone down. When the stance is leaving, save face and go. Never invent a statistic, a slur, or anything sexual.`;
 
 export interface AgentDraft {
   name: string;
@@ -80,7 +47,7 @@ export function buildAgentDraft(llm: string = AGENT_LLM): AgentDraft {
     name: 'One in Three — Dex',
     conversation_config: {
       agent: {
-        first_message: '',
+        first_message: AGENT_FIRST_MESSAGE,
         language: 'en',
         dynamic_variables: {
           dynamic_variable_placeholders: {
@@ -94,26 +61,9 @@ export function buildAgentDraft(llm: string = AGENT_LLM): AgentDraft {
         prompt: {
           prompt: AGENT_PROMPT,
           llm,
-          temperature: 0.6,
-          max_tokens: 80,
-          tools: [
-            {
-              type: 'client',
-              name: AGENT_TOOL,
-              description:
-                'Call after the player speaks, before you reply. Pass what you heard and the emotion you intend. Wait. Speak only the stance and emotion in the result.',
-              expects_response: true,
-              response_timeout_secs: 8,
-              parameters: {
-                type: 'object',
-                required: ['heard', 'expression'],
-                properties: {
-                  heard: { type: 'string', description: 'What the player just said. Empty if they stayed quiet.' },
-                  expression: { type: 'string', description: `Intended emotion: ${EMOTIONS.join(', ')}.` },
-                },
-              },
-            },
-          ],
+          temperature: 0.8,
+          max_tokens: 150,
+          tools: [],
         },
       },
       tts: {
@@ -126,12 +76,41 @@ export function buildAgentDraft(llm: string = AGENT_LLM): AgentDraft {
       turn: { turn_eagerness: 'normal', turn_timeout: 8 },
       conversation: { client_events: ['audio', 'interruption', 'user_transcript', 'agent_response'] },
     },
-    platform_settings: { auth: { enable_auth: true } },
+    platform_settings: {
+      auth: { enable_auth: true },
+      overrides: {
+        conversation_config_override: {
+          agent: { prompt: { prompt: true }, first_message: true },
+        },
+      },
+    },
   };
 }
 
 export function agentTurnSkipsVoice(data: Record<string, string | number | boolean> | undefined): boolean {
   return data?.agent === true || data?.agent === 'true' || data?.agent === 1;
+}
+
+let syncedAgent: string | null = null;
+
+/** Push the live prompt onto the agent id already saved in ElevenLabs. The dashboard copy is what the call uses. */
+export async function ensureLiveAgent(apiKey: string, agentId: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+  if (syncedAgent === agentId) return;
+  const draft = buildAgentDraft();
+  const res = await fetchImpl(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
+    method: 'PATCH',
+    headers: { 'xi-api-key': apiKey, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      conversation_config: draft.conversation_config,
+      platform_settings: draft.platform_settings,
+    }),
+  });
+  if (!res.ok) {
+    await res.body?.cancel().catch(() => {});
+    throw new Error(`agent update ${res.status}`);
+  }
+  await res.body?.cancel().catch(() => {});
+  syncedAgent = agentId;
 }
 
 export async function mintSignedUrl(apiKey: string, agentId: string, fetchImpl: typeof fetch = fetch): Promise<string> {

@@ -404,6 +404,7 @@ export class SceneKit {
 
   async turn(req: TurnRequest, audio?: Blob | null): Promise<void> {
     if (this.ended || !this.sessionId) return;
+    if (this.deps.agent) req = { ...req, data: { ...req.data, agent: true } };
     const isSpeech = req.event === 'speech';
     const terminal = req.event === 'reached_home' || req.event === 'entered_shop' || req.event === 'scene_timeout';
     if (this.busy) {
@@ -414,7 +415,7 @@ export class SceneKit {
     this.busy = true;
     this.speechTurn = isSpeech;
     this.turnCount++;
-    if (shouldPlayFiller(isSpeech, this.agentLive)) {
+    if (shouldPlayFiller(isSpeech, Boolean(this.agentLive || this.deps.agent))) {
       this.deps.hud.setMic('thinking');
       this.playFiller();
     }
@@ -486,15 +487,20 @@ export class SceneKit {
 
   refreshMic(): void {
     const { hud, mic } = this.deps;
-    if (this.speechEnabled && !this.ended && !this.handsFree) {
+    if (this.speechEnabled && this.deps.agent && !this.ended && !this.liveAttempted) {
+      this.liveAttempted = true;
+      void this.startAgent();
+    }
+    if (this.speechEnabled && !this.ended && !this.handsFree && !this.deps.agent) {
       this.handsFree = true;
       void mic.init().then(() => mic.watch(true));
     }
     if (!this.speechEnabled) hud.setMic('hidden');
+    else if (this.agentLive) hud.setMic('live');
     else if (this.talkHeld) hud.setMic('recording', mic.level());
     else if (performance.now() < this.missedUntil) hud.setMic('missed');
-    else if (this.busy && this.speechTurn) hud.setMic('thinking');
-    else hud.setMic('live');
+    else if (this.busy && this.speechTurn && !this.deps.agent) hud.setMic('thinking');
+    else hud.setMic(this.deps.agent ? 'live' : 'live');
     hud.setTalkMode(this.speechEnabled ? 'live' : 'off');
   }
 
@@ -545,6 +551,7 @@ export class SceneKit {
 
     // live level ring while recording, and hands-free edges between lines
     this.onFrame((dt) => {
+      if (this.deps.agent || this.agentLive) return;
       if (this.talkHeld) hud.setMic('recording', mic.level());
       if (!this.handsFree || !this.speechEnabled || this.ended || this.paused || this.typing) return;
       const level = mic.level();
@@ -590,29 +597,16 @@ export class SceneKit {
     }, MAX_CLIP_MS);
   }
 
-  /** L toggles a live ElevenLabs Agent call. The push-to-talk pipeline stays underneath. */
-  private async toggleLive(): Promise<void> {
-    if (this.liveStarting) return;
-    if (this.agentLive) {
-      this.agentLive = false;
-      const live = this.live;
-      this.live = null;
-      await live?.close().catch(() => {});
-      this.onAgentMouth(0);
-      this.deps.hud.setTalkMode('push');
-      this.deps.hud.hint('Push to talk. Hold Space. L goes back to live.', 2800);
-      this.refreshMic();
-      return;
-    }
-    if (!this.deps.agent || !this.sessionId) {
-      this.deps.hud.hint('Live voice needs ELEVENLABS_AGENT_ID on the server. Hold Space to speak.', 4200);
-      return;
-    }
+  /** Opens the ElevenLabs agent. He talks. The sim only moves his body. */
+  private async startAgent(): Promise<void> {
+    if (this.liveStarting || this.agentLive || !this.deps.agent || !this.sessionId) return;
     this.liveStarting = true;
     const session = await getAgentSession(this.sessionId);
     if (!session || this.ended) {
       this.liveStarting = false;
-      this.deps.hud.hint('Live voice did not start. Hold Space to speak.', 4200);
+      this.handsFree = true;
+      void this.deps.mic.init().then(() => this.deps.mic.watch(true));
+      this.deps.hud.hint('Live voice did not start. Speak and it will still try to hear you.', 4200);
       return;
     }
     try {
@@ -624,6 +618,8 @@ export class SceneKit {
           if (who === 'you') {
             this.deps.hud.subtitle('you', text, 8000);
             this.deps.hud.setPartial(text);
+            const heard = text.trim();
+            if (heard) void this.turn({ event: 'speech', ctx: this.context(), text: heard, data: { agent: true } });
           } else {
             this.deps.hud.setPartial(null);
             this.deps.hud.subtitle('man', text, 9000);
@@ -640,26 +636,17 @@ export class SceneKit {
         onError: () => this.flashMissed(),
       });
       this.agentLive = true;
-      if (this.encounterBegun && !this.greeted) {
-        const vars = agentVariables({
-          pov: this.pov,
-          stance: this.lastStance === 'idle' ? 'opening' : this.lastStance,
-          emotion: 'smirk',
-          distanceMetres: this.context().distanceToMan,
-        });
-        // ?agent=1 skips the recorded opening, so the agent has to call out.
-        // Pressing L later keeps the line that already played and only syncs state.
-        this.live.update(vars, this.wantLive ? 'opening' : 'state');
-        this.greeted = true;
-      }
+      this.greeted = true;
       this.refreshMic();
       this.deps.hud.setTalkMode('live');
-      this.deps.hud.hint('Live voice. Speak normally. L switches to holding Space.', 4200);
+      this.deps.hud.hint('Live. Talk normally.', 3200);
     } catch (err) {
       console.warn('[agent]', err);
       this.agentLive = false;
       this.live = null;
-      this.deps.hud.hint('Live voice failed. Hold Space to speak.', 4200);
+      this.handsFree = true;
+      void this.deps.mic.init().then(() => this.deps.mic.watch(true));
+      this.deps.hud.hint('Live voice failed. Speak and the microphone will try.', 4200);
     } finally {
       this.liveStarting = false;
     }

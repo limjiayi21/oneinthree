@@ -1,9 +1,8 @@
 /**
- * Live voice over an ElevenLabs Agent. The browser only ever sees a signed
- * URL minted by the Worker. The SDK owns the microphone, playback, and
- * barge-in. The stance machine still runs on each tool call.
+ * Live voice over an ElevenLabs Agent. Gemini talks as the man.
+ * The browser only receives a signed URL. The SDK owns the microphone.
  */
-import { contextualUpdate, type AgentVariables } from '../../shared/liveVoice';
+import { AGENT_FIRST_MESSAGE, AGENT_PROMPT, contextualUpdate, type AgentVariables } from '../../shared/liveVoice';
 
 export interface LiveVoiceHandlers {
   signedUrl: string;
@@ -26,7 +25,12 @@ export async function startLiveVoice(handlers: LiveVoiceHandlers): Promise<LiveV
   const conv = await Conversation.startSession({
     signedUrl: handlers.signedUrl,
     dynamicVariables: handlers.variables,
-    // Tags such as [angry] are for the voice, not the subtitle.
+    overrides: {
+      agent: {
+        prompt: { prompt: AGENT_PROMPT },
+        firstMessage: AGENT_FIRST_MESSAGE,
+      },
+    },
     stripAudioTags: true,
     clientTools: {
       commit_player_turn: async (params: { heard?: unknown; expression?: unknown }) => {

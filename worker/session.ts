@@ -44,7 +44,7 @@ import { applyToDecision, composeBeat, judgeTurn, type JudgeEnv, type TurnReadin
 import { emptyMemory, memoryBlock, noteTurn, type ConversationMemory } from './memory';
 import { agentVariables } from '../shared/liveVoice';
 import { coarseExpression } from '../shared/expression';
-import { agentTurnSkipsVoice, mintSignedUrl } from './agent';
+import { agentTurnSkipsVoice, ensureLiveAgent, mintSignedUrl } from './agent';
 import { planReply } from './converse';
 import { addressOf, addressOfBystander, groundedLine, lineAcknowledges } from './model/address';
 import { MAX_CLIP_BYTES, transcribe } from './stt';
@@ -260,6 +260,7 @@ export class SessionDO extends DurableObject<Env> {
     const agentId = this.env.ELEVENLABS_AGENT_ID;
     if (!key || !agentId || !this.s) return json({ error: 'Live voice is not configured' }, 404);
     try {
+      await ensureLiveAgent(key, agentId);
       const signedUrl = await mintSignedUrl(key, agentId);
       const man = this.s.lastMan;
       const vars = agentVariables({
