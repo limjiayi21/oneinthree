@@ -130,6 +130,37 @@ All clips are 1280×720, 24 fps, 8.0 s, no audio. Notes from checking frames at
   and ends on a close-up of her, so the road between them is gone by the end.
   The first 3–4 s match the brief and could be used alone.
 
+## Edit-ready clips
+
+`film/assets/edit/A.mp4` … `E.mp4`: each exactly 8.000 s, 192 frames, 1280×720,
+24 fps, no audio. Built by `film/scripts/prep-clips.mjs` (ffmpeg, no API calls);
+`--compare` also writes plain and blended versions to `edit/compare/`.
+
+| Clip | Source range | Stretch | Retiming |
+|---|---|---|---|
+| A | 0–6 s | ×1.333 | minterpolate frame blending |
+| B | 4–8 s | ×2 | minterpolate frame blending |
+| C | whole clip | — | as is (stream copy) |
+| D | whole clip | — | as is (stream copy) |
+| E | 0–4 s | ×2 | plain slowing (each frame held twice) |
+
+- **B's window** was chosen by `film/scripts/find-calm-window.mjs`, which scores
+  every 4 s window by colour change in the background (top band and right edge,
+  away from the hand). 4–8 s scored 477 against 902 for the busiest window
+  (1–5 s). It is the calmest, not still: the mustard streak fades to black, and
+  small blue and mustard streaks enter at the edges near the end.
+- **E** keeps the road and lane lines visible in every frame; by the end they are
+  a band at the bottom right, beside the watcher's shoulder.
+- **Blending versus plain slowing** was judged on frame-step evenness
+  (coefficient of variation of frame-to-frame change), per-frame sharpness and
+  close-up crops:
+
+| Clip | Unevenness plain → blend | Blended frames' sharpness loss | Kept |
+|---|---|---|---|
+| A | 0.60 → 0.15 | ~12%, no visible ghosting | blend |
+| B | 1.26 → 0.54 | ~5% | blend |
+| E | 1.16 → 0.40 | ~25% on every other frame; grain vanishes and the watcher's shoulder doubles, so texture pulses at 12 Hz | plain |
+
 ## Credits spent
 
 | Item | Credits |
