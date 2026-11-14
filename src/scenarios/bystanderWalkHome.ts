@@ -44,6 +44,8 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   clerk.addAvoid(playerBody);
 
   man.setPose(P.harasserSpot, Math.PI / 2);
+  kit.onAgentMouth = (level) => man.human.setTalking(level);
+  kit.onAgentFace = (emotion, intensity) => man.human.setEmotion(emotion, intensity);
   man.human.setPosture('lean_wall');
   man.human.playGesture('check_phone');
   woman.setPose(P.womanStartBystander, 0);
@@ -329,7 +331,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     if (kit.ended || finishing || !dynamic) return;
     const turnAtArm = kit.turnCount;
     cancelSilence = kit.after(6 + Math.random() * 2, () => {
-      if (kit.ended || finishing || kit.turnInFlight || kit.turnCount !== turnAtArm || deps.mic.recording) return;
+      if (kit.ended || finishing || kit.agentLive || kit.turnInFlight || kit.turnCount !== turnAtArm || deps.mic.recording) return;
       kit.event('silence');
     });
   }

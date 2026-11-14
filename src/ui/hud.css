@@ -528,6 +528,7 @@
 .oit-mic[data-state='recording'] [data-face='recording'],
 .oit-mic[data-state='thinking'] [data-face='thinking'],
 .oit-mic[data-state='missed'] [data-face='missed'],
+.oit-mic[data-state='live'] [data-face='live'],
 .oit-mic[data-state='unavailable'] [data-face='unavailable'] {
   opacity: 1;
 }

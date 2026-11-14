@@ -28,7 +28,12 @@ export default {
     const path = url.pathname;
 
     if (path === '/api/health') {
-      const body: HealthResponse = { ok: true, voice: Boolean(env.ELEVENLABS_API_KEY), ai: Boolean(env.AI) };
+      const body: HealthResponse = {
+        ok: true,
+        voice: Boolean(env.ELEVENLABS_API_KEY),
+        ai: Boolean(env.AI),
+        agent: Boolean(env.ELEVENLABS_API_KEY && env.ELEVENLABS_AGENT_ID),
+      };
       return json(body);
     }
 
@@ -47,7 +52,7 @@ export default {
       );
     }
 
-    const match = path.match(/^\/api\/session\/([^/]+)\/(turn|summary|audio)(?:\/[^/]+)?$/);
+    const match = path.match(/^\/api\/session\/([^/]+)\/(turn|summary|audio|agent|agent-line)(?:\/[^/]+)?$/);
     if (match) {
       const id = match[1];
       if (!SESSION_ID.test(id)) return json({ error: 'Unknown session' }, 404);

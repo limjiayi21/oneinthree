@@ -8,13 +8,16 @@ import type { AudioEngine, Engine, Hud, Mic, Npc, Player, Rect, StreetWorld } fr
 import type {
   ClientEventType,
   Emotion,
+  ManStance,
   OutcomeKind,
   Pov,
   TurnEvent,
   TurnRequest,
   WorldContext,
 } from '../../shared/types';
-import { createSession, sendTurn } from '../net/api';
+import { createSession, getAgentSession, postAgentLine, sendTurn } from '../net/api';
+import { startLiveVoice, type LiveVoice } from '../audio/agentSession';
+import { agentVariables, commitToolResult } from '../../shared/liveVoice';
 import { MAX_CLIP_BYTES } from '../../shared/audio';
 import { MAX_CLIP_MS, bargeOnTalkStart, pushToTalkDown, vadEdge, type TalkOrigin } from '../audio/talk';
 import { captionHoldMs } from '../ui/captions';
@@ -37,6 +40,8 @@ export interface SceneDeps {
   hud: Hud;
   /** True when the server can voice lines. */
   voice: boolean;
+  /** True when the server can mint an ElevenLabs Agent signed URL. */
+  agent?: boolean;
   /** Dev / accessibility: run without pointer lock. */
   requireLock: boolean;
   /** Optional fixed seed for reproducible runs. */
@@ -95,6 +100,18 @@ export class SceneKit {
   private npcAudible = false;
   /** Scenes switch this on once the player may speak. */
   speechEnabled = false;
+  /** Live ElevenLabs Agent call. Push-to-talk stays available when this is off. */
+  agentLive = false;
+  private live: LiveVoice | null = null;
+  private liveStarting = false;
+  private wantLive = typeof location !== 'undefined' && new URLSearchParams(location.search).get('agent') === '1';
+  private liveAttempted = false;
+  private lastStance: ManStance = 'idle';
+  private encounterBegun = false;
+  private greeted = false;
+  /** The scene points this at the attacker's mouth and face. */
+  onAgentMouth: (level: number) => void = () => {};
+  onAgentFace: (emotion: Emotion, intensity: number) => void = () => {};
   private lastThoughtAt = -99;
   private resolveEnd!: (o: OutcomeKind) => void;
   readonly finished: Promise<OutcomeKind>;
@@ -110,6 +127,12 @@ export class SceneKit {
     this.finished = new Promise((res) => (this.resolveEnd = res));
     this.cleanups.push(deps.engine.onUpdate((dt, elapsed) => this.tick(dt, elapsed)));
     this.bindKeys();
+    this.onFrame(() => {
+      if (this.wantLive && this.speechEnabled && this.sessionId && !this.liveAttempted && !this.agentLive) {
+        this.liveAttempted = true;
+        void this.toggleLive();
+      }
+    });
     this.cleanups.push(
       player.on('step', (s) => {
         const vol = 0.35 + Math.min(1, s.speed / 2.3) * 0.5;
@@ -211,6 +234,9 @@ export class SceneKit {
   dispose(): void {
     this.ended = true;
     window.clearTimeout(this.limitTimer);
+    void this.live?.close();
+    this.live = null;
+    this.agentLive = false;
     this.deps.mic.watch(false);
     for (const c of this.cleanups.splice(0)) c();
     for (const npc of this.npcs.splice(0)) {
@@ -356,6 +382,7 @@ export class SceneKit {
 
   async turn(req: TurnRequest, audio?: Blob | null): Promise<void> {
     if (this.ended || !this.sessionId) return;
+    if (this.deps.agent && (this.agentLive || this.wantLive)) req = { ...req, data: { ...req.data, agent: true } };
     const isSpeech = req.event === 'speech';
     const terminal = req.event === 'reached_home' || req.event === 'entered_shop' || req.event === 'scene_timeout';
     if (this.busy) {
@@ -377,6 +404,22 @@ export class SceneKit {
         if (ev.type === 'error') {
           console.warn('[turn]', ev.message);
           if (isSpeech) this.flashMissed();
+        }
+        if (ev.type === 'decision') {
+          this.lastStance = ev.man.stance;
+          if (req.event === 'begin') this.encounterBegun = true;
+          if (this.agentLive && this.live) {
+            const vars = agentVariables({
+              pov: this.pov,
+              stance: ev.man.stance,
+              emotion: ev.man.emotion,
+              distanceMetres: req.ctx.distanceToMan,
+            });
+            const opening = req.event === 'begin' && !this.greeted;
+            this.live.update(vars, opening ? 'opening' : 'state');
+            if (opening) this.greeted = true;
+            this.onAgentFace(ev.man.emotion, ev.man.emotionIntensity);
+          }
         }
         this.onEvent(ev);
       }
@@ -414,6 +457,7 @@ export class SceneKit {
   refreshMic(): void {
     const { hud, mic } = this.deps;
     if (!this.speechEnabled) hud.setMic('hidden');
+    else if (this.agentLive) hud.setMic('live');
     else if (this.talkHeld) hud.setMic('recording', mic.level());
     else if (performance.now() < this.missedUntil) hud.setMic('missed');
     else if (this.busy && this.speechTurn) hud.setMic('thinking');
@@ -436,6 +480,7 @@ export class SceneKit {
       if (this.ended || this.paused || isTypingTarget(e)) return;
       if (e.code === 'Space') {
         e.preventDefault();
+        if (this.agentLive) return;
         const action = pushToTalkDown({ enabled: this.speechEnabled, held: this.talkHeld, available: mic.available });
         if (e.repeat || action === 'ignore') return;
         if (action === 'type') {
@@ -447,7 +492,10 @@ export class SceneKit {
         if (!this.speechEnabled || e.repeat) return;
         e.preventDefault();
         void this.typeInstead();
-      } else if (e.code === 'KeyH' && !e.repeat && this.speechEnabled) {
+      } else if (e.code === 'KeyL' && !e.repeat && this.speechEnabled) {
+        e.preventDefault();
+        void this.toggleLive();
+      } else if (e.code === 'KeyH' && !e.repeat && this.speechEnabled && !this.agentLive) {
         e.preventDefault();
         this.handsFree = !this.handsFree;
         mic.watch(this.handsFree);
@@ -498,7 +546,7 @@ export class SceneKit {
 
   private beginTalk(origin: TalkOrigin): void {
     const { mic, hud, audio } = this.deps;
-    if (this.talkHeld || this.ended || !this.speechEnabled) return;
+    if (this.agentLive || this.talkHeld || this.ended || !this.speechEnabled) return;
     if (bargeOnTalkStart(this.npcAudible)) {
       audio.stopAllSpeech();
       this.npcAudible = false;
@@ -518,6 +566,103 @@ export class SceneKit {
     this.limitTimer = window.setTimeout(() => {
       if (this.talkHeld) this.endTalk();
     }, MAX_CLIP_MS);
+  }
+
+  /** L toggles a live ElevenLabs Agent call. The push-to-talk pipeline stays underneath. */
+  private async toggleLive(): Promise<void> {
+    if (this.liveStarting) return;
+    if (this.agentLive) {
+      this.agentLive = false;
+      const live = this.live;
+      this.live = null;
+      await live?.close().catch(() => {});
+      this.onAgentMouth(0);
+      this.deps.hud.hint('Push-to-talk. Hold Space to speak.', 2800);
+      this.refreshMic();
+      return;
+    }
+    if (!this.deps.agent || !this.sessionId) {
+      this.deps.hud.hint('Live voice needs ELEVENLABS_AGENT_ID on the server. Hold Space to speak.', 4200);
+      return;
+    }
+    this.liveStarting = true;
+    const session = await getAgentSession(this.sessionId);
+    if (!session || this.ended) {
+      this.liveStarting = false;
+      this.deps.hud.hint('Live voice did not start. Hold Space to speak.', 4200);
+      return;
+    }
+    try {
+      this.live = await startLiveVoice({
+        signedUrl: session.signedUrl,
+        variables: session.dynamicVariables,
+        commit: (heard, expression) => this.commitAgentTurn(heard, expression),
+        onLine: (who, text) => {
+          if (who === 'you') this.deps.hud.subtitle('you', text, 2400);
+          else {
+            this.deps.hud.subtitle('man', text, 120000);
+            postAgentLine(this.sessionId, text);
+          }
+        },
+        onSpeaking: (speaking) => {
+          this.npcAudible = speaking;
+          this.onAgentMouth(speaking ? 0.7 : 0);
+          if (!speaking) this.deps.hud.clearSubtitle();
+        },
+        onError: () => this.flashMissed(),
+      });
+      this.agentLive = true;
+      if (this.encounterBegun && !this.greeted) {
+        const vars = agentVariables({
+          pov: this.pov,
+          stance: this.lastStance === 'idle' ? 'opening' : this.lastStance,
+          emotion: 'smirk',
+          distanceMetres: this.context().distanceToMan,
+        });
+        // ?agent=1 skips the recorded opening, so the agent has to call out.
+        // Pressing L later keeps the line that already played and only syncs state.
+        this.live.update(vars, this.wantLive ? 'opening' : 'state');
+        this.greeted = true;
+      }
+      this.refreshMic();
+      this.deps.hud.hint('Live voice. Speak normally. L returns to push-to-talk.', 4200);
+    } catch (err) {
+      console.warn('[agent]', err);
+      this.agentLive = false;
+      this.live = null;
+      this.deps.hud.hint('Live voice failed. Hold Space to speak.', 4200);
+    } finally {
+      this.liveStarting = false;
+    }
+  }
+
+  /** The agent waited for this. Run the stance model and hand back a legal emotion. */
+  private async commitAgentTurn(heard: string, expression: string): Promise<string> {
+    let stance = this.lastStance;
+    let tension = 0.5;
+    const prev = this.onEvent;
+    this.onEvent = (ev) => {
+      if (ev.type === 'decision') {
+        stance = ev.man.stance;
+        tension = ev.tension;
+        this.lastStance = stance;
+      }
+      prev(ev);
+    };
+    try {
+      const text = heard.trim();
+      await this.turn({
+        event: text ? 'speech' : 'silence',
+        ctx: this.context(),
+        text: text || undefined,
+        data: { agent: true },
+      });
+    } finally {
+      this.onEvent = prev;
+    }
+    const committed = commitToolResult(stance, expression, heard, tension);
+    this.onAgentFace(committed.emotion, Math.max(0.55, tension));
+    return committed.result;
   }
 
   private endTalk(): void {

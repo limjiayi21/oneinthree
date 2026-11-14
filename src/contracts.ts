@@ -333,7 +333,7 @@ export interface Mic {
 
 /* ---------------------------------------------------------------------- ui */
 
-export type MicState = 'hidden' | 'idle' | 'recording' | 'thinking' | 'unavailable' | 'missed';
+export type MicState = 'hidden' | 'idle' | 'recording' | 'thinking' | 'unavailable' | 'missed' | 'live';
 
 export interface Hud {
   setVisible(visible: boolean): void;

@@ -81,6 +81,7 @@ async function main(): Promise<void> {
     mic,
     hud,
     voice: health.voice,
+    agent: Boolean(health.agent),
     requireLock: params.get('nolock') !== '1',
     seed,
   };

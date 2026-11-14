@@ -43,6 +43,21 @@ The VM this was built on has no microphone and no ElevenLabs key, so this part i
 6. Press H and speak without holding Space. Press H again to go back to push-to-talk.
 7. If the key is missing or speech-to-text fails, the subtitle still shows and the indicator says Didn't catch that. Press T to type the same line and confirm he answers it.
 
+## Live voice (ElevenLabs Agent)
+
+Press L during a scene for a phone-style call: the ElevenLabs Agent owns the microphone, turn-taking, and barge-in. The seeded stance model still decides what he does. His face uses the emotion the agent reports, clamped to what that stance is allowed to show. The older speech-to-text, line model, and text-to-speech path stays in place; press L again to return to it. `?agent=1` starts the call when the encounter does.
+
+The agent uses Gemini 3.5 Flash (`gemini-3.5-flash`), the low-latency Gemini ElevenLabs moves live conversations onto from 15 November 2026, and Chris on Eleven v4 Turbo with expressive mode. `gemini-4-argon` is the larger Gemini if you want it instead.
+
+```bash
+# key already in .dev.vars
+npm run agent:create
+# prints ELEVENLABS_AGENT_ID=agent_...
+# paste that line into .dev.vars, then restart npm run dev
+```
+
+In the dashboard the same agent is "One in Three — Dex": LLM Gemini 3.5 Flash, TTS Eleven v4 Turbo, expressive mode on, authentication required. The browser only receives a signed websocket URL from `GET /api/session/:id/agent`. The API key never leaves the Worker.
+
 ## How a turn works
 
 1. The browser records a push-to-talk clip and posts it to the Worker.
