@@ -16,6 +16,7 @@ import manifestJson from '../../content/sfx.json';
 import { CityAmbience, type AmbienceSources, type BedBuffers } from './ambience';
 import { Body } from './body';
 import { METER_TAPS, Meters, type MeterReading, type MeterTap } from './debug';
+import { fillerSamples, type FillerKind } from './filler';
 import { Graph, bufferFrom, type PlayBus, type Spatial, type Vec3 } from './graph';
 import { Speech } from './speech';
 import { SURFACES, SYNTH_NAMES, renderCityBed, renderFootstep, renderHorn, renderSfx, type Rendered, type Surface, type SynthName } from './synth';
@@ -222,6 +223,7 @@ function soundingRange(buffer: AudioBuffer, threshold: number): { first: number;
 
 class OitAudio implements AudioEngine {
   private ctx: AudioContext | null = null;
+  private readonly fillers = new Map<FillerKind, AudioBuffer>();
   private graph: Graph | null = null;
   private body: Body | null = null;
   private speech: Speech | null = null;
@@ -617,6 +619,29 @@ class OitAudio implements AudioEngine {
       };
     }
     return this.playNow(name, opts, loop);
+  }
+
+  /** A cached huh, scoff, or sigh. Missed if audio has not started yet. */
+  playFiller(kind: FillerKind, position?: THREE.Vector3): { stop(fade?: number): void } {
+    const g = this.graph;
+    const ctx = this.ctx;
+    if (!g || !ctx || this.disposed || this.silenced) return NO_HANDLE;
+    let buffer = this.fillers.get(kind);
+    if (!buffer) {
+      buffer = bufferFrom([fillerSamples(kind, ctx.sampleRate) as Float32Array<ArrayBuffer>], ctx.sampleRate);
+      this.fillers.set(kind, buffer);
+    }
+    try {
+      const voice = g.play(buffer, {
+        bus: position ? 'world' : 'self',
+        position: position ?? null,
+        spatial: { ref: 1.6, rolloff: 1 },
+        volume: 0.55,
+      });
+      return { stop: (fade = 0.05) => voice.stop(fade) };
+    } catch {
+      return NO_HANDLE;
+    }
   }
 
   private playNow(name: SfxName, opts: { position?: Vec3; volume?: number; rate?: number }, loop: boolean): Handle {

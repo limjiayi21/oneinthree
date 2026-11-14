@@ -21,6 +21,8 @@ import { agentVariables, commitToolResult } from '../../shared/liveVoice';
 import { MAX_CLIP_BYTES } from '../../shared/audio';
 import { MAX_CLIP_MS, bargeOnTalkStart, pushToTalkDown, vadEdge, type TalkOrigin } from '../audio/talk';
 import { captionHoldMs } from '../ui/captions';
+import { fillerKind } from '../audio/filler';
+import { openPartialCaption } from '../audio/partial';
 import scriptJson from '../../content/script.json';
 
 export interface ScriptLine {
@@ -96,6 +98,9 @@ export class SceneKit {
   private loudMs = 0;
   private quietMs = 0;
   private captionToken = 0;
+  private memoryNote = '';
+  private filler: { stop(fade?: number): void } | null = null;
+  private partial: { stop(): void } | null = null;
   /** True while an NPC line is still audible, so a new clip can cut it. */
   private npcAudible = false;
   /** Scenes switch this on once the player may speak. */
@@ -393,7 +398,10 @@ export class SceneKit {
     this.busy = true;
     this.speechTurn = isSpeech;
     this.turnCount++;
-    if (isSpeech) this.deps.hud.setMic('thinking');
+    if (isSpeech) {
+      this.deps.hud.setMic('thinking');
+      this.playFiller();
+    }
     try {
       for await (const ev of sendTurn(this.sessionId, req, audio)) {
         if (this.ended) break;
@@ -405,8 +413,10 @@ export class SceneKit {
           console.warn('[turn]', ev.message);
           if (isSpeech) this.flashMissed();
         }
+        if (ev.type === 'line' && ev.speaker === 'man') this.filler?.stop(0.04);
         if (ev.type === 'decision') {
           this.lastStance = ev.man.stance;
+          this.memoryNote = ev.memory ?? this.memoryNote;
           if (req.event === 'begin') this.encounterBegun = true;
           if (this.agentLive && this.live) {
             const vars = agentVariables({
@@ -414,6 +424,7 @@ export class SceneKit {
               stance: ev.man.stance,
               emotion: ev.man.emotion,
               distanceMetres: req.ctx.distanceToMan,
+              memory: this.memoryNote,
             });
             const opening = req.event === 'begin' && !this.greeted;
             this.live.update(vars, opening ? 'opening' : 'state');
@@ -562,6 +573,10 @@ export class SceneKit {
       return;
     }
     hud.setMic('recording', 0);
+    this.partial?.stop();
+    this.partial = openPartialCaption((text) => {
+      if (this.talkHeld) hud.setPartial(text);
+    });
     window.clearTimeout(this.limitTimer);
     this.limitTimer = window.setTimeout(() => {
       if (this.talkHeld) this.endTalk();
@@ -646,6 +661,7 @@ export class SceneKit {
         stance = ev.man.stance;
         tension = ev.tension;
         this.lastStance = stance;
+        this.memoryNote = ev.memory ?? this.memoryNote;
       }
       prev(ev);
     };
@@ -660,14 +676,26 @@ export class SceneKit {
     } finally {
       this.onEvent = prev;
     }
-    const committed = commitToolResult(stance, expression, heard, tension);
+    const committed = commitToolResult(stance, expression, heard, tension, this.memoryNote);
     this.onAgentFace(committed.emotion, Math.max(0.55, tension));
     return committed.result;
+  }
+
+  /** Heard at once, from his last stance, while the real line is still being written. */
+  private playFiller(): void {
+    this.filler?.stop(0.02);
+    const fwd = this.player.getForward(new THREE.Vector3());
+    const d = Math.min(4, Math.max(1.2, this.context().distanceToMan || 2));
+    const pos = this.player.position.clone().addScaledVector(fwd, d);
+    pos.y = 1.55;
+    this.filler = this.deps.audio.playFiller(fillerKind(this.lastStance), pos);
   }
 
   private endTalk(): void {
     if (!this.talkHeld) return;
     this.talkHeld = false;
+    this.partial?.stop();
+    this.partial = null;
     window.clearTimeout(this.limitTimer);
     this.limitTimer = 0;
     const { mic } = this.deps;

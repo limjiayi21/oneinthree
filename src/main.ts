@@ -9,6 +9,7 @@ import { runWomanWalkHome } from './scenarios/womanWalkHome';
 import { runBystanderWalkHome } from './scenarios/bystanderWalkHome';
 import type { SceneDeps, SceneResult } from './scenarios/common';
 import type { OutcomeKind, Pov, SummaryData } from '../shared/types';
+import { resolveSeed } from '../shared/demo';
 
 /** Used only if the server cannot produce a debrief (offline, error). No statistics are invented here. */
 const FALLBACK_OUTCOME: Record<OutcomeKind, { title: string; body: string }> = {
@@ -73,7 +74,7 @@ async function main(): Promise<void> {
   engine.start();
 
   const health = await getHealth();
-  const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
+  const seed = resolveSeed({ seed: params.get('seed'), demo: params.get('demo') });
   const deps: SceneDeps = {
     engine,
     world,

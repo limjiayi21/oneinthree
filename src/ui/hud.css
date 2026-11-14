@@ -561,6 +561,25 @@
   color: rgba(233, 228, 218, 0.7);
 }
 
+.oit-mic-partial {
+  display: none;
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: calc(100% + 8px);
+  margin: 0;
+  color: rgba(233, 228, 218, 0.92);
+  font: 400 calc(var(--hud-u) * 0.95) / 1.35 var(--oit-sans);
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95);
+}
+.oit-mic-partial.is-on {
+  display: block;
+}
+.oit-mic[data-hot='1'] .oit-ring i {
+  background: #ff5a3c;
+}
+
 .oit-ring {
   position: relative;
   display: block;

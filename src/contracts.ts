@@ -307,6 +307,8 @@ export interface AudioEngine {
   setMuffle(level: number): void;
   /** Stream and play speech from a URL (audio/mpeg). */
   speak(url: string, opts: SpeakOptions): SpeechHandle;
+  /** A short huh, scoff, or sigh at a world position. Instant: no network. */
+  playFiller(kind: 'huh' | 'scoff' | 'sigh', position?: THREE.Vector3): { stop(fade?: number): void };
   stopAllSpeech(): void;
   /** Hard cut of everything except the tinnitus tone: used for the cut to black. */
   cutToSilence(): void;
@@ -347,6 +349,8 @@ export interface Hud {
   /** Top-left one-line objective ("Get home."). null clears. */
   objective(text: string | null): void;
   setMic(state: MicState, level?: number): void;
+  /** Words heard so far while the mic is open. null clears them. */
+  setPartial(text: string | null): void;
   /** 0..1: DOM-side fear cues (pulsing edge darkness). */
   setFear(level: number): void;
   /** Fade the whole view to/from black. */

@@ -112,7 +112,7 @@ No study measures how a street harasser reacts to a specific response. Every "sh
 | `npm run build` | Typecheck and production build |
 | `npm run deploy` | Build and deploy to Cloudflare; set the key first with `npx wrangler secret put ELEVENLABS_API_KEY` |
 
-Dev shortcuts: `?nolock=1` runs without pointer lock, `?skip=intro,part1` jumps ahead, `?seed=7` fixes the random seed.
+Dev shortcuts: `?nolock=1` runs without pointer lock, `?skip=intro,part1` jumps ahead, `?seed=7` fixes the random seed. `?demo=1` is the demo config: seed `20261114`, so his decisions repeat. A numeric `?seed=` still overrides it. The line model can still vary; the stance machine does not.
 
 ## Known limits
 
