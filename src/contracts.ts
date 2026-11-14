@@ -367,7 +367,15 @@ export interface Hud {
    * Guided replay: a prompt (or caption) with optional "You think:" lines and
    * numbered options over the frozen scene. Buttons, or keys 1-9. Resolves with the index chosen.
    */
-  choice(opts: { prompt?: string; caption?: string; innerVoice?: string[]; options: Array<{ label: string; note?: string }>; signal?: AbortSignal }): Promise<number>;
+  choice(opts: {
+    prompt?: string;
+    caption?: string;
+    innerVoice?: string[];
+    options: Array<{ label: string; note?: string }>;
+    /** 'left' or 'right': a side column (desktop widths only), so the people stay in view. Default: along the bottom. */
+    side?: 'left' | 'right' | 'bottom';
+    signal?: AbortSignal;
+  }): Promise<number>;
   /**
    * Guided replay: the strip that names what just happened. A concept, one
    * sentence, optional stats with sources, an optional credit, and a button

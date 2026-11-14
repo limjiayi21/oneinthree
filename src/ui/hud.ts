@@ -565,6 +565,8 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     caption?: string;
     innerVoice?: string[];
     options: Array<{ label: string; note?: string }>;
+    /** 'left' or 'right' shows the panel as a side column, so the people stay in view on the other side. Default: along the bottom. */
+    side?: 'left' | 'right' | 'bottom';
     signal?: AbortSignal;
   }): Promise<number> {
     clearSubtitle();
@@ -581,7 +583,12 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     const labelledByCaption = !opts.prompt && !!opts.caption;
     const el = h(
       'div',
-      { class: 'oit-choice', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
+      {
+        class: `oit-choice${opts.side === 'left' || opts.side === 'right' ? ` oit-choice--side oit-choice--${opts.side}` : ''}`,
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-labelledby': titleId,
+      },
       h(
         'div',
         { class: 'oit-choice-panel' },

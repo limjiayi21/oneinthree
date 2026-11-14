@@ -953,6 +953,36 @@
   gap: 12px;
 }
 
+/*
+ * Side column: the guided replay turns the camera so the people sit in the
+ * other part of the frame. Its width is mirrored in SIDE_PANEL in
+ * src/scenarios/guidedWalkHome.ts; change both together.
+ */
+@media (min-width: 900px) {
+  .oit-choice--side {
+    inset: 0 auto 0 auto;
+    align-items: center;
+    width: calc(min(26rem, 38vw) + 64px);
+    padding: 24px 32px;
+    overflow-y: auto;
+  }
+  .oit-choice--right {
+    right: 0;
+    background: linear-gradient(90deg, transparent, rgba(7, 8, 11, 0.86) 10%, rgba(7, 8, 11, 0.94));
+  }
+  .oit-choice--left {
+    left: 0;
+    background: linear-gradient(270deg, transparent, rgba(7, 8, 11, 0.86) 10%, rgba(7, 8, 11, 0.94));
+  }
+  .oit-choice--side .oit-choice-panel {
+    width: 100%;
+    margin: auto 0;
+  }
+  .oit-choice--side .oit-choice-prompt {
+    font-size: clamp(20px, 2.3vh, 25px);
+  }
+}
+
 /* The frozen scene: dimmed, with an optional pool of light around one person. */
 .oit-freeze {
   position: absolute;

@@ -129,7 +129,9 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
   /* ------------------------------------------------------------- camera */
 
   // Where the player should stand and what they should look at. The camera eases toward both.
-  const FOLLOW_FAR = { dx: -1.0, dz: 6.5 };
+  // At the start the camera is out toward the curb, so he (against the wall ahead) is not lined up behind her
+  // and not hidden by the stoops along the wall.
+  const FOLLOW_FAR = { dx: -1.9, dz: 5.6 };
   const FOLLOW_CLOSE = { dx: -0.9, dz: 4.2 };
   let camGoal: () => THREE.Vector3 = () => v(woman.position.x + FOLLOW_FAR.dx, woman.position.z + FOLLOW_FAR.dz);
   let lookGoal: () => THREE.Vector3 = () => sceneLook();
@@ -657,12 +659,14 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
       case 'm4': {
         resetBodies();
         manOnPhone = false;
-        const her = v(6.6, -66);
-        const him = v(6.5, -67.2);
+        // He stands a little to the street side of her path, so from where you are he is beside her, not hidden behind her.
+        const her = v(7.1, -66);
+        const him = v(6.45, -66.9);
+        const across = () => new THREE.Vector3(-0.6, 0, -0.8);
         woman.setPose(her, 0);
         man.setPose(him, Math.PI);
         woman.setBehaviour({ type: 'idle', face: manPos });
-        man.setBehaviour({ type: 'block', target: womanPos, targetForward: womanFwd, gap: 1.1 });
+        man.setBehaviour({ type: 'block', target: womanPos, targetForward: across, gap: 1.1 });
         woman.human.setEmotion('afraid', 0.6);
         woman.human.playGesture('clutch_bag');
         // A few steps away: close enough to speak.
@@ -709,12 +713,112 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
     return { x: (p.x + 1) / 2, y: (1 - p.y) / 2 };
   }
 
-  /** Beat 1: stop the clock and dim the screen, keeping a pool of light on the spotlit person. */
-  function freezeScene(moment: GuidedMoment): void {
+  /*
+   * The choice panel goes in a side column, and the camera turns (while frozen)
+   * just far enough that both people sit in the rest of the frame. SIDE_PANEL
+   * mirrors the width of .oit-choice--side in src/ui/hud.css: min(26rem, 38vw) + 64px.
+   */
+  const SIDE_PANEL = (width: number) => Math.min(416, 0.38 * width) + 64;
+  /** Below this width the panel stays along the bottom (as in hud.css). */
+  const SIDE_MIN_WIDTH = 900;
+  /** Clear space kept between the people and the panel, or the far edge, in NDC. */
+  const MARGIN = 0.08;
+
+  /** Left and right edges of everyone in view, in normalised device coordinates (-1..1). */
+  function peopleSpan(): { min: number; max: number } | null {
+    engine.camera.updateMatrixWorld();
+    const people = [woman, ...(manGone || !man.human.root.visible ? [] : [man])];
+    let min = Infinity;
+    let max = -Infinity;
+    const p = new THREE.Vector3();
+    for (const npc of people) {
+      const head = npc.human.getHeadPosition(p.clone());
+      for (const point of [head, npc.position.clone().setY(0.05)]) {
+        for (const dx of [-0.32, 0.32]) {
+          // The body's width either side, across the view.
+          const q = point.clone().add(new THREE.Vector3(Math.cos(camYaw) * dx, 0, -Math.sin(camYaw) * dx));
+          q.project(engine.camera);
+          if (q.z > 1) continue;
+          min = Math.min(min, q.x);
+          max = Math.max(max, q.x);
+        }
+      }
+    }
+    return Number.isFinite(min) ? { min, max } : null;
+  }
+
+  /** Turn the camera by `delta` radians of yaw while the scene clock is stopped. Eases unless motion is reduced. */
+  async function turnWhileFrozen(delta: number): Promise<void> {
+    const from = camYaw;
+    const apply = (yaw: number) => {
+      camYaw = yaw;
+      player.setPose(camPos, camYaw);
+      player.update(1e-4); // the controller only writes the camera on a positive step
+    };
+    if (still || Math.abs(delta) < 0.002) {
+      apply(from + delta);
+      return;
+    }
+    const ms = 420;
+    const t0 = performance.now();
+    await new Promise<void>((resolve) => {
+      const frame = () => {
+        const k = Math.min(1, (performance.now() - t0) / ms);
+        const e = 1 - Math.pow(1 - k, 3);
+        apply(from + delta * e);
+        if (k < 1 && !exited) requestAnimationFrame(frame);
+        else resolve();
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+
+  /**
+   * Pick the side for the panel and turn the camera so both people sit in the free part of the frame.
+   * Returns where the panel goes.
+   */
+  async function frameForPanel(): Promise<'left' | 'right' | 'bottom'> {
+    const width = window.innerWidth;
+    if (width < SIDE_MIN_WIDTH) return 'bottom';
+    const panel = (2 * SIDE_PANEL(width)) / width; // panel width in NDC
+    const tanX = Math.tan(THREE.MathUtils.degToRad(engine.camera.fov / 2)) * engine.camera.aspect;
+    const toAngle = (ndc: number) => Math.atan(ndc * tanX);
+
+    const plan = (side: 'left' | 'right', span: { min: number; max: number }) => {
+      const lo = side === 'left' ? -1 + panel + MARGIN : -1 + MARGIN;
+      const hi = side === 'left' ? 1 - MARGIN : 1 - panel - MARGIN;
+      const centre = (span.min + span.max) / 2;
+      // Fits: move only as far as needed. Too wide: centre it in the free space.
+      let target = centre;
+      if (span.max - span.min > hi - lo) target = (lo + hi) / 2;
+      else if (span.max > hi) target = centre - (span.max - hi);
+      else if (span.min < lo) target = centre + (lo - span.min);
+      // Turning right (yaw down) moves everything left on screen.
+      return { side, centre, target, cost: Math.abs(toAngle(centre) - toAngle(target)) };
+    };
+
+    let span = peopleSpan();
+    if (!span) return 'right';
+    const options = [plan('right', span), plan('left', span)].sort((a, b) => a.cost - b.cost);
+    const best = options[0]!;
+    await turnWhileFrozen(-(toAngle(best.centre) - toAngle(best.target)));
+    // One correction pass: the edges are not linear in angle.
+    span = peopleSpan();
+    if (span) {
+      const again = plan(best.side, span);
+      if (again.cost > 0.004) await turnWhileFrozen(-(toAngle(again.centre) - toAngle(again.target)));
+    }
+    return best.side;
+  }
+
+  /** Beat 1: stop the clock, make room for the panel, and dim the screen with a pool of light on the spotlit person. */
+  async function freezeScene(moment: GuidedMoment): Promise<'left' | 'right' | 'bottom'> {
     kit.paused = true;
+    const side = await frameForPanel();
     const who = moment.spotlight === 'woman' ? woman : moment.spotlight === 'man' ? man : null;
     const spot = who ? onScreen(who) : null;
     hud.freeze(spot ? { spot: { ...spot, r: 0.17 } } : {});
+    return side;
   }
 
   const result: GuidedResult = { exited: false, firstChoices: {} };
@@ -724,7 +828,7 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
     const tried = new Set<string>();
     for (;;) {
       // 1. Freeze
-      freezeScene(moment);
+      const side = await freezeScene(moment);
       // 2. Choose
       const index = await ask((signal) =>
         hud.choice({
@@ -732,6 +836,7 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
           prompt: moment.prompt,
           innerVoice: moment.innerVoice,
           options: moment.choices.map((c) => ({ label: c.text, note: tried.has(c.id) ? '(tried)' : undefined })),
+          side,
           signal,
         }),
       );
@@ -774,8 +879,12 @@ export async function runGuidedWalkHome(baseDeps: SceneDeps, data: GuidedData = 
     await step(hud.card('Learn how to help', 'The same street again. It will stop at five moments and ask what you would do.', 3800));
     const fadeIn = step(hud.fade(false, 1200));
 
+    // Dev only: ?moment=m4 or ?moment=m5 starts there (those two are staged from scratch), for checking framing.
+    const startAt = import.meta.env.DEV ? new URLSearchParams(location.search).get('moment') : null;
+    const first = startAt === 'm4' || startAt === 'm5' ? data.moments.findIndex((m) => m.id === startAt) : 0;
     const moments = data.moments;
-    for (let i = 0; i < moments.length; i++) {
+    if (first > 0) await fadeIn;
+    for (let i = Math.max(0, first); i < moments.length; i++) {
       const moment = moments[i]!;
       // m2 and m3 follow straight on from the moment before; the others start over black.
       const flows = moment.id === 'm2' || moment.id === 'm3';
