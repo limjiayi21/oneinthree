@@ -405,9 +405,8 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
 
   /* --------------------------------------------------------------- briefing */
 
-  function briefing(pov: Pov, opts?: { liveVoice?: boolean }): Promise<void> {
+  function briefing(pov: Pov): Promise<void> {
     return new Promise<void>((resolve) => {
-      const liveVoice = Boolean(opts?.liveVoice);
       const bystander = pov === 'bystander';
       const titleId = nextId('oit-brief');
       const el = h('section', { class: 'oit-screen oit-screen--scrim oit-brief', 'aria-labelledby': titleId, 'data-pov': bystander ? 'bystander' : 'woman' });
@@ -448,7 +447,6 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
                 affordance('Space', 'Hold to speak, to either of them'),
                 affordance('F', 'Film what is happening'),
                 affordance('E', 'Ask the shopkeeper for help'),
-                ...(liveVoice ? [affordance('L', 'Switch between live voice and holding Space')] : []),
                 affordance(null, 'Or keep walking'),
               ),
             ),
@@ -462,12 +460,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               h('span', null, 'It is late.'),
               h('span', null, 'You are four blocks away.'),
             ),
-            h(
-              'div',
-              { class: 'oit-brief-what oit-rise' },
-              h('p', { class: 'oit-brief-task' }, 'Get home.'),
-              liveVoice ? h('p', { class: 'oit-brief-esc' }, 'Live voice is the default. Speak once he approaches. Press L to hold Space instead.') : null,
-            ),
+            h('div', { class: 'oit-brief-what oit-rise' }, h('p', { class: 'oit-brief-task' }, 'Get home.')),
           ];
 
       add(

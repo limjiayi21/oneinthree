@@ -32,22 +32,6 @@ export async function createSession(req: CreateSessionRequest): Promise<CreateSe
   );
 }
 
-export async function getAgentSession(sessionId: string): Promise<{ signedUrl: string; dynamicVariables: Record<string, string> }> {
-  const res = await fetch(API.agent(sessionId));
-  const body = (await res.json()) as { error?: string; signedUrl?: string; dynamicVariables?: Record<string, string> };
-  if (!res.ok) throw new Error(body.error || `Live voice failed (${res.status})`);
-  if (!body.signedUrl?.startsWith('wss://')) throw new Error('Live voice returned no signed websocket URL.');
-  return { signedUrl: body.signedUrl, dynamicVariables: body.dynamicVariables ?? {} };
-}
-
-export function postAgentLine(sessionId: string, text: string): void {
-  void fetch(API.agentLine(sessionId), {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ speaker: 'man', text }),
-  }).catch(() => {});
-}
-
 export async function getSummary(sessionId: string): Promise<SummaryData> {
   return json<SummaryData>(await fetch(API.summary(sessionId)));
 }
@@ -129,4 +113,3 @@ export async function* sendTurn(
     }
   }
 }
-

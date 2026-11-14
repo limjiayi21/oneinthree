@@ -21,8 +21,7 @@ import type {
   WorldContext,
 } from '../../shared/types';
 import { addressOf } from './address';
-import { gateStance, isClearFirm } from './stanceGate';
-import { decideExpression, type ExpressionDecision } from '../../shared/expression';
+import { decideExpression, type ExpressionDecision } from './expression';
 import { PARAMS, param, val, weakestBasis, type Param, type Params } from './params';
 import { Rng, clamp01, normalise, round3 } from './rng';
 
@@ -164,8 +163,6 @@ export interface WomanState {
 export interface WomanInput {
   event: ClientEventType;
   ctx: WorldContext;
-  /** Her words, when the event is speech. Used to stop a greeting from being treated as a no. */
-  text?: string;
   /** Distribution over how she responded (from Clef, or the keyword fallback). Omit for non-speech events. */
   strategyProbs?: Partial<Record<WomanStrategy, number>>;
   /** Extra typed readings of her words, each 0..1. */
@@ -456,17 +453,15 @@ function actionFor(stance: ManStance, ph: Physical, rng: Rng): { action: ManActi
       if (ph.moving) return { action: 'walk_alongside', proximity: 1.4, delivery: ph.distance > 5 ? 'call_out' : 'normal' };
       return { action: ph.distance > 3 ? 'approach' : 'stay', proximity: 1.6, delivery: ph.distance > 5 ? 'call_out' : 'normal' };
     case 'follow':
-      if (ph.hurrying || ph.evading) return { action: 'run_after', proximity: 1.4, delivery: 'shout' };
-      if (ph.distance > 5) return { action: 'stalk', proximity: 3.4, delivery: 'low' };
-      return { action: 'follow_behind', proximity: 2.2, delivery: ph.distance > 4 ? 'call_out' : 'normal' };
+      return { action: 'follow_behind', proximity: 2.8, delivery: ph.distance > 4 ? 'call_out' : 'normal' };
     case 'block':
       return { action: 'block_path', proximity: 1.1, delivery: 'normal' };
     case 'hostile':
-      if (ph.distance > 2.4 || ph.hurrying) return { action: 'run_after', proximity: 1.3, delivery: 'shout' };
-      return { action: 'block_path', proximity: 1.0, delivery: 'normal' };
+      if (ph.far || ph.across) return { action: 'stay', proximity: 3, delivery: 'shout' };
+      if (ph.hurrying) return { action: 'follow_behind', proximity: 2.4, delivery: 'shout' };
+      return { action: rng.chance(0.35) ? 'step_closer' : 'stay', proximity: 1.4, delivery: 'normal' };
     case 'intimidate':
-      if (ph.distance > 1.8) return { action: 'run_after', proximity: 1.0, delivery: 'low' };
-      return { action: 'pull_arm', proximity: 0.7, delivery: 'low' };
+      return { action: rng.chance(0.5) ? 'lean_in' : 'step_closer', proximity: 0.8, delivery: 'low' };
     case 'back_off':
       return { action: 'back_away', proximity: 3, delivery: ph.far || ph.hurrying ? 'shout' : 'normal' };
     case 'gone':
@@ -809,18 +804,7 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
   }
 
   const posterior = forced ? prior : blendWithReading(prior, event === 'speech' ? input.reaction : undefined, strategy, params);
-  const sampled = rng.sample<ManStance>(posterior as Record<ManStance, number>);
-  const next = forced
-    ? sampled
-    : gateStance(state.stance, sampled, {
-        text: input.text ?? '',
-        turn: state.turn,
-        rejections: state.rejections,
-        bystander: false,
-        seekingHelp: strategy === 'seek_help' || strategy === 'threaten_attention',
-        clearFirm: isClearFirm(input.text ?? ''),
-        insult: strategy === 'hostile',
-      });
+  const next = rng.sample<ManStance>(posterior as Record<ManStance, number>);
 
   /* ---- bookkeeping -------------------------------------------------------- */
   let gain = 0;

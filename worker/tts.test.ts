@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { voiceTone } from '../shared/voiceTone';
 import { TTS_LIVE_MODEL, TTS_OUTPUT_FORMAT, VOICES, buildTts } from './voices';
 import { LiveAudio, startTts } from './tts';
 
@@ -15,19 +14,6 @@ describe('TTS request', () => {
     expect(req.body.previous_text).toBe('Hey. Over here.');
     expect(req.body.voice_settings.similarity_boost).toBeGreaterThan(0);
     expect(req.body.voice_settings.stability).toBeGreaterThan(0);
-    expect(req.body.text).toContain(voiceTone('angry'));
-    expect(voiceTone('angry')).toBe('irritated');
-  });
-
-  it('makes an irritated face less steady than a calm one, and a nervous face nervous', () => {
-    const angry = buildTts('man', 'Yeah I heard you.', 'angry', 'normal');
-    const calm = buildTts('man', 'Hey. Where you headed?', 'friendly', 'normal');
-    const nervous = buildTts('man', 'Alright. I am going.', 'sheepish', 'normal');
-    expect(angry.body.text).toContain('[irritated');
-    expect(calm.body.text).toContain('[calm');
-    expect(nervous.body.text).toContain('[nervous');
-    expect(calm.body.voice_settings.stability).toBeGreaterThan(angry.body.voice_settings.stability);
-    expect(nervous.body.voice_settings.stability).toBeGreaterThan(angry.body.voice_settings.stability);
   });
 
   it('omits previous_text on the first line', () => {

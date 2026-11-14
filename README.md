@@ -6,6 +6,14 @@ You walk home at night in New York as a woman while a persistent man approaches.
 
 It is not a game. Nothing graphic is shown: the scene cuts to black at the first moment of physical escalation.
 
+## Restored pre-agent pipeline
+
+The application code is restored to `ca04d292`, the last checkpoint before ElevenLabs Agents was introduced. The decision model chooses behavior, the line writer supplies the words, and ElevenLabs is used for speech-to-text and text-to-speech. No ElevenLabs agent ID or agent creation is required. Existing `ELEVENLABS_AGENT_ID` settings are ignored; keep API keys in the gitignored `.dev.vars` file.
+
+Controls are the original **Space** to record a turn, **T** to type, and **H** for optional hands-free recording. This is the older turn-based pipeline, not a continuous agent call. Without service credentials the existing text/line-bank fallback remains available.
+
+The later experiment is preserved on `backup/conversation-before-agent-rollback`. The two recently updated files, `docs/realism-transcripts.md` and `docs/research/model-simulation.md`, are retained as development notes; they may describe experiments after this application checkpoint. `main` and the separate handoff PR are not changed by this restoration.
+
 ## Run it
 
 ```bash
@@ -31,10 +39,6 @@ Without a key the simulation still runs, with subtitles instead of voices. The d
 
 Controls: W A S D to walk, mouse to look, Shift to hurry, hold Space to speak, T to type instead, H to toggle hands-free, Esc to pause. In Part 2, F films and E asks the shopkeeper for help. A clip is capped at 8 seconds. The indicator under the scene says Listening…, Transcribing…, or Didn't catch that.
 
-### Why the microphone dropped speech
-
-Chromium can fire the recorder's `stop` event before the only `dataavailable` when `MediaRecorder.start()` is called with no timeslice. The whole utterance is that one event. The old code sealed the clip inside `onstop`. If no chunk had arrived yet, it treated the clip as silence and never sent the turn, so the player spoke and nothing on screen explained the miss. Recording now starts with a 200 ms timeslice, waits a moment after stop so a late chunk is kept, and only calls a clip silent when the level meter actually saw sound and the peak was room tone.
-
 ### Check voice and the microphone on a laptop
 
 The VM this was built on has no microphone and no ElevenLabs key, so this part is for a real machine.
@@ -46,35 +50,6 @@ The VM this was built on has no microphone and no ElevenLabs key, so this part i
 5. Allow the microphone on the intro screen. Hold Space and say "Leave me alone." The indicator should read Listening…, then Transcribing…, then his reply should mention being left alone. Subtitles stay up while his voice plays. Press Space again while he is still talking: his line cuts off and yours starts.
 6. Press H and speak without holding Space. Press H again to go back to push-to-talk.
 7. If the key is missing or speech-to-text fails, the subtitle still shows and the indicator says Didn't catch that. Press T to type the same line and confirm he answers it.
-
-## Live voice (ElevenLabs Agent)
-
-Press L during a scene for a phone-style call: the ElevenLabs Agent owns the microphone, turn-taking, and barge-in. The seeded stance model still decides what he does. His face uses the emotion the agent reports, clamped to what that stance is allowed to show. The older speech-to-text, line model, and text-to-speech path stays in place; press L again to return to it. `?agent=1` starts the call when the encounter does.
-
-The agent uses Gemini 3.5 Flash (`gemini-3.5-flash`), the low-latency Gemini ElevenLabs moves live conversations onto from 15 November 2026, and Chris on Eleven v4 Turbo with expressive mode. `gemini-4-argon` is the larger Gemini if you want it instead.
-
-```bash
-# key already in .dev.vars
-npm run agent:create
-# prints ELEVENLABS_AGENT_ID=agent_...
-# paste that line into .dev.vars, then restart npm run dev
-```
-
-In the dashboard the same agent is "One in Three — Dex": LLM Gemini 3.5 Flash, TTS Eleven v4 Turbo, expressive mode on, authentication required. The browser only receives a signed websocket URL from `GET /api/session/:id/agent`. The API key never leaves the Worker.
-
-## Who picks his next move
-
-The default judge is Cloudflare Workers AI, the binding the project already has, so it needs no extra key. It starts in parallel with the line writer and has about 400 ms. If that call fails, returns an enum that is not allowed, or is slow, the seeded stance machine in `worker/model/` is what the trainee sees. Set `DECISION_PROVIDER=seeded` to skip the judge. TypeSafe, OpenAI, and Gemini are optional and each needs its own key.
-
-| `DECISION_PROVIDER` | Key | Request |
-|---|---|---|
-| unset | none | Workers AI, `@cf/google/gemma-4-26b-a4b-it`, JSON schema. No extra key. The binding is the one the project already uses. |
-| `seeded` | none | no network call |
-| `typesafe` | `TYPESAFE_API_KEY` | `POST https://api.typesafe.ai/v1/systemone` with model `jev-1.14.0`. Yes/no questions use `noul`. Choice and score use the System One shapes in the [TypeSafe docs](https://docs.typesafe.ai/api/system-one). |
-| `openai` | `OPENAI_API_KEY` | `POST https://api.openai.com/v1/decisions` with model `gpt-6-luna` and predicate, choice, and score questions. [Decisions guide](https://developers.openai.com/api/docs/guides/decisions). |
-| `gemini` | `GEMINI_API_KEY` | `POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent` with header `x-goog-api-key` and a JSON schema. A Google AI Studio key, including free MLH Gemini credits. |
-
-Each call asks whether she set a firm boundary, her tone, whether a bystander stepped in, his next stance, his expression, and how heated the beat is. Code then applies the training rules: a firm boundary together with a bystander makes him back off, and the provider cannot choose a physical escalation the seeded model did not already reach. The expression is clamped to the faces that stance is allowed to wear, then handed to the line writer and, in live voice, to the agent. The keys stay in `.dev.vars` or as Worker secrets.
 
 ## How a turn works
 
@@ -89,7 +64,7 @@ The language model never decides what he does; it only writes words for a stance
 
 ## What the evidence does and does not support
 
-Every statistic, case study and phone number shown comes from [content/evidence.json](content/evidence.json), with sources. The readable version is [docs/research/evidence.md](docs/research/evidence.md). The short file the line writer, the live agent, and the debrief read is [data/harassment_research.md](data/harassment_research.md) (and `data/harassment_research.json`). It only includes figures that have a URL, and it does not invent a rate for how he reacts.
+Every statistic, case study and phone number shown comes from [content/evidence.json](content/evidence.json), with sources. The readable version is [docs/research/evidence.md](docs/research/evidence.md).
 
 No study measures how a street harasser reacts to a specific response. Every "she did X, he does Y" probability is therefore a labelled assumption. The debrief tags each of his reactions as from data, inferred, or assumption.
 
@@ -116,7 +91,7 @@ No study measures how a street harasser reacts to a specific response. Every "sh
 | `npm run build` | Typecheck and production build |
 | `npm run deploy` | Build and deploy to Cloudflare; set the key first with `npx wrangler secret put ELEVENLABS_API_KEY` |
 
-Dev shortcuts: `?nolock=1` runs without pointer lock, `?skip=intro,part1` jumps ahead, `?seed=7` fixes the random seed. `?demo=1` is the demo config: seed `20261114`, so his decisions repeat. A numeric `?seed=` still overrides it. The line model can still vary; the stance machine does not.
+Dev shortcuts: `?nolock=1` runs without pointer lock, `?skip=intro,part1` jumps ahead, `?seed=7` fixes the random seed.
 
 ## Known limits
 

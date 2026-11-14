@@ -9,7 +9,6 @@ import { runWomanWalkHome } from './scenarios/womanWalkHome';
 import { runBystanderWalkHome } from './scenarios/bystanderWalkHome';
 import type { SceneDeps, SceneResult } from './scenarios/common';
 import type { OutcomeKind, Pov, SummaryData } from '../shared/types';
-import { resolveSeed } from '../shared/demo';
 
 /** Used only if the server cannot produce a debrief (offline, error). No statistics are invented here. */
 const FALLBACK_OUTCOME: Record<OutcomeKind, { title: string; body: string }> = {
@@ -74,8 +73,7 @@ async function main(): Promise<void> {
   engine.start();
 
   const health = await getHealth();
-  console.info(`[oneinthree] ELEVENLABS_AGENT_ID ${health.agentId ? 'loaded' : 'not loaded'}; live voice ${health.agent ? 'available' : 'unavailable'}`);
-  const seed = resolveSeed({ seed: params.get('seed'), demo: params.get('demo') });
+  const seed = params.has('seed') ? Number(params.get('seed')) : undefined;
   const deps: SceneDeps = {
     engine,
     world,
@@ -83,18 +81,15 @@ async function main(): Promise<void> {
     mic,
     hud,
     voice: health.voice,
-    agent: Boolean(health.agentId),
     requireLock: params.get('nolock') !== '1',
     seed,
   };
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__oit = deps;
-  hud.setLiveVoice(Boolean(health.agent));
-  const liveVoice = Boolean(health.agentId);
 
   screens.loading(null);
   if (!skip.has('intro')) {
-    await screens.intro({ voiceAvailable: health.voice, requestMic: () => deps.agent ? Promise.resolve(true) : mic.init() });
-  } else if (!deps.agent) {
+    await screens.intro({ voiceAvailable: health.voice, requestMic: () => mic.init() });
+  } else {
     void mic.init();
   }
   await audio.resume();
@@ -107,7 +102,7 @@ async function main(): Promise<void> {
 
     if (!skip.has('part1')) {
       for (;;) {
-        await screens.briefing('woman', { liveVoice });
+        await screens.briefing('woman');
         await audio.resume();
         world.setDoorOpen('home', false);
         const result = await runWomanWalkHome(deps);
@@ -125,7 +120,7 @@ async function main(): Promise<void> {
 
     if (!exited) {
       for (;;) {
-        await screens.briefing('bystander', { liveVoice });
+        await screens.briefing('bystander');
         await audio.resume();
         world.setDoorOpen('home', false);
         const result = await runBystanderWalkHome(deps);
@@ -146,4 +141,3 @@ async function main(): Promise<void> {
 }
 
 void main();
-

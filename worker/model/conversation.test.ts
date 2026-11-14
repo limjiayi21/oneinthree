@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ManStance, WomanStrategy, WorldContext } from '../../shared/types';
 import { addressOf, addressOfBystander, contentWord, groundedLine } from './address';
-import { STANCE_EMOTIONS } from '../../shared/expression';
+import { STANCE_EMOTIONS } from './expression';
 import { Rng } from './rng';
 import { decideWoman, initialWomanState } from './woman';
 import { cleanLine } from '../write';
@@ -96,22 +96,6 @@ describe('scripted conversations', () => {
     const told = groundedLine({ stance: 'hostile', move: 'firm', text: 'Leave her alone.', rng });
     expect(told!.toLowerCase()).toMatch(/leave|alone/);
     expect(filmed).not.toBe(told);
-  });
-
-  it('stays in character across stances: no apology, and leaving does not ask for her number', () => {
-    const rng = new Rng(21);
-    const stances: ManStance[] = ['persist', 'follow', 'block', 'guilt', 'hostile', 'intimidate', 'back_off'];
-    const apology = /\b(i am sorry|forgive me|my fault)\b/i;
-    const askNumber = /\b(your number|phone number|what is your name)\b/i;
-    for (const stance of stances) {
-      const line = groundedLine({ stance, move: 'firm', text: 'Leave me alone.', rng });
-      expect(line, stance).toBeTruthy();
-      expect(line!, stance).not.toMatch(BANNED);
-      expect(line!, stance).not.toMatch(apology);
-      expect(line!, stance).not.toMatch(FLIRT);
-      if (stance === 'back_off') expect(line!, stance).not.toMatch(askNumber);
-      if (stance === 'hostile' || stance === 'intimidate') expect(line!.toLowerCase()).not.toMatch(/beautiful|smile for/);
-    }
   });
 
   it('a firm boundary is not answered as if she had flirted, on any stance', () => {

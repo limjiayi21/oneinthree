@@ -44,8 +44,6 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   clerk.addAvoid(playerBody);
 
   man.setPose(P.harasserSpot, Math.PI / 2);
-  kit.onAgentMouth = (level) => man.human.setTalking(level);
-  kit.onAgentFace = (emotion, intensity) => man.human.setEmotion(emotion, intensity);
   man.human.setPosture('lean_wall');
   man.human.playGesture('check_phone');
   woman.setPose(P.womanStartBystander, 0);
@@ -331,7 +329,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     if (kit.ended || finishing || !dynamic) return;
     const turnAtArm = kit.turnCount;
     cancelSilence = kit.after(6 + Math.random() * 2, () => {
-      if (kit.ended || finishing || kit.agentLive || kit.turnInFlight || kit.turnCount !== turnAtArm || deps.mic.recording) return;
+      if (kit.ended || finishing || kit.turnInFlight || kit.turnCount !== turnAtArm || deps.mic.recording) return;
       kit.event('silence');
     });
   }
@@ -523,7 +521,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   player.inputEnabled = true;
   hud.objective(null);
   woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.35 });
-  kit.after(2.5, () => hud.hint(kit.deps.agent ? 'SPACE speak  ·  F film  ·  E interact  ·  Press L for live voice' : 'SPACE speak  ·  F film  ·  E interact  ·  or keep walking', 9000));
+  kit.after(2.5, () => hud.hint('SPACE speak  ·  F film  ·  E interact  ·  or keep walking', 9000));
 
   kit.after(26, () => {
     if (kit.ended) return;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Emotion, ManStance } from '../../shared/types';
 import { Rng } from './rng';
-import { STANCE_EMOTIONS, coarseExpression, decideExpression, type FaceExpression } from '../../shared/expression';
+import { STANCE_EMOTIONS, coarseExpression, decideExpression, type FaceExpression } from './expression';
 
 const ALL: FaceExpression[] = ['neutral', 'smug', 'angry', 'nervous', 'confused', 'defeated'];
 

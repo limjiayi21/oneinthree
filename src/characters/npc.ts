@@ -44,14 +44,14 @@ export const NPC_TUNING = {
   accel: 4.5, // m/s^2
   /** Footfall spacing at walking speed (used when the Human exposes no footfall hook). */
   stride: 0.74,
-  /** block: how late he notices where she has moved to. Short, or she walks through the gap. */
-  blockLag: 0.12,
+  /** block: how late he notices where she has moved to. */
+  blockLag: 0.4,
   /** block: share of that lag he makes up by assuming she keeps doing what she was doing. */
-  blockAnticipation: 0.85,
+  blockAnticipation: 0.6,
   /** block: side-step speed cap once he is in front of her. */
-  blockShuffleSpeed: 2.35,
-  /** block: speed while getting round to the front. Faster than her hurry. */
-  blockRunSpeed: 3.2,
+  blockShuffleSpeed: 1.7,
+  /** block: speed while getting round to the front. */
+  blockRunSpeed: 2.5,
   /** walkAlongside: how far ahead of her shoulder he walks. */
   alongsideAhead: 0.4,
   /** walkAlongside: how far his body is turned in toward her. */
