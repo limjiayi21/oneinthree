@@ -35,13 +35,13 @@ describe('harassment research file', () => {
     for (const figure of ['65%', '70%', '22%', '68%', '16,600', '92%', '31%', '223']) expect(markdown).toContain(figure);
   });
 
-  it('conditions the scripted line writers, and keeps the live agent unscripted but bounded', () => {
+  it('conditions the scripted line writers, and keeps the live agent inside the same limits', () => {
     expect(WOMAN_SYSTEM).toContain(PROMPT_BRIEF);
     expect(BYSTANDER_SYSTEM).toContain(PROMPT_BRIEF);
     expect(WOMAN_SYSTEM).toMatch(/never: slurs/i);
-    expect(AGENT_PROMPT).toMatch(/do not follow a script/i);
     expect(AGENT_PROMPT).toMatch(/never use a slur/i);
-    expect(AGENT_PROMPT).toMatch(/never be sexually explicit/i);
+    expect(AGENT_PROMPT).toMatch(/never say anything sexual/i);
+    expect(AGENT_PROMPT).toMatch(/never threaten to hit, rape, or kill/i);
   });
 
   it('keeps the decision ordering the research supports, without a new probability', () => {
