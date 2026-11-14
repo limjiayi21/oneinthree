@@ -21,7 +21,7 @@ import { agentVariables, commitToolResult } from '../../shared/liveVoice';
 import { MAX_CLIP_BYTES } from '../../shared/audio';
 import { MAX_CLIP_MS, bargeOnTalkStart, pushToTalkDown, vadEdge, type TalkOrigin } from '../audio/talk';
 import { captionHoldMs } from '../ui/captions';
-import { fillerKind } from '../audio/filler';
+import { fillerKind, shouldPlayFiller } from '../audio/filler';
 import { openPartialCaption } from '../audio/partial';
 import scriptJson from '../../content/script.json';
 
@@ -398,7 +398,7 @@ export class SceneKit {
     this.busy = true;
     this.speechTurn = isSpeech;
     this.turnCount++;
-    if (isSpeech) {
+    if (shouldPlayFiller(isSpeech, this.agentLive)) {
       this.deps.hud.setMic('thinking');
       this.playFiller();
     }

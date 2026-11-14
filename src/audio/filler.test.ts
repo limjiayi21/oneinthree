@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fillerKind, fillerSamples } from './filler';
+import { fillerKind, fillerSamples, shouldPlayFiller } from './filler';
 import { DEMO_SEED, resolveSeed } from '../../shared/demo';
 
 describe('filler', () => {
@@ -15,6 +15,12 @@ describe('filler', () => {
       expect(Math.max(...samples.map(Math.abs))).toBeGreaterThan(0.05);
     }
     expect(fillerSamples('sigh').length).toBeGreaterThan(fillerSamples('huh').length);
+  });
+
+  it('does not play a local reaction over a live agent call', () => {
+    expect(shouldPlayFiller(true, false)).toBe(true);
+    expect(shouldPlayFiller(true, true)).toBe(false);
+    expect(shouldPlayFiller(false, false)).toBe(false);
   });
 });
 

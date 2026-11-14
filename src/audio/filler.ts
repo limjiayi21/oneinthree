@@ -5,6 +5,11 @@
  */
 export type FillerKind = 'huh' | 'scoff' | 'sigh';
 
+/** The live agent already speaks. A local filler on top of that call is a second voice. */
+export function shouldPlayFiller(isSpeech: boolean, agentLive: boolean): boolean {
+  return isSpeech && !agentLive;
+}
+
 export function fillerKind(stance: string | undefined): FillerKind {
   if (stance === 'hostile' || stance === 'intimidate' || stance === 'escalate') return 'scoff';
   if (stance === 'back_off' || stance === 'guilt' || stance === 'gone') return 'sigh';
