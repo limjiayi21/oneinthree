@@ -13,7 +13,7 @@ const markdown = readFileSync(new URL('../data/harassment_research.md', import.m
 
 function claims(): ResearchClaim[] {
   const d = HARASSMENT_RESEARCH.debrief;
-  return [...HARASSMENT_RESEARCH.behaviors, ...HARASSMENT_RESEARCH.responses, ...HARASSMENT_RESEARCH.fiveDs, d.noRightResponse, d.firmBoundary, d.fiveDCitation, d.bystanderStops];
+  return [...HARASSMENT_RESEARCH.behaviors, ...HARASSMENT_RESEARCH.responses, ...HARASSMENT_RESEARCH.fiveDs, ...Object.values(HARASSMENT_RESEARCH.replayTips), d.noRightResponse, d.firmBoundary, d.fiveDCitation, d.bystanderStops];
 }
 
 describe('harassment research file', () => {

@@ -22,6 +22,7 @@ import type {
 import type { LogEntry, SessionMeta } from './log';
 import { EVIDENCE, PARAMS, type Params } from './model/params';
 import { HARASSMENT_RESEARCH } from './research';
+import { buildReplay } from './replay';
 
 const STRATEGY_LABEL: Record<Strategy, string> = {
   ignore: 'Said nothing',
@@ -528,5 +529,7 @@ export function buildSummary(meta: SessionMeta, log: LogEntry[], finalOutcome: O
   };
   if (caseStudyId) summary.caseStudyId = caseStudyId;
   if (pov === 'bystander') summary.fiveDs = fiveDs(log, outcome);
+  const replay = buildReplay(log, pov);
+  if (replay.length) summary.replay = replay;
   return summary;
 }

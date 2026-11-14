@@ -2,7 +2,7 @@
 
 A first-person simulation of street harassment, built to replace slide-deck respect, consent and bystander-intervention training.
 
-You walk home at night in New York as a woman while a persistent man approaches. Then you walk the same street again as a bystander who sees it happen. Each part ends with a debrief built from cited research.
+You walk home at night in New York as a woman while a persistent man approaches. Then you walk the same street again as a bystander who sees it happen. On either briefing, Practice the 5Ds or Walk home instead switches role without a new street. Each part ends with a debrief: a replay of the key moments, each with a short tip from the cited research file, then the rest of the debrief.
 
 It is not a game. Nothing graphic is shown: the scene cuts to black at the first moment of physical escalation.
 

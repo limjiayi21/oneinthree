@@ -43,3 +43,4 @@ Right To Be (formerly Hollaback!) teaches five ways to intervene. Four are indir
 - The line writer and the ElevenLabs agent receive the short pattern note in `promptBrief`. It has no numbers, so the model cannot recite a statistic it was not given. The stance is still chosen before the line.
 - A firm boundary together with a bystander forces him to back off. The rule text names Cornell and Stop Street Harassment and says there is no measured rate.
 - The debrief names which of the 5Ds were used and links the guide. A woman's debrief links the 2014 survey and does not claim her choice controlled him.
+- The end-of-run replay keeps only the key moments: a firm no, an escalation, filming, a physical gesture, a bystander action. Each one uses the short tip in `replayTips`, with the same sources.
