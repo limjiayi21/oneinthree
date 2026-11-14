@@ -16,6 +16,8 @@ export const EASE_END = 2.3;
 export const STOP_MIN_MS = 450;
 export const MAX_COAST_MS = 1400;
 export const HURRY_RATIO = 0.75;
+/** Steps faster than this share of the normal interval are running in place (sprint). */
+export const RUN_RATIO = 0.62;
 /** Phone walking takes longer strides than the W key (1.45 m/s becomes about 1.8 m/s, still under the 2.0 m/s "sped up" line). Hurry speed is capped, so it is unchanged. */
 export const PHONE_STRIDE = 1.25;
 export const DEFAULT_NORMAL_MS = 550;
@@ -23,7 +25,7 @@ export const CALIBRATION_STEPS = 8;
 
 export interface StepRhythm {
   step(phoneAtMs: number, receivedAtMs: number): void;
-  state(nowMs: number): 'stopped' | 'walking' | 'hurrying';
+  state(nowMs: number): 'stopped' | 'walking' | 'hurrying' | 'running';
   /** Walking speed, 0 (stopped) .. 1 (full). */
   drive(nowMs: number): number;
   readonly normalMs: number;
@@ -70,7 +72,8 @@ export function createStepRhythm(): StepRhythm {
     state(nowMs) {
       if (this.drive(nowMs) === 0) return 'stopped';
       if (!recent.length) return 'walking';
-      return median(recent) < HURRY_RATIO * normal ? 'hurrying' : 'walking';
+      const pace = median(recent);
+      return pace < RUN_RATIO * normal ? 'running' : pace < HURRY_RATIO * normal ? 'hurrying' : 'walking';
     },
     get normalMs() {
       return normal;
@@ -94,7 +97,7 @@ export interface PhoneLink {
   /** True once a phone has ever joined this pairing. */
   readonly everConnected: boolean;
   onChange(cb: () => void): () => void;
-  move(nowMs: number): { forward: number; hurry: boolean };
+  move(nowMs: number): { forward: number; hurry: boolean; run: boolean };
   close(): void;
 }
 
@@ -210,8 +213,9 @@ export function createPhoneLink(): PhoneLink {
     },
     move(nowMs) {
       if (status === 'connected' && nowMs - lastMsgAt >= SILENT_AFTER_MS) lose();
-      if (status !== 'connected') return { forward: 0, hurry: false };
-      return { forward: rhythm.drive(nowMs) * PHONE_STRIDE, hurry: rhythm.state(nowMs) === 'hurrying' };
+      if (status !== 'connected') return { forward: 0, hurry: false, run: false };
+      const state = rhythm.state(nowMs);
+      return { forward: rhythm.drive(nowMs) * PHONE_STRIDE, hurry: state === 'hurrying' || state === 'running', run: state === 'running' };
     },
     close() {
       window.clearTimeout(retry);

@@ -57,6 +57,7 @@ There is no speed sensor. The phone counts steps; the game turns step rhythm int
   - otherwise: walking forward (same as holding W)
 - Normal interval starts at 0.55 s and is replaced by the player's own median after their first 8 steps (simple calibration).
 - The phone adds to `MoveIntent` in `src/player/input.ts`; it never overrides a key the player is holding.
+- Steps faster than 0.62 of the normal interval: running (keyboard: double-tap and hold Shift). Running is a short burst (`src/player/stamina.ts`): 4 s at 3.4 m/s, then winded for 6 s at walking pace, refilling over 8 s. It buys distance from him (he follows at up to 2.4 m/s) but cannot carry her home. Running is reported to the model only through the existing `sped_up` event; a separate event needs the owner's sign-off.
 
 ## Phases
 

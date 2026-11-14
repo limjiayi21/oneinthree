@@ -22,6 +22,7 @@ import type { DynamicCollider, Engine, Player, PlayerEvents, StreetWorld } from 
 import { createBody, type BodyFrame, type BodyKind } from './body';
 import { circlePenetration, clampToBounds, pushOutOfCircle, pushOutOfRect, type Vec2 } from './collision';
 import { createInput, type MoveIntent } from './input';
+import { exertion, freshStamina, stepStamina } from './stamina';
 import { DEG, Spring, clamp, clamp01, createRng, damp, easeOutCubic, forwardX, forwardZ, lerp, smoothstep, wrapAngle, yawOf } from './mathx';
 
 export interface PlayerOptions {
@@ -34,7 +35,7 @@ export interface PlayerOptions {
    */
   requireLock?: boolean;
   /** Extra movement source (the paired phone), added to the keys. */
-  extraMove?: () => { forward: number; hurry: boolean } | null;
+  extraMove?: () => { forward: number; hurry: boolean; run?: boolean } | null;
 }
 
 /** Additive reaction layers, for tests and the dev harness. Everything is 0 at rest. */
@@ -74,6 +75,8 @@ export interface PlayerController extends Player {
   readonly pitch: number;
   readonly radius: number;
   readonly body: BodyKind;
+  /** 0..1 how out of breath she is from sprinting (drives breathing and heartbeat). */
+  readonly exertion: number;
   /** Set the look direction directly (harness / cutscenes). */
   setLook(yaw: number, pitch: number): void;
   getReactionState(): ReactionState;
@@ -83,6 +86,8 @@ export const PLAYER_TUNING = {
   radius: 0.3,
   walkSpeed: 1.45,
   hurrySpeed: 2.3,
+  /** Sprint: faster than his 2.4 m/s follow, so it buys distance, but only for a few seconds (stamina.ts). */
+  runSpeed: 3.4,
   /** Backwards and sideways are slower than forwards. */
   slowFactor: 0.7,
   accelRate: 7.5, // 1/s, exponential approach to the wanted velocity
@@ -162,7 +167,8 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
   let time = 0;
 
   // locomotion
-  const intent: MoveIntent = { forward: 0, strafe: 0, turn: 0, hurry: false };
+  const intent: MoveIntent = { forward: 0, strafe: 0, turn: 0, hurry: false, run: false };
+  const stamina = freshStamina();
   let phase = Math.PI / 2; // footfall at every multiple of PI
   let footIndex = 0;
   let gait = 0; // 0..1 leg / bob amplitude
@@ -452,6 +458,9 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
 
     input.read(intent);
     const canMove = inputEnabled && inputFreeze <= 0 && suppressTail <= 0;
+    const wasRunning = stamina.running;
+    stepStamina(stamina, canMove && intent.run && intent.forward > 0, dt);
+    if (wasRunning && !stamina.running) input.endSprint();
 
     /* --- keyboard turning (no-lock mode only) */
     const wantTurn = inputEnabled ? intent.turn * T.keyTurnRate : 0;
@@ -464,8 +473,11 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     if (canMove) {
       const f = intent.forward;
       const s = intent.strafe;
-      const fwdSpeed = intent.hurry ? T.hurrySpeed : T.walkSpeed;
-      lf = f > 0 ? Math.min(fwdSpeed * f, T.hurrySpeed) : f < 0 ? -T.walkSpeed * T.slowFactor : 0;
+      // Winded after a sprint: walking pace only. Keys give f = 1; the phone may give more (longer strides).
+      const winded = stamina.winded > 0;
+      const fwdSpeed = stamina.running ? T.runSpeed : intent.hurry && !winded ? T.hurrySpeed : T.walkSpeed;
+      const topSpeed = stamina.running ? T.runSpeed : winded ? T.walkSpeed : T.hurrySpeed;
+      lf = f > 0 ? Math.min(fwdSpeed * f, topSpeed) : f < 0 ? -T.walkSpeed * T.slowFactor : 0;
       ls = s * T.walkSpeed * T.slowFactor * (intent.hurry && f > 0 ? 1.25 : 1);
       if (f !== 0 && s !== 0) {
         lf *= Math.SQRT1_2;
@@ -746,6 +758,9 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
 
     get speed() {
       return Math.hypot(vel.x, vel.z);
+    },
+    get exertion() {
+      return exertion(stamina);
     },
     get yaw() {
       return yaw;
