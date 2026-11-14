@@ -21,6 +21,7 @@ import type {
   WorldContext,
 } from '../../shared/types';
 import { addressOf } from './address';
+import { gateStance, isClearFirm } from './stanceGate';
 import { decideExpression, type ExpressionDecision } from '../../shared/expression';
 import { PARAMS, param, val, weakestBasis, type Param, type Params } from './params';
 import { Rng, clamp01, normalise, round3 } from './rng';
@@ -163,6 +164,8 @@ export interface WomanState {
 export interface WomanInput {
   event: ClientEventType;
   ctx: WorldContext;
+  /** Her words, when the event is speech. Used to stop a greeting from being treated as a no. */
+  text?: string;
   /** Distribution over how she responded (from Clef, or the keyword fallback). Omit for non-speech events. */
   strategyProbs?: Partial<Record<WomanStrategy, number>>;
   /** Extra typed readings of her words, each 0..1. */
@@ -804,7 +807,18 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
   }
 
   const posterior = forced ? prior : blendWithReading(prior, event === 'speech' ? input.reaction : undefined, strategy, params);
-  const next = rng.sample<ManStance>(posterior as Record<ManStance, number>);
+  const sampled = rng.sample<ManStance>(posterior as Record<ManStance, number>);
+  const next = forced
+    ? sampled
+    : gateStance(state.stance, sampled, {
+        text: input.text ?? '',
+        turn: state.turn,
+        rejections: state.rejections,
+        bystander: false,
+        seekingHelp: strategy === 'seek_help' || strategy === 'threaten_attention',
+        clearFirm: isClearFirm(input.text ?? ''),
+        insult: strategy === 'hostile',
+      });
 
   /* ---- bookkeeping -------------------------------------------------------- */
   let gain = 0;

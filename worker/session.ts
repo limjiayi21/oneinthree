@@ -45,7 +45,7 @@ import { emptyMemory, memoryBlock, noteTurn, type ConversationMemory } from './m
 import { agentVariables } from '../shared/liveVoice';
 import { coarseExpression } from '../shared/expression';
 import { agentTurnSkipsVoice, mintSignedUrl } from './agent';
-import { addressOf, addressOfBystander, groundedLine } from './model/address';
+import { addressOf, addressOfBystander, groundedLine, lineAcknowledges } from './model/address';
 import { MAX_CLIP_BYTES, transcribe } from './stt';
 import { buildSummary } from './summary';
 import { LiveAudio, startTts, type AudioSpec } from './tts';
@@ -444,6 +444,7 @@ export class SessionDO extends DurableObject<Env> {
     decision: ManDecision | null,
     tension: number,
     ms: Record<string, number>,
+    gate: { fromStance: ManStance; text: string; turn: number; rejections: number; seekingHelp: boolean },
   ): Promise<{ decision: ManDecision; tension: number; rule: string | null } | null> {
     if (!decision || !['speech', 'silence', 'filming_start', 'stood_between', 'asked_clerk'].includes(event)) return null;
     const reading = await pending;
@@ -457,7 +458,14 @@ export class SessionDO extends DurableObject<Env> {
     const beat = composeBeat(
       { stance: decision.stance, emotion: decision.emotion, emotionIntensity: decision.emotionIntensity, action: decision.action, tension },
       reading,
-      { bystanderIntervened: pov === 'bystander' && event !== 'silence' },
+      {
+        bystanderIntervened: pov === 'bystander' && event !== 'silence',
+        text: gate.text,
+        fromStance: gate.fromStance,
+        turn: gate.turn,
+        rejections: gate.rejections,
+        seekingHelp: gate.seekingHelp,
+      },
     );
     return { decision: applyToDecision(decision, beat), tension: beat.tension, rule: beat.rule };
   }
@@ -476,6 +484,9 @@ export class SessionDO extends DurableObject<Env> {
     agentVoice = false,
   ): Promise<void> {
     const state = s.woman as WomanState;
+    const fromStance = state.stance;
+    const rejectionsBefore = state.rejections;
+    const turnBefore = state.turn;
     const rng = new Rng(s.rng);
     const pendingJudge = this.prefetchJudge(s.meta.pov, event, text, s.transcript, ctx, state.stance);
     // Wording choices draw from their own stream, so the decisions replay under a fixed seed whichever path writes the line.
@@ -490,7 +501,10 @@ export class SessionDO extends DurableObject<Env> {
       s.transcript.push(`HER: ${text}`);
       if (this.env.AI) {
         const guess = heuristicWomanRead(text);
-        const trial = decideWoman(state, { event, ctx, strategyProbs: guess.strategyProbs, signals: guess.signals }, new Rng(s.rng));
+        // A copy: the real decision still has to run on the untouched state. The old call
+        // advanced the live machine, so one "hello" was decided twice and the line could
+        // be written for a retreat the player never earned.
+        const trial = decideWoman({ ...state }, { event, ctx, text, strategyProbs: guess.strategyProbs, signals: guess.signals }, new Rng(s.rng));
         if (trial.decision && trial.speak && !FIXED_COPY_STANCES.includes(trial.decision.stance)) {
           early = this.startWomanLine(s, trial.decision, trial.strategy, event, text, ctx, copy);
         }
@@ -516,9 +530,15 @@ export class SessionDO extends DurableObject<Env> {
     }
 
     const t1 = Date.now();
-    const out = decideWoman(state, { event, ctx, strategyProbs: read?.strategyProbs, signals: read?.signals, reaction: read?.reaction }, rng);
+    const out = decideWoman(state, { event, ctx, text, strategyProbs: read?.strategyProbs, signals: read?.signals, reaction: read?.reaction }, rng);
     ms.decide = Date.now() - t1;
-    const judged = await this.finishJudge(pendingJudge, s.meta.pov, event, out.decision, out.tension, ms);
+    const judged = await this.finishJudge(pendingJudge, s.meta.pov, event, out.decision, out.tension, ms, {
+      fromStance,
+      text,
+      turn: turnBefore,
+      rejections: rejectionsBefore,
+      seekingHelp: event === 'entered_shop',
+    });
     if (judged && out.decision) {
       out.decision = judged.decision;
       out.state.stance = judged.decision.stance;
@@ -670,7 +690,11 @@ export class SessionDO extends DurableObject<Env> {
         memory: s.memory,
       }),
       keys: ['line', 'thought'],
-      validate: (key, value) => (key === 'line' ? cleanLine(value, { maxWords: 20, avoid: s.hisLines }) : cleanLine(value, { maxWords: 14, avoid: s.thoughts })),
+      validate: (key, value) => {
+        const cleaned = key === 'line' ? cleanLine(value, { maxWords: 20, avoid: s.hisLines }) : cleanLine(value, { maxWords: 14, avoid: s.thoughts });
+        if (key === 'line' && cleaned && text && !lineAcknowledges(cleaned, text)) return null;
+        return cleaned;
+      },
       onField: (key, value) => fields.push(key, value),
       signal: abort.signal,
     });
@@ -692,6 +716,8 @@ export class SessionDO extends DurableObject<Env> {
     agentVoice = false,
   ): Promise<void> {
     const state = s.bystander as BystanderState;
+    const fromStance = state.manStance;
+    const turnBefore = state.dynamicTurns;
     if (event === 'speech' && text) this.rememberTurn(s, 'player', text);
     const pendingJudge = this.prefetchJudge(s.meta.pov, event, text, s.transcript, ctx, state.manStance);
     const rng = new Rng(s.rng);
@@ -723,7 +749,13 @@ export class SessionDO extends DurableObject<Env> {
       rng,
     );
     ms.decide = Date.now() - t1;
-    const judged = await this.finishJudge(pendingJudge, s.meta.pov, event, out.man, out.tension, ms);
+    const judged = await this.finishJudge(pendingJudge, s.meta.pov, event, out.man, out.tension, ms, {
+      fromStance,
+      text,
+      turn: turnBefore,
+      rejections: 0,
+      seekingHelp: event === 'asked_clerk',
+    });
     if (judged && out.man) {
       out.man = judged.decision;
       out.state.manStance = judged.decision.stance;

@@ -8,17 +8,17 @@ Every "she did X, he did Y" probability behind these numbers is an assumption: n
 
 | Her response (every exchange) | He gave up, home alone | Home, still followed | Took refuge | Physical escalation | He turned verbally hostile | Close-range menace | Followed or blocked | Stayed verbal only | Exchanges (mean) | Encounter seconds (mean / max) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| mixed | 94.8% | 3.6% | 0.0% | 1.5% | 36.6% | 6.0% | 25.2% | 73.7% | 2.5 | 40 / 104 |
-| ignore | 96.3% | 2.8% | 0.0% | 0.9% | 29.7% | 3.6% | 26.6% | 72.9% | 2.4 | 39 / 106 |
-| polite_deflect | 93.4% | 5.7% | 0.0% | 0.9% | 23.6% | 4.4% | 37.1% | 62.3% | 2.9 | 43 / 109 |
-| firm_boundary | 93.1% | 4.8% | 0.0% | 2.1% | 47.0% | 3.9% | 16.6% | 81.8% | 2.5 | 39 / 102 |
-| hostile | 71.8% | 20.2% | 0.0% | 8.0% | 76.4% | 30.8% | 14.4% | 78.6% | 3.9 | 50 / 101 |
-| excuse | 95.2% | 4.1% | 0.0% | 0.7% | 22.2% | 4.0% | 35.5% | 64.0% | 2.6 | 41 / 109 |
+| mixed | 89.7% | 7.9% | 0.0% | 2.4% | 54.0% | 9.1% | 38.3% | 59.9% | 4.4 | 56 / 104 |
+| ignore | 91.0% | 7.2% | 0.0% | 1.8% | 48.0% | 6.7% | 44.7% | 54.2% | 4.7 | 59 / 106 |
+| polite_deflect | 87.8% | 10.7% | 0.0% | 1.5% | 36.4% | 6.8% | 56.9% | 42.3% | 5.0 | 61 / 109 |
+| firm_boundary | 86.2% | 10.1% | 0.0% | 3.8% | 73.7% | 6.9% | 28.4% | 68.8% | 4.8 | 59 / 106 |
+| hostile | 69.5% | 22.1% | 0.0% | 8.4% | 86.3% | 33.9% | 16.0% | 76.7% | 4.4 | 54 / 101 |
+| excuse | 90.0% | 8.6% | 0.0% | 1.4% | 34.9% | 6.6% | 56.2% | 43.1% | 4.9 | 60 / 109 |
 | threaten_attention | 96.7% | 2.1% | 0.0% | 1.2% | 34.8% | 5.3% | 17.0% | 82.0% | 2.1 | 37 / 103 |
-| engage | 95.5% | 3.6% | 0.0% | 0.9% | 20.8% | 4.0% | 8.6% | 90.7% | 6.0 | 71 / 220 |
-| plead | 94.7% | 4.5% | 0.0% | 0.9% | 22.6% | 8.6% | 35.8% | 63.7% | 2.7 | 42 / 109 |
-| shop | 17.9% | 0.0% | 82.1% | 0.0% | 20.3% | 1.4% | 19.7% | 80.3% | 1.3 | 22 / 31 |
-| stand_still | 99.1% | 0.0% | 0.0% | 0.9% | 28.8% | 3.5% | 6.3% | 92.9% | 2.4 | 30 / 131 |
+| engage | 94.7% | 4.0% | 0.0% | 1.3% | 26.0% | 4.8% | 11.0% | 88.0% | 7.7 | 86 / 220 |
+| plead | 89.3% | 9.2% | 0.0% | 1.6% | 33.8% | 13.9% | 56.6% | 42.5% | 4.9 | 60 / 109 |
+| shop | 0.0% | 0.0% | 100.0% | 0.0% | 22.2% | 1.6% | 22.0% | 78.0% | 1.5 | 22 / 31 |
+| stand_still | 97.9% | 0.0% | 0.0% | 2.1% | 47.8% | 6.9% | 11.8% | 86.4% | 4.9 | 53 / 182 |
 
 "shop" = says nothing, then walks into the shop after two or three exchanges. "stand_still" = never moves and never speaks (tests the time limit). Physical escalation for the realistic mix must stay inside 0..0.05 (base.physical_escalation_per_run, basis: assumption); "stayed verbal only" (no following, blocking or contact) must stay inside the range of base.encounter_stays_verbal_only.
 

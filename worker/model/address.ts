@@ -194,6 +194,13 @@ export function groundedLine(input: GroundedInput): string | null {
 }
 
 /** A word from the player's line that a logical reply should pick up, if any. */
+/** True when the line picks up something she actually said, or there was nothing to pick up. */
+export function lineAcknowledges(line: string, utterance: string): boolean {
+  const quote = quoteFragment(utterance);
+  if (!quote) return true;
+  return line.toLowerCase().includes(quote.toLowerCase());
+}
+
 export function contentWord(text: string): string | null {
   const skip = new Set(['the', 'a', 'an', 'i', 'you', 'me', 'my', 'to', 'and', 'of', 'it', 'is', 'am', 'im', "i'm", 'just', 'that', 'this']);
   const words = text
