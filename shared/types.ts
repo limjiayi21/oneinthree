@@ -294,4 +294,5 @@ export const API = {
   session: '/api/session',
   turn: (id: string) => `/api/session/${id}/turn`,
   summary: (id: string) => `/api/session/${id}/summary`,
+  guided: (id: string) => `/api/session/${id}/guided`,
 } as const;

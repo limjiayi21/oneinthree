@@ -3,6 +3,7 @@ import {
   type CreateSessionRequest,
   type CreateSessionResponse,
   type HealthResponse,
+  type OutcomeKind,
   type SummaryData,
   type TurnEvent,
   type TurnRequest,
@@ -33,6 +34,24 @@ export async function createSession(req: CreateSessionRequest): Promise<CreateSe
 
 export async function getSummary(sessionId: string): Promise<SummaryData> {
   return json<SummaryData>(await fetch(API.summary(sessionId)));
+}
+
+/**
+ * Record the first choice picked at each guided moment against the Part 2
+ * session, for aggregate counts. Choice ids only; never any words. Best effort:
+ * failures are ignored.
+ */
+export async function postGuided(sessionId: string, choices: Record<string, string>, outcome: OutcomeKind): Promise<void> {
+  try {
+    await fetch(API.guided(sessionId), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ choices, outcome }),
+      keepalive: true,
+    });
+  } catch {
+    /* logging must never get in the way */
+  }
 }
 
 /**

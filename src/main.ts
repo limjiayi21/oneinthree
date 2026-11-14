@@ -4,7 +4,7 @@ import { createAudio } from './audio/engine';
 import { createMic } from './audio/mic';
 import { createHud } from './ui/hud';
 import { createScreens } from './ui/screens';
-import { getHealth, getSummary } from './net/api';
+import { getHealth, getSummary, postGuided } from './net/api';
 import { createPhoneLink } from './net/phoneLink';
 import { runWomanWalkHome } from './scenarios/womanWalkHome';
 import { runBystanderWalkHome } from './scenarios/bystanderWalkHome';
@@ -125,6 +125,8 @@ async function main(): Promise<void> {
 
   for (;;) {
     let exited = false;
+    /** The Part 2 run the guided replay's choices are logged against (the last one, after any "Walk it again"). */
+    let part2: SceneResult | null = null;
 
     if (!skip.has('part1')) {
       for (;;) {
@@ -151,6 +153,7 @@ async function main(): Promise<void> {
         world.setDoorOpen('home', false);
         const result = await runBystanderWalkHome(deps);
         hud.setVisible(false);
+        part2 = result;
         if (result.outcome === 'exited') {
           exited = true;
           break;
@@ -168,6 +171,7 @@ async function main(): Promise<void> {
       world.setDoorOpen('home', false);
       const guided = await runGuidedWalkHome(deps);
       hud.setVisible(false);
+      if (part2?.sessionId && Object.keys(guided.firstChoices).length) void postGuided(part2.sessionId, guided.firstChoices, part2.outcome);
       if (!guided.exited) await screens.guidedEnd({ used: guided.used, closing: GUIDED.closing });
     }
 
