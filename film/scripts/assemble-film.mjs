@@ -42,51 +42,56 @@ const W = 1280, H = 720, FPS = 24, LENGTH = 30, XF = 0.3, FADE_OUT = 1.5;
 
 // ---------------------------------------------------------------- the script
 
-/** Narration speed-up (pitch kept) so every line fits in 30 s, and the pause between lines. */
-const TEMPO = 1.13;
-const GAP = 0.16;
-/** When the first line starts (the montage cuts to silence at 4.8 s), and the latest the last may end. */
+/**
+ * The film in four parts:
+ *   1. the walk:   black + montage, then clip A under "For you, that was a simulation…"
+ *   2. pile-up:    66%, 44% and "1 in 3" spoken over each other STAGGER s apart,
+ *                  fast cuts D -> B -> C, the numbers stacking up on screen, heartbeat
+ *                  and follower rising, then a hard cut to black and silence
+ *   3. the quiet:  on black, alone: "Only twenty-five percent… say someone helped."
+ *   4. the turn:   clip E (the push-in across the road): "But sometimes, someone is
+ *                  there.", then "This time, you're the one. What would you do?"
+ * Every time is worked out from the narration lengths in plan().
+ */
+const TEMPO = 1.04; // narration speed-up (pitch kept)
+const STAGGER = 2.05; // seconds between the overlapping stat lines
 const NARRATION_START = 5.1;
 const NARRATION_END_BY = 29.6;
 
-/**
- * The film, line by line. shot: the clip under the line (a shot runs until the
- * next line that names a different one). card: the on-screen text for it.
- * Shots: file, where to start in it, and maxSource (seconds of the source that
- * may be used; a longer slot is slowed to fit).
- */
 const SHOTS = {
   A: { file: 'video/A-veo.mp4', from: 0, maxSource: 6 }, // the walk, original speed (it brightens after 6 s)
   D: { file: 'edit/D.mp4', from: 0 }, // the empty street, rain
   B: { file: 'edit/B.mp4', from: 0 }, // keys (the calm 4 s of the clip, slowed)
   C: { file: 'video/C-veo.mp4', from: 0, maxSource: 3 }, // the shadow; after 3 s the light cuts out and strobes
-  E: { file: 'edit/E.mp4', from: 0 }, // from across the road (the road stays visible)
+  E: { file: 'edit/E.mp4', from: 0 }, // the push-in from across the road (road visible throughout)
 };
-const LINES = [
-  { file: 'narration-1-female.mp3', shot: 'A', card: { kind: 'caption', text: 'For you, that was a simulation. For many women, it’s an ordinary walk home.' } },
-  { file: 'narration-stat-66-female.mp3', shot: 'D', card: { kind: 'stat', id: 'ssh2018_public_66' } },
-  { file: 'narration-stat-44-female.mp3', shot: 'B', card: { kind: 'stat', id: 'yougov_keys_44' } },
-  { file: 'narration-stat-34-female.mp3', shot: 'C', card: { kind: 'stat', id: 'ssh2018_followed_34' } },
-  { file: 'narration-stat-25-female.mp3', shot: 'E', card: { kind: 'stat', id: 'loreal_helped_25' } },
-  { file: 'narration-hook-female.mp3', shot: 'E', card: { kind: 'closing', text: 'This time, you’re the one. What would you do?' } },
+
+const OPENING = { file: 'narration-1-female.mp3', text: 'For you, that was a simulation. For many women, it’s an ordinary walk home.' };
+/** The pile-up, in order. short: the on-screen phrase (the words she says); the full wording is in the text track. */
+const PILEUP = [
+  { file: 'narration-stat-66-female.mp3', shot: 'D', id: 'ssh2018_public_66', short: 'of women in the US have been sexually harassed in public.', pan: -0.45 },
+  { file: 'narration-stat-44-female.mp3', shot: 'B', id: 'yougov_keys_44', short: 'of women in the UK hold their keys ready to defend themselves.', pan: 0.45 },
+  { file: 'narration-stat-34-female.mp3', shot: 'C', id: 'ssh2018_followed_34', short: 'women in the US have been followed.', pan: 0 },
 ];
+const QUIET = { file: 'narration-stat-25-female.mp3', id: 'loreal_helped_25' };
+const SOMEONE = { file: 'narration-3-female.mp3', text: 'But sometimes, someone is there.' };
+const HOOK = { file: 'narration-hook-female.mp3', text: 'This time, you’re the one. What would you do?' };
 
 /** Target loudness (LUFS) of each source before mixing, as measured with ebur128. */
 const NARRATION_LUFS = -16;
 const MUSIC_BELOW = 20; // dB under the narration
+/** An older pile-up voice drops this far (linear) when the next one comes in. */
+const DUCK = 0.42;
 
 /** Filled in by plan(). */
 let SCENES = [];
 let AUDIO = [];
-let CARDS = [];
-let BANDS = [];
-let TIMES = [];
+let LAYERS = [];
+let CUES = [];
+let TIMES = {};
 
-/**
- * Layout in pixels of the 1280x720 frame: side margin, the stat block's top
- * edge and maximum width, and the caption's distance from the bottom.
- */
-export const LAYOUT = { side: 96, statTop: 448, statMaxWidth: 700, captionBottom: 46 };
+/** Layout in pixels of the 1280x720 frame. */
+export const LAYOUT = { side: 96, statTop: 448, statMaxWidth: 700, captionBottom: 46, stackTop: 318, stackRow: 92 };
 
 /** Trim a narration line's leading and trailing silence and speed it up; returns the new file and its length. */
 function prepareLine(file) {
@@ -94,65 +99,100 @@ function prepareLine(file) {
   const trim = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.03';
   ff(['-i', A(file), '-af', `${trim},areverse,${trim},areverse,atempo=${TEMPO}`, '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s24le', out]);
   const dur = Number(sh('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', out]).toString().trim());
-  return { out, dur };
+  return { wav: out, dur };
 }
+const frame = (t) => Math.round(t * FPS) / FPS;
 
-/** Lay the narration end to end, then hang the shots, cards, bands and sound off it. */
 function plan() {
-  let t = NARRATION_START;
-  TIMES = LINES.map((l) => {
-    const { out, dur } = prepareLine(l.file);
-    const at = t;
-    t = at + dur + GAP;
-    return { ...l, wav: out, at, until: at + dur, dur };
-  });
-  const last = TIMES[TIMES.length - 1];
-  if (last.until > NARRATION_END_BY) throw new Error(`narration ends at ${last.until.toFixed(2)} s, after ${NARRATION_END_BY} s: raise TEMPO or shorten a line`);
+  // ---- narration times
+  const line = (spec, at) => {
+    const p = prepareLine(spec.file);
+    return { ...spec, ...p, at, until: at + p.dur };
+  };
+  const opening = line(OPENING, NARRATION_START);
+  const p0 = frame(opening.until + 0.3);
+  const pile = PILEUP.map((spec, i) => line(spec, p0 + i * STAGGER));
+  const cut = frame(Math.max(...pile.map((l) => l.until)) + 0.08); // hard cut to black and silence
+  const quiet = line(QUIET, cut + 0.55);
+  const eAt = frame(quiet.until + 0.35);
+  const someone = line(SOMEONE, eAt + 0.45);
+  const hook = line(HOOK, someone.until + 0.45);
+  if (hook.until > NARRATION_END_BY) throw new Error(`narration ends at ${hook.until.toFixed(2)} s, after ${NARRATION_END_BY} s: raise TEMPO or tighten STAGGER`);
+  TIMES = { opening, pile, cut, quiet, eAt, someone, hook };
 
-  // Shots: black under the montage, then a cut 0.1 s before the first line of each new shot.
-  SCENES = [{ name: 'black', at: 0, slot: 5 }];
-  for (const l of TIMES) {
-    if (SCENES[SCENES.length - 1].name === l.shot) continue;
-    const at = SCENES.length === 1 ? 5 : Math.round((l.at - 0.1) * FPS) / FPS;
-    SCENES.push({ name: l.shot, at, ...SHOTS[l.shot] });
-  }
+  // ---- picture. xf: the crossfade into that scene (1 frame = a hard cut).
+  const hard = 1 / FPS;
+  SCENES = [
+    { name: 'black', at: 0 },
+    { name: 'A', at: 5, xf: XF, ...SHOTS.A },
+    ...pile.map((l, i) => ({ name: l.shot, at: frame(l.at - 0.05), xf: i === 0 ? XF : 0.12, ...SHOTS[l.shot] })),
+    { name: 'black', at: cut, xf: hard },
+    { name: 'E', at: eAt, xf: 0.6, ...SHOTS.E },
+  ];
   SCENES.forEach((s, i) => (s.slot = (i + 1 < SCENES.length ? SCENES[i + 1].at : LENGTH) - s.at));
 
-  // Cards: each with its line. Stats hold until just after the line; the closing holds to the end.
-  CARDS = TIMES.map((l) => {
-    const scene = [...SCENES].reverse().find((s) => s.at <= l.at);
-    const sceneEnd = scene.at + scene.slot;
-    if (l.card.kind === 'closing') return { ...l.card, at: l.at - 0.2, until: LENGTH };
-    return { ...l.card, at: Math.max(scene.at + 0.15, l.at - 0.1), until: Math.min(sceneEnd, l.until + 0.45) };
+  // ---- text layers (drawn in this order)
+  LAYERS = [];
+  const layer = (name, card, at, until, fadeIn = XF, fadeOut = XF) => LAYERS.push({ name, card, at, until, fadeIn, fadeOut });
+  layer('band-opening', { kind: 'band' }, opening.at + 0.2, p0 - 0.05);
+  layer('caption-opening', { kind: 'caption', text: OPENING.text }, opening.at + 0.2, p0 - 0.05);
+  // The pile-up: one card per stage, each showing every stat so far; the newest bright, the rest dimmed.
+  layer('band-pileup', { kind: 'band', tall: true }, pile[0].at - 0.1, cut, 0.2, hard);
+  pile.forEach((l, i) => {
+    const until = i + 1 < pile.length ? pile[i + 1].at + 0.12 : cut;
+    layer(`stack-${i + 1}`, { kind: 'stack', rows: pile.slice(0, i + 1).map((r) => ({ id: r.id, short: r.short })) }, l.at - 0.08, until, i === 0 ? 0.2 : 0.12, i + 1 < pile.length ? 0.05 : hard);
   });
-  // Bands under the lower-third cards, merged where they touch.
-  BANDS = [];
-  for (const c of CARDS.filter((c) => c.kind !== 'closing')) {
-    const prev = BANDS[BANDS.length - 1];
-    if (prev && c.at - prev[1] < 0.6) prev[1] = Math.max(prev[1], c.until);
-    else BANDS.push([c.at, c.until]);
-  }
+  layer('solo-25', { kind: 'solo', id: QUIET.id }, quiet.at - 0.15, eAt + 0.5, 0.35, 0.5);
+  layer('band-someone', { kind: 'band' }, someone.at - 0.1, hook.at - 0.1);
+  layer('caption-someone', { kind: 'caption', text: SOMEONE.text }, someone.at - 0.1, hook.at - 0.1);
+  layer('closing', { kind: 'closing', text: HOOK.text }, hook.at - 0.2, LENGTH, XF, 0.2);
 
-  const span = (name) => {
-    const s = SCENES.find((x) => x.name === name);
-    return [s.at, s.at + s.slot];
+  // ---- text track: what is on screen, with the full stat wording and source
+  const full = (id) => {
+    const s = stat(id);
+    return `${s.headline} ${s.text} (Source: ${s.source})`;
   };
-  const [aAt] = span('A');
-  const [, dEnd] = span('D');
-  const [bAt, bEnd] = span('B');
-  const [cAt, cEnd] = span('C');
-  const [eAt] = span('E');
+  CUES = [
+    { at: 0, until: 4.8, text: '[A man calls out at a woman, again and again, over a heartbeat. Then silence.]' },
+    { at: opening.at, until: p0, text: OPENING.text },
+    ...pile.map((l, i) => ({ at: l.at, until: i + 1 < pile.length ? pile[i + 1].at : cut, text: full(l.id) })),
+    { at: quiet.at, until: eAt, text: full(QUIET.id) },
+    { at: someone.at, until: hook.at, text: SOMEONE.text },
+    { at: hook.at, until: LENGTH, text: HOOK.text },
+  ];
+
+  // ---- sound
+  const pileEnd = cut;
+  const bAt = SCENES.find((x) => x.name === 'B').at;
+  const cAt = SCENES.find((x) => x.name === 'C').at;
+  const stop = 0.03; // the hard cut
   AUDIO = [
     { file: 'montage-5s.wav', at: 0, until: 5, keep: true }, // already mixed and cut at 4.8 s
-    { file: 'sfx-ambience.mp3', at: aAt, until: LENGTH, loop: true, lufs: -34, fadeIn: XF },
-    { file: 'sfx-footsteps.mp3', at: aAt, until: bEnd + XF, loop: true, lufs: -30, fadeIn: XF, fadeOut: XF }, // her steps: the walk, the street, the keys
-    { file: 'sfx-keys.mp3', at: bAt, until: Math.min(bEnd, bAt + 6), lufs: -28, fadeIn: 0.15, fadeOut: XF },
-    { file: 'sfx-follower.mp3', at: cAt - 0.4, until: cEnd + XF, from: 10 - (cEnd + XF - cAt + 0.4), lufs: -28, ramp: [0.5, 1], fadeIn: 0.4, fadeOut: XF }, // the closest seconds
-    { file: 'sfx-heartbeat.mp3', at: cAt - 0.4, until: cEnd + 0.8, from: 15 - (cEnd + 0.8 - cAt + 0.4), lufs: -25, ramp: [0.5, 1], fadeIn: 0.4, fadeOut: 0.8 }, // the faster end
-    { file: 'music.mp3', at: aAt, until: LENGTH, from: 0, lufs: NARRATION_LUFS - MUSIC_BELOW, rise: { from: eAt, to: eAt + 2, db: 4 }, fadeIn: 0.5 },
-    ...TIMES.map((l) => ({ wav: l.wav, at: l.at, lufs: NARRATION_LUFS })),
+    // Part 1-2 bed, cut dead at the cut.
+    { file: 'sfx-ambience.mp3', at: 5, until: pileEnd, loop: true, lufs: -34, fadeIn: XF, fadeOut: stop },
+    { file: 'sfx-footsteps.mp3', at: 5, until: pileEnd, loop: true, lufs: -30, fadeIn: XF, fadeOut: stop },
+    { file: 'music.mp3', at: 5, until: pileEnd, lufs: NARRATION_LUFS - MUSIC_BELOW, fadeIn: 0.5, fadeOut: stop },
+    { file: 'sfx-keys.mp3', at: bAt, until: Math.min(cAt + 0.4, bAt + 6), lufs: -28, fadeIn: 0.1, fadeOut: 0.3 },
+    { file: 'sfx-follower.mp3', at: p0, until: pileEnd, from: Math.max(0, 10 - (pileEnd - p0)), lufs: -27, ramp: [0.3, 1.1], fadeIn: 0.5, fadeOut: stop },
+    { file: 'sfx-heartbeat.mp3', at: p0, until: pileEnd, from: Math.max(0, 15 - (pileEnd - p0)), lufs: -23, ramp: [0.35, 1.15], fadeIn: 0.5, fadeOut: stop },
+    // Part 4 bed: the street comes back quietly with the push-in, music rising a little.
+    { file: 'sfx-ambience.mp3', at: eAt, until: LENGTH, loop: true, lufs: -36, fadeIn: 1 },
+    { file: 'music.mp3', at: eAt, until: LENGTH, from: Math.max(0, pileEnd - 5), lufs: NARRATION_LUFS - MUSIC_BELOW, rise: { from: eAt + 1, to: eAt + 3, db: 4 }, fadeIn: 1.2 },
+    // Narration. Pile-up voices are panned apart and drop back when the next one starts.
+    { wav: opening.wav, at: opening.at, lufs: NARRATION_LUFS },
+    ...pile.map((l, i) => ({
+      wav: l.wav,
+      at: l.at,
+      lufs: NARRATION_LUFS,
+      pan: l.pan,
+      duckAt: i + 1 < pile.length ? pile[i + 1].at - l.at : null,
+      until: Math.min(l.until, pileEnd),
+      fadeOut: l.until > pileEnd ? stop : 0,
+    })),
+    { wav: quiet.wav, at: quiet.at, lufs: NARRATION_LUFS },
+    { wav: someone.wav, at: someone.at, lufs: NARRATION_LUFS },
+    { wav: hook.wav, at: hook.at, lufs: NARRATION_LUFS },
   ];
-  void dEnd;
 }
 
 // ---------------------------------------------------------------- helpers
@@ -219,6 +259,19 @@ html,body{margin:0;width:${W}px;height:${H}px;background:transparent;overflow:hi
 .stat .num{font:300 50px/1 var(--serif);font-variant-numeric:lining-nums proportional-nums;margin:0 0 8px}
 .stat .txt{font:400 20px/1.42 var(--sans);margin:0;text-wrap:pretty}
 .stat .src{font:400 13px/1.4 var(--sans);color:var(--ink-2);margin:8px 0 0;letter-spacing:.01em}
+.band.tall{height:${H - LAYOUT.stackTop + 70}px;
+  background:linear-gradient(to bottom,rgba(var(--bg),0) 0%,rgba(var(--bg),.6) 22%,rgba(var(--bg),.76) 50%,rgba(var(--bg),.82) 100%)}
+.stack{position:absolute;left:${LAYOUT.side}px;right:${LAYOUT.side}px;top:${LAYOUT.stackTop}px;color:var(--ink)}
+.row{height:${LAYOUT.stackRow}px;display:flex;flex-direction:column;justify-content:flex-start}
+.row.old{opacity:.4}
+.row .line{display:flex;align-items:baseline;gap:16px;margin:0}
+.row .num{font:300 54px/1 var(--serif);font-variant-numeric:lining-nums proportional-nums;white-space:nowrap}
+.row .txt{font:400 22px/1.25 var(--sans)}
+.row .src{font:400 13px/1.4 var(--sans);color:var(--ink-2);margin:6px 0 0;letter-spacing:.01em}
+.solo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--ink);padding:0 180px}
+.solo .num{font:300 96px/1 var(--serif);margin:0 0 18px}
+.solo .txt{font:400 26px/1.4 var(--sans);margin:0;max-width:780px;text-wrap:balance}
+.solo .src{font:400 14px/1.4 var(--sans);color:var(--ink-2);margin:16px 0 0}
 .closing{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   color:var(--ink);font:400 50px/1.15 var(--serif);text-align:center;padding:0 ${LAYOUT.side}px;
   text-shadow:0 2px 24px rgba(0,0,0,.55);
@@ -227,7 +280,18 @@ html,body{margin:0;width:${W}px;height:${H}px;background:transparent;overflow:hi
 
 function cardHtml(card) {
   let body = '';
-  if (card.kind === 'band') body = '<div class="band"></div>';
+  if (card.kind === 'band') body = `<div class="band${card.tall ? ' tall' : ''}"></div>`;
+  else if (card.kind === 'stack') {
+    body = `<div class="stack">${card.rows
+      .map((r, i) => {
+        const st = stat(r.id);
+        return `<div class="row${i < card.rows.length - 1 ? ' old' : ''}"><p class="line"><span class="num">${esc(st.headline)}</span><span class="txt">${esc(r.short)}</span></p><p class="src">Source: ${esc(st.source)}</p></div>`;
+      })
+      .join('')}</div>`;
+  } else if (card.kind === 'solo') {
+    const st = stat(card.id);
+    body = `<div class="solo"><p class="num">${esc(st.headline)}</p><p class="txt">${esc(st.text)}</p><p class="src">Source: ${esc(st.source)}</p></div>`;
+  }
   else if (card.kind === 'caption') body = `<div class="caption">${esc(card.text)}</div>`;
   else if (card.kind === 'closing') body = `<div class="closing">${esc(card.text)}</div>`;
   else {
@@ -271,6 +335,11 @@ function buildAudio() {
       const a = l.rise.from - l.at, b = l.rise.to - l.at, g = 10 ** (l.rise.db / 20) - 1;
       chain.push(`volume='1+${g.toFixed(4)}*clip((t-${a})/${b - a},0,1)':eval=frame`);
     }
+    if (l.duckAt) chain.push(`volume='if(lt(t,${l.duckAt.toFixed(3)}),1,${DUCK}+(1-${DUCK})*max(0,1-(t-${l.duckAt.toFixed(3)})/0.2))':eval=frame`);
+    if (l.pan) {
+      const a = ((l.pan + 1) * Math.PI) / 4;
+      chain.push(`pan=stereo|c0=${(Math.cos(a) * Math.SQRT2).toFixed(3)}*c0|c1=${(Math.sin(a) * Math.SQRT2).toFixed(3)}*c1`);
+    }
     if (l.fadeIn) chain.push(`afade=t=in:d=${l.fadeIn}`);
     if (l.fadeOut && dur) chain.push(`afade=t=out:st=${(dur - l.fadeOut).toFixed(3)}:d=${l.fadeOut}`);
     chain.push(`adelay=${Math.round(l.at * 1000)}:all=1`);
@@ -299,8 +368,8 @@ function buildFilm(mixWav) {
   let n = 0;
   // Scenes
   SCENES.forEach((s, i) => {
-    const last = i === SCENES.length - 1;
-    const dur = s.slot + (last ? 0 : XF);
+    const next = SCENES[i + 1];
+    const dur = s.slot + (next ? next.xf : 0);
     if (s.name === 'black') inputs.push('-f', 'lavfi', '-t', String(dur), '-i', `color=c=black:s=${W}x${H}:r=${FPS}`);
     else {
       const file = A(s.file);
@@ -316,23 +385,21 @@ function buildFilm(mixWav) {
   });
   let prev = 's0';
   for (let i = 1; i < SCENES.length; i++) {
-    f.push(`[${prev}][s${i}]xfade=transition=fade:duration=${XF}:offset=${SCENES[i].at}[x${i}]`);
+    f.push(`[${prev}][s${i}]xfade=transition=fade:duration=${SCENES[i].xf.toFixed(4)}:offset=${SCENES[i].at.toFixed(4)}[x${i}]`);
     prev = `x${i}`;
   }
   // Fade the picture (not the text) to black at the end.
   f.push(`[${prev}]fade=t=out:st=${LENGTH - FADE_OUT}:d=${FADE_OUT},format=yuva420p[pic0]`);
   prev = 'pic0';
   // Text layers: bands first, then cards.
-  const layers = [
-    ...BANDS.map(([at, until], i) => ({ name: `band-${i + 1}`, card: { kind: 'band' }, at, until })),
-    ...CARDS.map((c, i) => ({ name: `card-${i + 1}-${c.kind}${c.id ? `-${c.id}` : ''}`, card: c, at: c.at, until: c.until })),
-  ];
-  const bandPng = renderCard('band', { kind: 'band' });
+  const layers = LAYERS;
+  const pngs = {};
   layers.forEach((L, i) => {
-    const png = L.card.kind === 'band' ? bandPng : renderCard(L.name, L.card);
+    const key = L.card.kind === 'band' ? `band${L.card.tall ? '-tall' : ''}` : L.name;
+    const png = (pngs[key] ??= renderCard(key, L.card));
     const dur = L.until - L.at;
     inputs.push('-loop', '1', '-framerate', String(FPS), '-t', dur.toFixed(3), '-i', png);
-    f.push(`[${n}:v]format=rgba,fade=t=in:st=0:d=${XF}:alpha=1,fade=t=out:st=${(dur - XF).toFixed(3)}:d=${XF}:alpha=1,setpts=PTS-STARTPTS+${L.at}/TB[t${i}]`);
+    f.push(`[${n}:v]format=rgba,fade=t=in:st=0:d=${L.fadeIn.toFixed(3)}:alpha=1,fade=t=out:st=${(dur - L.fadeOut).toFixed(3)}:d=${L.fadeOut.toFixed(3)}:alpha=1,setpts=PTS-STARTPTS+${L.at.toFixed(4)}/TB[t${i}]`);
     f.push(`[${prev}][t${i}]overlay=0:0:eof_action=pass:format=yuv420[o${i}]`);
     prev = `o${i}`;
     n++;
@@ -359,14 +426,7 @@ function writeVtt() {
     const ss = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0');
     return `${hh}:${mm}:${ss}.${String(ms % 1000).padStart(3, '0')}`;
   };
-  const cues = [{ at: 0, until: 4.8, text: '[A man calls out at a woman, again and again, over a heartbeat. Then silence.]' }];
-  for (const c of CARDS) {
-    if (c.kind === 'stat') {
-      const s = stat(c.id);
-      cues.push({ at: c.at, until: c.until, text: `${s.headline} ${s.text} (Source: ${s.source})` });
-    } else cues.push({ at: c.at, until: c.until, text: c.text });
-  }
-  cues.sort((a, b) => a.at - b.at);
+  const cues = [...CUES].sort((a, b) => a.at - b.at);
   const body = cues.map((c, i) => `${i + 1}\n${ts(c.at)} --> ${ts(c.until)}\n${c.text}\n`).join('\n');
   const out = resolve(root, 'public/film/part1-film.vtt');
   mkdirSync(dirname(out), { recursive: true });
@@ -379,7 +439,9 @@ function writeVtt() {
 mkdirSync(build, { recursive: true });
 plan();
 console.log('narration:');
-for (const l of TIMES) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
+const T = TIMES;
+for (const l of [T.opening, ...T.pile, T.quiet, T.someone, T.hook]) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
+console.log(`hard cut to black and silence at ${T.cut.toFixed(2)} s; push-in from ${T.eAt.toFixed(2)} s`);
 console.log(`shots: ${SCENES.map((s) => `${s.name} ${s.at.toFixed(2)}-${(s.at + s.slot).toFixed(2)}`).join(', ')}`);
 console.log(`text track -> ${writeVtt()}`);
 if (process.argv.includes('--vtt-only')) process.exit(0);
@@ -401,11 +463,8 @@ ff(['-i', master, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-profile:
 
 const check = A('check');
 mkdirSync(check, { recursive: true });
-for (const s of SCENES.slice(1)) {
-  // A still from the middle of each shot, plus the closing line.
-  const t = s.name === 'E' ? LENGTH - 2 : s.at + s.slot / 2;
-  ff(['-ss', t.toFixed(2), '-i', master, '-frames:v', '1', resolve(check, `still-${s.name}-${t.toFixed(1)}s.png`)]);
-}
+const stills = [...SCENES.slice(1).filter((s) => s.name !== 'black').map((s) => ({ name: s.name, t: s.at + s.slot / 2 })), { name: 'black-25', t: T.quiet.at + 1.5 }, { name: 'E-someone', t: T.someone.at + 1 }, { name: 'E-hook', t: LENGTH - 1.6 }];
+for (const { name, t } of stills) ff(['-ss', t.toFixed(2), '-i', master, '-frames:v', '1', resolve(check, `still-${name}-${t.toFixed(1)}s.png`)]);
 console.log(`shot stretch: ${SCENES.slice(1).map((s) => `${s.name} x${(s.stretch ?? 1).toFixed(2)}`).join(', ')}`);
 
 const mb = (p) => (statSync(p).size / 1e6).toFixed(2);

@@ -199,7 +199,8 @@ so individual readings in the log show 0 or double. Totals are from the counter.
 
 `public/film/part1-film.mp4` (in git) and `film/assets/part1-film-master.mp4`,
 built by `film/scripts/assemble-film.mjs`; see `PART1_FILM_SUMMARY.md` for the
-timeline. Shots used: A (original clip, 0–5.3 s), D, B, C (first 3 s only,
-slowed 1.18×: after that its light cuts out and strobes), E. The 5 s montage
-is `montage-5s.wav` (`build-montage.mjs --profile short`).
-
+timeline. Shots: A (original clip, from 0 s), then a pile-up of D, B and C (C:
+first 3 s only, slowed 1.18×; after that its light cuts out and strobes), black,
+then E. Narration: `narration-1`, the four `narration-stat-*`, `narration-3`
+and `narration-hook` (all female). The 5 s montage is `montage-5s.wav`
+(`build-montage.mjs --profile short`).
