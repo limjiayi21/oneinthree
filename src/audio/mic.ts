@@ -4,11 +4,10 @@
  * is never routed to the speakers.
  */
 
+import { baseAudioType } from '../../shared/audio';
 import type { Mic } from '../contracts';
+import { METER_LIVE_PEAK, absorbRecorderEvent, discardReason, freshAccum, sealRecorder, type RecorderAccum } from './clip';
 
-const MIN_CLIP_MS = 250;
-/** Peak below this for the whole clip = nobody spoke (about -46 dBFS). */
-const SILENCE_PEAK = 0.005;
 const MIME_CANDIDATES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/ogg;codecs=opus'];
 
 function pickMime(): string {
@@ -30,7 +29,10 @@ interface Clip {
   peak: number;
   /** Number of level samples taken while the analyser was live. */
   metered: number;
+  /** Set once a sample is loud enough to prove the analyser is not stuck at zero. */
+  meterLive: boolean;
   stopping: Promise<Blob | null> | null;
+  accum: RecorderAccum;
 }
 
 class PushToTalkMic implements Mic {
@@ -46,6 +48,7 @@ class PushToTalkMic implements Mic {
   private mime = '';
   private disposed = false;
   private ok = false;
+  private watching = false;
 
   get available(): boolean {
     return this.ok && !this.disposed;
@@ -113,7 +116,9 @@ class PushToTalkMic implements Mic {
       analyser.smoothingTimeConstant = 0;
       // analyser -> silent gain -> destination keeps the analyser pulled in every browser, with no monitoring
       const mute = ctx.createGain();
-      mute.gain.value = 0;
+      // Exactly 0 lets some browsers drop the branch, so the analyser stays at
+      // zero while MediaRecorder (a separate consumer) still hears the mic.
+      mute.gain.value = 0.00001;
       src.connect(analyser).connect(mute).connect(ctx.destination);
       this.ctx = ctx;
       this.analyser = analyser;
@@ -128,7 +133,7 @@ class PushToTalkMic implements Mic {
   private sample(): void {
     const clip = this.clip;
     const an = this.analyser;
-    if (!clip || !an || !this.data || this.ctx?.state !== 'running') {
+    if (!an || !this.data || this.ctx?.state !== 'running') {
       this.smoothed *= 0.8;
       return;
     }
@@ -140,8 +145,11 @@ class PushToTalkMic implements Mic {
       const a = v < 0 ? -v : v;
       if (a > peak) peak = a;
     }
-    clip.metered++;
-    if (peak > clip.peak) clip.peak = peak;
+    if (clip && clip.stopping === null) {
+      clip.metered++;
+      if (peak > clip.peak) clip.peak = peak;
+      if (peak >= METER_LIVE_PEAK) clip.meterLive = true;
+    }
     const rms = Math.sqrt(sum / this.data.length);
     // speech into a laptop mic sits around 0.02-0.2 RMS: stretch that across 0..1
     const target = Math.min(1, Math.pow(Math.min(1, rms * 6), 0.6));
@@ -154,22 +162,42 @@ class PushToTalkMic implements Mic {
     this.smoothed = 0;
   }
 
-  start(): void {
-    if (!this.available || !this.stream || this.recording) return;
+  /**
+   * Timeslice so chunks exist before stop. Without one, the entire utterance
+   * arrives in a single dataavailable that Chromium can deliver after stop,
+   * and a handler that seals on stop throws the words away.
+   */
+  start(): boolean {
+    if (!this.available || !this.stream || this.recording) return false;
     try {
       const recorder = this.mime ? new MediaRecorder(this.stream, { mimeType: this.mime, audioBitsPerSecond: 48000 }) : new MediaRecorder(this.stream);
-      const clip: Clip = { recorder, chunks: [], startedAt: performance.now(), peak: 0, metered: 0, stopping: null };
+      const clip: Clip = { recorder, chunks: [], startedAt: performance.now(), peak: 0, metered: 0, meterLive: false, stopping: null, accum: freshAccum() };
       recorder.ondataavailable = (ev: BlobEvent) => {
-        if (ev.data && ev.data.size > 0) clip.chunks.push(ev.data);
+        if (ev.data && ev.data.size > 0) {
+          clip.chunks.push(ev.data);
+          clip.accum = absorbRecorderEvent(clip.accum, 'data', ev.data.size);
+        }
       };
-      recorder.start();
+      recorder.start(200);
       this.clip = clip;
       // start() comes from a key press, so this is allowed even if init() was not gesture-driven
       if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume().catch(() => {});
       this.stopMeter();
       this.meterTimer = window.setInterval(() => this.sample(), 20);
+      return true;
     } catch {
       this.clip = null;
+      return false;
+    }
+  }
+
+  watch(on: boolean): void {
+    this.watching = on;
+    if (on) {
+      if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume().catch(() => {});
+      if (!this.meterTimer) this.meterTimer = window.setInterval(() => this.sample(), 20);
+    } else if (!this.recording) {
+      this.stopMeter();
     }
   }
 
@@ -188,35 +216,50 @@ class PushToTalkMic implements Mic {
         settled = true;
         clearTimeout(guard);
         if (this.clip === clip) this.clip = null;
-        const tooShort = duration < MIN_CLIP_MS;
-        // only trust "silent" if the meter was really running for this clip
-        const silent = clip.metered >= 3 && clip.peak < SILENCE_PEAK;
-        if (tooShort || silent || clip.chunks.length === 0) {
-          resolve(null);
-          return;
-        }
-        const type = clip.recorder.mimeType || this.mime || clip.chunks[0].type || 'audio/webm';
-        const blob = new Blob(clip.chunks, { type });
-        resolve(blob.size > 0 ? blob : null);
+        clip.accum = sealRecorder(clip.accum);
+        const named = baseAudioType(clip.recorder.mimeType || this.mime || clip.chunks[0]?.type || 'audio/webm');
+        const blob = clip.chunks.length ? new Blob(clip.chunks, { type: named.type }) : null;
+        const reason = discardReason({
+          durationMs: duration,
+          bytes: blob?.size ?? clip.accum.bytes,
+          peak: clip.peak,
+          samples: clip.metered,
+          meterLive: clip.meterLive,
+        });
+        resolve(reason || !blob ? null : blob);
       };
-      // a recorder that never reports back must not leave the caller waiting
+      // A recorder that never reports back must not leave the caller waiting.
+      // The short delay after stop lets a late dataavailable land first.
       const guard = window.setTimeout(finish, 1500);
-      clip.recorder.onstop = finish;
-      clip.recorder.onerror = finish;
+      const later = (): void => {
+        window.setTimeout(finish, 40);
+      };
+      clip.recorder.onstop = () => {
+        clip.accum = absorbRecorderEvent(clip.accum, 'stop');
+        later();
+      };
+      clip.recorder.onerror = later;
       try {
-        if (clip.recorder.state !== 'inactive') clip.recorder.stop();
-        else finish();
+        if (clip.recorder.state === 'recording') {
+          try {
+            clip.recorder.requestData();
+          } catch {
+            /* not every browser implements requestData */
+          }
+          clip.recorder.stop();
+        } else later();
       } catch {
         finish();
       }
     });
     // a new press may begin while this clip is still being finalised
     this.clip = null;
+    if (this.watching && !this.meterTimer) this.meterTimer = window.setInterval(() => this.sample(), 20);
     return clip.stopping;
   }
 
   level(): number {
-    return this.recording ? this.smoothed : 0;
+    return this.recording || this.watching ? this.smoothed : 0;
   }
 
   dispose(): void {

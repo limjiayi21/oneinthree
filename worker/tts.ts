@@ -12,6 +12,8 @@ export interface AudioSpec {
   text: string;
   emotion: Emotion;
   delivery: Delivery;
+  /** The line he (or she) said just before this one, so the voice can continue. */
+  previousText?: string;
 }
 
 export class LiveAudio {
@@ -103,10 +105,10 @@ export class LiveAudio {
   }
 }
 
-export function startTts(apiKey: string, spec: AudioSpec): LiveAudio {
-  const req = buildTts(spec.role, spec.text, spec.emotion, spec.delivery, TTS_LIVE_MODEL);
+export function startTts(apiKey: string, spec: AudioSpec, fetchImpl: typeof fetch = fetch): LiveAudio {
+  const req = buildTts(spec.role, spec.text, spec.emotion, spec.delivery, TTS_LIVE_MODEL, spec.previousText);
   return new LiveAudio(
-    fetch(req.url, {
+    fetchImpl(req.url, {
       method: 'POST',
       headers: { 'xi-api-key': apiKey, 'content-type': 'application/json' },
       body: JSON.stringify(req.body),

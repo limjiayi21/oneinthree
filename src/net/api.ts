@@ -1,3 +1,4 @@
+import { baseAudioType } from '../../shared/audio';
 import {
   API,
   type CreateSessionRequest,
@@ -70,8 +71,12 @@ export async function* sendTurn(
     if (audio) {
       const form = new FormData();
       form.append('meta', JSON.stringify(req));
-      const ext = audio.type.includes('mp4') ? 'mp4' : audio.type.includes('ogg') ? 'ogg' : 'webm';
-      form.append('audio', audio, `clip.${ext}`);
+      // Strip codec parameters (`audio/webm;codecs=opus`) before the multipart
+      // part is built. An unquoted semicolon in Content-Type makes some
+      // parsers drop the file, so the turn arrives with no words.
+      const named = baseAudioType(audio.type || '');
+      const clean = audio.type === named.type ? audio : new Blob([await audio.arrayBuffer()], { type: named.type });
+      form.append('audio', clean, named.filename);
       res = await fetch(API.turn(sessionId), { method: 'POST', body: form, signal });
     } else {
       res = await fetch(API.turn(sessionId), {

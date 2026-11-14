@@ -22,8 +22,24 @@ import type {
   WomanDecision,
   WorldContext,
 } from '../../shared/types';
+import type { Address } from './address';
+import { decideExpression } from './expression';
 import { PARAMS, param, val, weakestBasis, type Param, type Params } from './params';
 import { Rng, clamp01, normalise, round3 } from './rng';
+
+/** The same face model as the woman-POV scene. Tactic only picks the move; it does not pick a new outcome. */
+function moveForTactic(tactic: Tactic): Address {
+  if (tactic === 'document') return 'film';
+  if (tactic === 'aggressive') return 'hostile';
+  if (tactic === 'delegate') return 'help';
+  if (tactic === 'distract') return 'polite';
+  return 'firm';
+}
+
+function manFace(stance: ManStance, move: Address, tension: number, rng: Rng): { emotion: Emotion; emotionIntensity: number } {
+  const face = decideExpression({ stance, move, tension, frustration: tension, rng });
+  return { emotion: face.emotion, emotionIntensity: face.intensity };
+}
 
 export type Tactic = 'distract' | 'direct' | 'aggressive' | 'delegate' | 'document' | 'physical' | 'interruption';
 export type InterventionResult = 'stops' | 'turns' | 'continues';
@@ -333,7 +349,8 @@ function decide(state0: BystanderState, input: BystanderInput, rng: Rng, params:
       state.tension = 1;
       state.fear = 1;
       const out = quiet(state, 'none');
-      out.man = { stance: 'escalate', action: 'grab', emotion: 'angry', emotionIntensity: 1, proximity: 0.6 };
+      const grabbed = manFace('escalate', 'hostile', 1, rng);
+      out.man = { stance: 'escalate', action: 'grab', emotion: grabbed.emotion, emotionIntensity: grabbed.emotionIntensity, proximity: 0.6 };
       out.woman = { emotion: 'afraid', action: 'freeze' };
       out.rationale = rationaleFrom(
         'Nobody stepped in and his anger tipped over into grabbing at her: rare, and it came from his temper, not from anything she or anyone chose.',
@@ -436,8 +453,9 @@ function decide(state0: BystanderState, input: BystanderInput, rng: Rng, params:
       const out = quiet(state, strategy, strategyProbs, target);
       out.tactic = tactic;
       out.result = 'turns';
-      out.man = { stance: 'hostile', action: 'turn_on_bystander', emotion: 'angry', emotionIntensity: 0.9, proximity: 1.3 };
-      out.lines = [{ speaker: 'man', situation: 'b_man_turn', emotion: 'angry', delivery: 'normal' }];
+      const turned = manFace('hostile', 'firm', state.tension, rng);
+      out.man = { stance: 'hostile', action: 'turn_on_bystander', emotion: turned.emotion, emotionIntensity: turned.emotionIntensity, proximity: 1.3 };
+      out.lines = [{ speaker: 'man', situation: 'b_man_turn', emotion: turned.emotion, delivery: 'normal' }];
       out.rationale = rationaleFrom('He was already leaving, heard the insult and came back at the bystander.', [reengage]);
       out.drivers = [reengage.key];
       return { ...out, tension: state.tension };
@@ -480,9 +498,9 @@ function decide(state0: BystanderState, input: BystanderInput, rng: Rng, params:
     state.shruggedOff = false;
     state.tension = 0.3;
     state.fear = clamp01(state.fear - 0.15);
-    const emotion: Emotion =
-      tactic === 'delegate' ? 'sheepish' : tactic === 'distract' || tactic === 'interruption' ? 'annoyed' : rng.pick<Emotion>(['annoyed', 'contempt']);
-    man = { stance: 'back_off', action: 'back_away', emotion, emotionIntensity: 0.6, proximity: 3 };
+    const face = manFace('back_off', moveForTactic(tactic), state.tension, rng);
+    const emotion = face.emotion;
+    man = { stance: 'back_off', action: 'back_away', emotion, emotionIntensity: face.emotionIntensity, proximity: 3 };
     if (toHer && (tactic === 'distract' || tactic === 'direct')) {
       lines.push({
         speaker: 'woman',
@@ -511,8 +529,9 @@ function decide(state0: BystanderState, input: BystanderInput, rng: Rng, params:
     state.turnedTurns = 1;
     state.shruggedOff = false;
     state.tension = 0.85;
-    man = { stance: 'hostile', action: 'turn_on_bystander', emotion: 'angry', emotionIntensity: 0.9, proximity: 1.3 };
-    lines.push({ speaker: 'man', situation: tactic === 'document' ? 'b_man_filmed' : 'b_man_turn', emotion: 'angry', delivery: 'normal' });
+    const turned = manFace('hostile', moveForTactic(tactic), state.tension, rng);
+    man = { stance: 'hostile', action: 'turn_on_bystander', emotion: turned.emotion, emotionIntensity: turned.emotionIntensity, proximity: 1.3 };
+    lines.push({ speaker: 'man', situation: tactic === 'document' ? 'b_man_filmed' : 'b_man_turn', emotion: turned.emotion, delivery: 'normal' });
     if (rng.chance(val(params, 'model.bystander.she_slips_away'))) {
       woman = { emotion: 'afraid', action: 'hurry_home' };
       state.womanWith = 'leaving';
@@ -527,7 +546,8 @@ function decide(state0: BystanderState, input: BystanderInput, rng: Rng, params:
     state.manStance = lateBeat ? 'hostile' : 'persist';
     state.shruggedOff = true;
     state.tension = lateBeat ? 0.6 : 0.45;
-    man = { stance: state.manStance, action: 'stay', emotion: 'annoyed', emotionIntensity: 0.65, proximity: 1.2 };
+    const stayed = manFace(state.manStance, moveForTactic(tactic), state.tension, rng);
+    man = { stance: state.manStance, action: 'stay', emotion: stayed.emotion, emotionIntensity: stayed.emotionIntensity, proximity: 1.2 };
     if (toHer && (tactic === 'distract' || tactic === 'direct')) {
       lines.push({
         speaker: 'woman',
@@ -540,7 +560,7 @@ function decide(state0: BystanderState, input: BystanderInput, rng: Rng, params:
     } else {
       woman = { emotion: 'afraid', action: 'step_back' };
     }
-    lines.push({ speaker: 'man', situation: tactic === 'document' ? 'b_man_filmed' : 'b_man_dismiss', emotion: 'annoyed', delivery: 'normal' });
+    lines.push({ speaker: 'man', situation: tactic === 'document' ? 'b_man_filmed' : 'b_man_dismiss', emotion: stayed.emotion, delivery: 'normal' });
     thought = 'b_thought_tense';
     rationale = rationaleFrom(CONTINUES_TEXT[tactic], [stopsP]);
     drivers = [stopsP.key];
@@ -594,7 +614,8 @@ function settle(
     state.manFocus = 'woman';
     state.tension = 0.05;
     state.fear = clamp01(state.fear - 0.15);
-    out.man = { stance: 'gone', action: 'leave', emotion: 'neutral', emotionIntensity: 0.3, proximity: 3 };
+    const gone = manFace('gone', 'silence', 0.1, rng);
+    out.man = { stance: 'gone', action: 'leave', emotion: gone.emotion, emotionIntensity: gone.emotionIntensity, proximity: 3 };
     out.rationale = rationaleFrom('He has given up and is walking away.', driver ? [driver] : []);
     out.drivers = driver ? [driver.key] : [];
     if (state.womanWith === 'leaving') {
@@ -632,13 +653,15 @@ function settle(
       state.shruggedOff = false;
       state.tension = 0.3;
       state.lastDriver = p.key;
-      out.man = { stance: 'back_off', action: 'back_away', emotion: 'sheepish', emotionIntensity: 0.6, proximity: 3 };
+      const backed = manFace('back_off', 'help', state.tension, rng);
+      out.man = { stance: 'back_off', action: 'back_away', emotion: backed.emotion, emotionIntensity: backed.emotionIntensity, proximity: 3 };
       out.woman = { emotion: 'worried', action: 'step_back' };
-      out.lines.push({ speaker: 'man', situation: 'b_man_clerk_leave', emotion: 'sheepish', delivery: 'normal' });
+      out.lines.push({ speaker: 'man', situation: 'b_man_clerk_leave', emotion: backed.emotion, delivery: 'normal' });
       out.rationale = rationaleFrom('Told the police were being called, he gave it up.', [p]);
       return { ...out, state, tension: state.tension };
     }
-    out.man = { stance: state.manStance, action: 'stay', emotion: 'contempt', emotionIntensity: 0.6, proximity: 1.6 };
+    const stayed = manFace(state.manStance, 'help', state.tension, rng);
+    out.man = { stance: state.manStance, action: 'stay', emotion: stayed.emotion, emotionIntensity: stayed.emotionIntensity, proximity: 1.6 };
     out.woman = { emotion: 'worried', action: 'enter_shop' };
     state.womanWith = 'leaving';
     out.rationale = rationaleFrom('He stood his ground, but with the shopkeeper watching she had somewhere to go.', [p]);
@@ -655,8 +678,9 @@ function settle(
     out.lines = [{ speaker: 'woman', situation: 'b_woman_leaving', emotion: 'worried', delivery: 'normal' }];
   }
   state.womanWith = 'leaving';
-  out.man = { stance: 'back_off', action: 'stay', emotion: 'contempt', emotionIntensity: 0.7, proximity: 3 };
-  out.lines.push({ speaker: 'man', situation: 'b_man_shout_after', emotion: 'contempt', delivery: 'shout' });
+  const shouted = manFace('back_off', 'hostile', state.tension, rng);
+  out.man = { stance: 'back_off', action: 'stay', emotion: shouted.emotion, emotionIntensity: shouted.emotionIntensity, proximity: 3 };
+  out.lines.push({ speaker: 'man', situation: 'b_man_shout_after', emotion: shouted.emotion, delivery: 'shout' });
   out.rationale = rationaleFrom(
     'He never backed down, but the interruption gave her the opening to get away: an intervention does not have to win the argument to work.',
     [any],
@@ -703,8 +727,9 @@ function squareUp(
   if (result === 'turns') {
     state.manStance = 'escalate';
     state.tension = 1;
-    out.man = { stance: 'escalate', action: 'grab', emotion: 'angry', emotionIntensity: 1, proximity: 0.6 };
-    out.lines = [{ speaker: 'man', situation: 'b_man_escalate', emotion: 'angry', delivery: 'shout' }];
+    const grabbed = manFace('escalate', 'hostile', 1, rng);
+    out.man = { stance: 'escalate', action: 'grab', emotion: grabbed.emotion, emotionIntensity: grabbed.emotionIntensity, proximity: 0.6 };
+    out.lines = [{ speaker: 'man', situation: 'b_man_escalate', emotion: grabbed.emotion, delivery: 'shout' }];
     out.result = 'turns';
     const risk = param(params, 'bystander.direct.p_hostility_toward_bystander');
     out.rationale = rationaleFrom(
@@ -718,8 +743,9 @@ function squareUp(
     state.manStance = 'back_off';
     state.tension = 0.4;
     state.lastDriver = backP.key;
-    out.man = { stance: 'back_off', action: 'back_away', emotion: 'contempt', emotionIntensity: 0.7, proximity: 3 };
-    out.lines = [{ speaker: 'man', situation: 'b_man_bluster_leave', emotion: 'contempt', delivery: 'normal' }];
+    const leaving = manFace('back_off', 'hostile', state.tension, rng);
+    out.man = { stance: 'back_off', action: 'back_away', emotion: leaving.emotion, emotionIntensity: leaving.emotionIntensity, proximity: 3 };
+    out.lines = [{ speaker: 'man', situation: 'b_man_bluster_leave', emotion: leaving.emotion, delivery: 'normal' }];
     out.result = 'stops';
     out.rationale = rationaleFrom('He blustered, found nobody backing down, and decided it was not worth it.', [backP]);
     out.drivers = [backP.key];
@@ -727,9 +753,10 @@ function squareUp(
   }
   state.turnedTurns += 1;
   state.tension = 0.9;
-  out.man = { stance: 'intimidate', action: 'step_closer', emotion: 'angry', emotionIntensity: 0.95, proximity: 1.0 };
+  const squared = manFace('intimidate', provoked ? 'hostile' : 'firm', state.tension, rng);
+  out.man = { stance: 'intimidate', action: 'step_closer', emotion: squared.emotion, emotionIntensity: squared.emotionIntensity, proximity: 1.0 };
   state.manStance = 'intimidate';
-  out.lines = [{ speaker: 'man', situation: 'b_man_squareup', emotion: 'angry', delivery: 'low' }];
+  out.lines = [{ speaker: 'man', situation: 'b_man_squareup', emotion: squared.emotion, delivery: 'low' }];
   out.result = 'continues';
   out.rationale = rationaleFrom(
     provoked ? 'Pushed again, he stepped closer: arguing with him keeps his attention and his anger on the bystander.' : 'He is still squared up to the bystander, working out whether to push it.',

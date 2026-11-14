@@ -6,6 +6,16 @@ You walk home at night in New York as a woman while a persistent man approaches.
 
 It is not a game. Nothing graphic is shown: the scene cuts to black at the first moment of physical escalation.
 
+## Stable handoff
+
+This handoff starts from current `main`, including phone walking, webcam head/hand controls, teaching replay, and playthrough logging. It adds the earlier recorder fixes, visible microphone errors, subtitles that last through playback, and stance-driven NPC expressions.
+
+The unfinished live-agent conversation is intentionally excluded. It remains on `cursor/replay-and-bystander-0eb7`; this handoff does not require `ELEVENLABS_AGENT_ID` and does not attempt to update an ElevenLabs agent. Voice services still need separate credentials and provider approval; they are not a requirement for checking the scene.
+
+For a local scene check without remote Workers AI, run `npm ci` followed by `npm run dev:local`. Without a voice key, use **T** to type when a scene allows speech. The worker uses the existing keyword and line-bank fallbacks. **G** remains head look and **H** remains hand tracking.
+
+Before merging, run `npm run typecheck`, `npm test`, and `npm run build`, then smoke-test the two walks, teaching replay, phone walking, and G/H controls. A real microphone and external speech services require a separate laptop check; this handoff does not claim live conversation is working.
+
 ## Run it
 
 ```bash
