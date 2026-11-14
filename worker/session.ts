@@ -45,6 +45,7 @@ import { emptyMemory, memoryBlock, noteTurn, type ConversationMemory } from './m
 import { agentVariables } from '../shared/liveVoice';
 import { coarseExpression } from '../shared/expression';
 import { agentTurnSkipsVoice, mintSignedUrl } from './agent';
+import { planReply } from './converse';
 import { addressOf, addressOfBystander, groundedLine, lineAcknowledges } from './model/address';
 import { MAX_CLIP_BYTES, transcribe } from './stt';
 import { buildSummary } from './summary';
@@ -545,6 +546,39 @@ export class SessionDO extends DurableObject<Env> {
       out.tension = judged.tension;
       if (judged.rule && out.rationale) out.rationale = { ...out.rationale, text: judged.rule, basis: 'assumption' };
     }
+    let plannedLine: string | null = null;
+    if (event === 'speech' && text && this.env.AI && out.decision && !agentVoice) {
+      const planned = await planReply(this.env.AI, {
+        fromStance,
+        text,
+        recent: s.transcript,
+        distance: ctx.distanceToMan,
+        speed: ctx.playerSpeed,
+        turn: turnBefore,
+        rejections: rejectionsBefore,
+      });
+      if (planned) {
+        out.decision = {
+          ...out.decision,
+          stance: planned.stance,
+          action: planned.action,
+          emotion: planned.emotion,
+          emotionIntensity: planned.intensity,
+          proximity: planned.proximity,
+        };
+        out.state.stance = planned.stance;
+        out.delivery = planned.delivery;
+        out.speak = planned.stance !== 'gone';
+        if (planned.stance === 'escalate' || planned.action === 'grab') out.outcome = 'escalated';
+        else if (out.outcome === 'escalated') out.outcome = undefined;
+        plannedLine = planned.line;
+        ms.converse = 1;
+        if (early) {
+          early.abort.abort();
+          early = null;
+        }
+      }
+    }
     s.woman = out.state;
     s.rng = rng.state;
 
@@ -609,6 +643,12 @@ export class SessionDO extends DurableObject<Env> {
       if (!out.speak) {
         // He says nothing this beat (he is only trailing her): she still reacts.
         if (d.stance === 'follow') fromBank(false);
+      } else if (plannedLine) {
+        ms.converseLine = 1;
+        const voiced = this.speak(`m${turn}`, { role: 'man', text: plannedLine, emotion: d.emotion, delivery: out.delivery });
+        emit({ type: 'line', speaker: 'man', text: plannedLine, audioUrl: voiced.url, emotion: d.emotion, delivery: out.delivery });
+        this.noteLine(s, 'man', plannedLine, 'llm', turn, t);
+        thoughtFromBank();
       } else if (FIXED_COPY_STANCES.includes(d.stance)) {
         // Pre-rendered on purpose: the opening answers 'begin' with no latency, and the moment of escalation is fixed copy.
         fromBank(false);
