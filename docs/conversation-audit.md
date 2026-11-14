@@ -16,7 +16,7 @@ One player turn, from the words she said to the line he speaks. Written against 
 
 6. **What he is allowed to do.** `composeBeat` may use the judge's stance, then `gateStance` again, from the stance he already had:
    - A greeting cannot become a retreat, a threat, or "your loss".
-   - The first clear boundary can make him defensive (guilt, or one step hotter). It cannot make him leave.
+   - The first clear boundary makes him defensive (guilt: "I was only being nice"). It cannot make him leave, follow, or jump to a threat. A second clear no can.
    - Leaving is allowed after a boundary he has already heard once, after she gets help or calls attention, when a bystander has actually stepped in, or once the encounter has gone on (his fourth decision or later) and he is not being greeted.
    - Heat rises by at most one step a turn, except a real insult or a clear boundary may reach hostility. He cannot snap from charming to grabbing. The judge cannot invent a physical escalation.
    - The model's own "bystander: true" flag is not an intervention. Only the scene is.

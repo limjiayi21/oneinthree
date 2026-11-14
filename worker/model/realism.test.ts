@@ -89,6 +89,7 @@ describe('realism harness', () => {
         if (!beat.text) return;
         expect(lineAcknowledges(lines[i], beat.text), `${script.name}: ${lines[i]}`).toBe(true);
         if (script.notFirst) expect(lines[i], script.name).not.toMatch(/your loss/i);
+        if (/^(hello|hi|what\??|um|sorry)$/i.test(beat.text.trim())) expect(lines[i], script.name).not.toMatch(/tell me more/i);
       });
       blocks.push(`## ${script.name}`, '');
       script.beats.forEach((beat, i) => {

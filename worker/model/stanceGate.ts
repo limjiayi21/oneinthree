@@ -90,6 +90,12 @@ export function gateStance(from: ManStance, proposed: ManStance, ctx: StanceGate
 
   const greeting = isEngagedUtterance(ctx.text) && !ctx.clearFirm;
   if (greeting) return stillEngaged(from);
+  // The first clear no is defensive ("I was only being nice"), not a chase
+  // and not him simply carrying on. A second no, an insult, help, or a
+  // bystander can still heat up or end it.
+  if (ctx.clearFirm && ctx.rejections < 1 && !ctx.insult && !ctx.seekingHelp && !ctx.bystander) {
+    return 'guilt';
+  }
   if (proposed === 'back_off' || proposed === 'gone') {
     if (allowsRetreat(from, ctx)) return 'back_off';
     if (ctx.clearFirm) return 'guilt';

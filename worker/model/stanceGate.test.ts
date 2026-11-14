@@ -72,7 +72,7 @@ describe('greetings are not a boundary', () => {
     expect(gateStance('opening', 'back_off', { text: 'hello', turn: 1, rejections: 0, bystander: false, seekingHelp: false, clearFirm: false, insult: false })).toBe('persist');
   });
 
-  it('lets him leave after a second clear boundary, and not after the first', () => {
+  it('the first clear no is defensive, and a second one can end it', () => {
     const base = { turn: 2, bystander: false, seekingHelp: false, insult: false, clearFirm: true, text: 'Leave me alone.' };
     expect(gateStance('persist', 'back_off', { ...base, rejections: 0 })).toBe('guilt');
     expect(gateStance('persist', 'back_off', { ...base, rejections: 1 })).toBe('back_off');
@@ -80,7 +80,7 @@ describe('greetings are not a boundary', () => {
     const rng = new Rng(3);
     let state = decideWoman(initialWomanState('persistent'), { event: 'begin', ctx: ctx() }, rng).state;
     const once = decideWoman(state, { event: 'speech', ctx: ctx(), text: 'Leave me alone.', strategyProbs: { firm_boundary: 1 } }, rng);
-    expect(once.decision?.stance).not.toBe('back_off');
+    expect(once.decision?.stance).toBe('guilt');
     let left = 0;
     for (let seed = 1; seed <= 40; seed++) {
       const r = new Rng(seed);
