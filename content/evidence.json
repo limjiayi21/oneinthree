@@ -1,0 +1,1916 @@
+{
+  "sources": {
+    "who_2021": {
+      "id": "who_2021",
+      "title": "Devastatingly pervasive: 1 in 3 women globally experience violence (news release)",
+      "publisher": "World Health Organization",
+      "year": 2021,
+      "url": "https://www.who.int/news/item/09-03-2021-devastatingly-pervasive-1-in-3-women-globally-experience-violence",
+      "accessed": "2026-11-12"
+    },
+    "who_factsheet": {
+      "id": "who_factsheet",
+      "title": "Violence against women (fact sheet, page dated 18 June 2026)",
+      "publisher": "World Health Organization",
+      "year": 2026,
+      "url": "https://www.who.int/news-room/fact-sheets/detail/violence-against-women",
+      "accessed": "2026-11-12"
+    },
+    "ssh_2014": {
+      "id": "ssh_2014",
+      "title": "Unsafe and Harassed in Public Spaces: A National Street Harassment Report",
+      "publisher": "Stop Street Harassment (survey by GfK)",
+      "year": 2014,
+      "url": "https://www.stopstreetharassment.org/wp-content/uploads/2012/08/National-Street-Harassment-Report-November-29-20151.pdf",
+      "accessed": "2026-11-12"
+    },
+    "ssh_2018": {
+      "id": "ssh_2018",
+      "title": "The Facts Behind the #MeToo Movement: A National Study on Sexual Harassment and Assault",
+      "publisher": "Stop Street Harassment (survey by GfK; analysis by UC San Diego Center on Gender Equity and Health)",
+      "year": 2018,
+      "url": "https://www.stopstreetharassment.org/wp-content/uploads/2018/01/Full-Report-2018-National-Study-on-Sexual-Harassment-and-Assault.pdf",
+      "accessed": "2026-11-12"
+    },
+    "ssh_assertive": {
+      "id": "ssh_assertive",
+      "title": "Assertive Responses (undated guidance page)",
+      "publisher": "Stop Street Harassment",
+      "year": 2026,
+      "url": "https://stopstreetharassment.org/strategies/assertive-responses/",
+      "accessed": "2026-11-12"
+    },
+    "rtb_5ds": {
+      "id": "rtb_5ds",
+      "title": "The 5Ds of Bystander Intervention (undated guide)",
+      "publisher": "Right To Be (formerly Hollaback!)",
+      "year": 2026,
+      "url": "https://righttobe.org/guides/bystander-intervention-training/",
+      "accessed": "2026-11-12"
+    },
+    "rtb_responding": {
+      "id": "rtb_responding",
+      "title": "Responding to Public Harassment (undated guide)",
+      "publisher": "Right To Be (formerly Hollaback!)",
+      "year": 2026,
+      "url": "https://righttobe.org/guides/how-to-respond-to-public-harassment/",
+      "accessed": "2026-11-12"
+    },
+    "cornell_nyc_2012": {
+      "id": "cornell_nyc_2012",
+      "title": "The Experience of Being Targets of Street Harassment in NYC: Preliminary Findings from a Qualitative Study of a Sample of 223 Voices Who Hollaback!",
+      "publisher": "Worker Institute at Cornell University ILR School and Hollaback!",
+      "year": 2012,
+      "url": "https://www.ilr.cornell.edu/sites/default/files/ILR_Report_TARGET_1B_11202012.pdf",
+      "accessed": "2026-11-12"
+    },
+    "bastomski_2011": {
+      "id": "bastomski_2011",
+      "title": "Summary Report on Hollaback! Street Harassment Data (99 New York City incidents, 2005-2011)",
+      "publisher": "Sara Bastomski for Hollaback! (hosted by Right To Be)",
+      "year": 2011,
+      "url": "https://righttobe.org/wp-content/uploads/2022/02/bastomski_street_harassment_summary_report_6.13.11.pdf",
+      "accessed": "2026-11-12"
+    },
+    "hutson_krueger_2018": {
+      "id": "hutson_krueger_2018",
+      "title": "The Harasser's Toolbox: Investigating the Role of Mobility in Street Harassment",
+      "publisher": "Violence Against Women (SAGE), Hutson & Krueger",
+      "year": 2018,
+      "url": "https://righttobe.org/wp-content/uploads/2022/02/street-harassment-2018-hutson-krueger.pdf",
+      "accessed": "2026-11-12"
+    },
+    "fleetwood_2019": {
+      "id": "fleetwood_2019",
+      "title": "Everyday self-defence: Hollaback narratives, habitus and resisting street harassment (accepted version)",
+      "publisher": "British Journal of Sociology, J. Fleetwood (Goldsmiths Research Online)",
+      "year": 2019,
+      "url": "https://research.gold.ac.uk/id/eprint/26746/3/everyday%20self%20defence%20BJS%20FINAL%20for%20sharing.pdf",
+      "accessed": "2026-11-12"
+    },
+    "cornell_ilr_us_2015": {
+      "id": "cornell_ilr_us_2015",
+      "title": "Street harassment statistics (news item on the Cornell-Hollaback! survey, United States results)",
+      "publisher": "Cornell University ILR School",
+      "year": 2015,
+      "url": "https://www.ilr.cornell.edu/news/faculty/street-harassment-statistics",
+      "accessed": "2026-11-12"
+    },
+    "cornell_ilr_global_2015": {
+      "id": "cornell_ilr_global_2015",
+      "title": "Global research (news item on the Cornell-Hollaback! international street harassment survey)",
+      "publisher": "Cornell University ILR School",
+      "year": 2015,
+      "url": "https://www.ilr.cornell.edu/news/about-ilr/global-research",
+      "accessed": "2026-11-12"
+    },
+    "loreal_ipsos_2019": {
+      "id": "loreal_ipsos_2019",
+      "title": "L'Oreal Paris Launches International Training Program: Stand Up Against Street Harassment (press release citing Ipsos, International survey on sexual harassment in public spaces, April 2019)",
+      "publisher": "L'Oreal Paris via PR Newswire",
+      "year": 2020,
+      "url": "https://www.prnewswire.com/news-releases/loreal-paris-launches-international-training-program-stand-up-against-street-harassment-301018514.html",
+      "accessed": "2026-11-12"
+    },
+    "gallup_2025": {
+      "id": "gallup_2025",
+      "title": "More People Feel Safe Even as Global Conflicts Rise (Global Safety Report, 2024 data)",
+      "publisher": "Gallup",
+      "year": 2025,
+      "url": "https://news.gallup.com/poll/695240/people-feel-safe-even-global-conflicts-rise.aspx",
+      "accessed": "2026-11-12"
+    },
+    "ons_2021": {
+      "id": "ons_2021",
+      "title": "Perceptions of personal safety and experiences of harassment, Great Britain: 2 to 27 June 2021",
+      "publisher": "Office for National Statistics (UK)",
+      "year": 2021,
+      "url": "https://www.ons.gov.uk/peoplepopulationandcommunity/crimeandjustice/bulletins/perceptionsofpersonalsafetyandexperiencesofharassmentgreatbritain/2to27june2021",
+      "accessed": "2026-11-12"
+    },
+    "ons_2022": {
+      "id": "ons_2022",
+      "title": "Perceptions of personal safety and experiences of harassment, Great Britain: 16 February to 13 March 2022",
+      "publisher": "Office for National Statistics (UK)",
+      "year": 2022,
+      "url": "https://www.ons.gov.uk/peoplepopulationandcommunity/crimeandjustice/bulletins/perceptionsofpersonalsafetyandexperiencesofharassmentgreatbritain/16februaryto13march2022",
+      "accessed": "2026-11-12"
+    },
+    "yougov_2022": {
+      "id": "yougov_2022",
+      "title": "Women are far more likely to regularly take measures to avoid harassment than men",
+      "publisher": "YouGov (research conducted with the BBC)",
+      "year": 2022,
+      "url": "https://yougov.com/en-gb/articles/41422-what-measures-do-women-take-protect-themselves-ass",
+      "accessed": "2026-11-12"
+    },
+    "guardian_unwomen_2021": {
+      "id": "guardian_unwomen_2021",
+      "title": "Four-fifths of young women in the UK have been sexually harassed, survey finds (reporting the APPG for UN Women / YouGov survey; corrected 24 March 2021)",
+      "publisher": "The Guardian",
+      "year": 2021,
+      "url": "https://www.theguardian.com/world/2021/mar/10/almost-all-young-women-in-the-uk-have-been-sexually-harassed-survey-finds",
+      "accessed": "2026-11-12"
+    },
+    "amny_stringer_2007": {
+      "id": "amny_stringer_2007",
+      "title": "Subway sexual harassment takes a toll, survey finds (reporting the Manhattan Borough President's survey 'Hidden in Plain Sight')",
+      "publisher": "amNewYork",
+      "year": 2007,
+      "url": "https://www.amny.com/news/subway-sexual-harassment-takes-a-toll-survey-finds",
+      "accessed": "2026-11-12"
+    },
+    "amny_pinktax_2018": {
+      "id": "amny_pinktax_2018",
+      "title": "amNewYork report on the NYU Rudin Center survey 'The Pink Tax on Transportation'",
+      "publisher": "amNewYork",
+      "year": 2018,
+      "url": "https://www.amny.com/transit/pink-tax-nyc-transportation-1.23342540",
+      "accessed": "2026-11-12"
+    },
+    "nyu_rudin_2018": {
+      "id": "nyu_rudin_2018",
+      "title": "The Pink Tax on Transportation: Women's Challenges in Mobility (report landing page)",
+      "publisher": "NYU Rudin Center for Transportation",
+      "year": 2018,
+      "url": "https://wagner.nyu.edu/rudincenter/2018/11/pink-tax-transportation-womens-challenges-mobility",
+      "accessed": "2026-11-12"
+    },
+    "fairchild_rudman_2008": {
+      "id": "fairchild_rudman_2008",
+      "title": "Everyday Stranger Harassment and Women's Objectification (abstract)",
+      "publisher": "Social Justice Research 21, 338-357 (Springer)",
+      "year": 2008,
+      "url": "https://link.springer.com/article/10.1007/s11211-008-0073-0",
+      "accessed": "2026-11-12"
+    },
+    "wesselmann_kelly_2010": {
+      "id": "wesselmann_kelly_2010",
+      "title": "Cat-Calls and Culpability: Investigating the Frequency and Functions of Stranger Harassment (abstract)",
+      "publisher": "Sex Roles 63, 451-462 (Springer)",
+      "year": 2010,
+      "url": "https://link.springer.com/article/10.1007/s11199-010-9830-2",
+      "accessed": "2026-11-12"
+    },
+    "delgreco_2021": {
+      "id": "delgreco_2021",
+      "title": "Communicating by Catcalling: Power Dynamics and Communicative Motivations in Street Harassment (abstract)",
+      "publisher": "Violence Against Women 27(9), 1402-1426 (PubMed record)",
+      "year": 2021,
+      "url": "https://pubmed.ncbi.nlm.nih.gov/32567540/",
+      "accessed": "2026-11-12"
+    },
+    "walton_pedersen_2021": {
+      "id": "walton_pedersen_2021",
+      "title": "Motivations behind catcalling: exploring men's engagement in street harassment behaviour (abstract record)",
+      "publisher": "Psychology & Sexuality (abstract read via Semantic Scholar; DOI 10.1080/19419899.2021.1909648)",
+      "year": 2021,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/DOI:10.1080/19419899.2021.1909648?fields=title,abstract,year,venue",
+      "accessed": "2026-11-12"
+    },
+    "psypost_walton_2021": {
+      "id": "psypost_walton_2021",
+      "title": "Men who catcall claim it's a 'normal way of flirting' while at the same time demonstrating greater hostile sexism (report on Walton & Pedersen, with author interview)",
+      "publisher": "PsyPost",
+      "year": 2021,
+      "url": "https://www.psypost.org/men-who-catcall-claim-its-a-normal-way-of-flirting-while-at-the-same-time-demonstrating-greater-hostile-sexism/",
+      "accessed": "2026-11-12"
+    },
+    "woerner_2018": {
+      "id": "woerner_2018",
+      "title": "Predicting Men's Immediate Reactions to a Simulated Date's Sexual Rejection (abstract)",
+      "publisher": "Psychology of Violence 8(3), 349-357 (PubMed record)",
+      "year": 2018,
+      "url": "https://pubmed.ncbi.nlm.nih.gov/29938119/",
+      "accessed": "2026-11-12"
+    },
+    "andrighetto_2019": {
+      "id": "andrighetto_2019",
+      "title": "Lonely hearts and angry minds: Online dating rejection increases male (but not female) hostility (abstract)",
+      "publisher": "Aggressive Behavior 45(5), 571-581 (PubMed record)",
+      "year": 2019,
+      "url": "https://pubmed.ncbi.nlm.nih.gov/31187506/",
+      "accessed": "2026-11-12"
+    },
+    "blake_2018": {
+      "id": "blake_2018",
+      "title": "Heightened male aggression toward sexualized women following romantic rejection (abstract)",
+      "publisher": "Aggressive Behavior 44(1), 40-49 (PubMed record)",
+      "year": 2018,
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28771741/",
+      "accessed": "2026-11-12"
+    },
+    "stratmoen_2018_pt": {
+      "id": "stratmoen_2018_pt",
+      "title": "Why Some Men Respond to Rejection With Aggression (summary of Stratmoen, Greer, Martens & Saucier 2018, Personality and Individual Differences 123, 151-162)",
+      "publisher": "Psychology Today (R. Burriss)",
+      "year": 2018,
+      "url": "https://www.psychologytoday.com/us/blog/attraction-evolved/201803/why-some-men-respond-to-rejection-with-aggression",
+      "accessed": "2026-11-12"
+    },
+    "stratmoen_2020": {
+      "id": "stratmoen_2020",
+      "title": "'Sorry, I already have a boyfriend': Masculine honor beliefs and perceptions of women's use of deceptive rejection behaviors to avert unwanted romantic advances (abstract record)",
+      "publisher": "Journal of Social and Personal Relationships (abstract read via Semantic Scholar; DOI 10.1177/0265407519865615)",
+      "year": 2020,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/DOI:10.1177/0265407519865615?fields=title,abstract,year,venue",
+      "accessed": "2026-11-12"
+    },
+    "pew_2020": {
+      "id": "pew_2020",
+      "title": "10 facts about Americans and online dating",
+      "publisher": "Pew Research Center",
+      "year": 2020,
+      "url": "https://www.pewresearch.org/short-reads/2020/02/06/10-facts-about-americans-and-online-dating/",
+      "accessed": "2026-11-12"
+    },
+    "nbc_10hours_2014": {
+      "id": "nbc_10hours_2014",
+      "title": "Woman Catcalled More Than 100 Times in Single Day in NYC",
+      "publisher": "NBC News",
+      "year": 2014,
+      "url": "https://www.nbcnews.com/pop-culture/viral/woman-catcalled-more-100-times-single-day-nyc-n235936",
+      "accessed": "2026-11-12"
+    },
+    "pbs_2014": {
+      "id": "pbs_2014",
+      "title": "Why street harassment happens, and why most people just ignore it",
+      "publisher": "PBS NewsHour",
+      "year": 2014,
+      "url": "https://www.pbs.org/newshour/nation/compels-people-engage-street-harassment-combat",
+      "accessed": "2026-11-12"
+    },
+    "philpot_2020": {
+      "id": "philpot_2020",
+      "title": "Would I be helped? Cross-national CCTV footage shows that intervention is the norm in public conflicts (abstract)",
+      "publisher": "American Psychologist 75(1), 66-75 (PubMed record)",
+      "year": 2020,
+      "url": "https://pubmed.ncbi.nlm.nih.gov/31157529/",
+      "accessed": "2026-11-12"
+    },
+    "fischer_2011": {
+      "id": "fischer_2011",
+      "title": "The bystander-effect: a meta-analytic review on bystander intervention in dangerous and non-dangerous emergencies (abstract)",
+      "publisher": "Psychological Bulletin 137(4), 517-537 (PubMed record)",
+      "year": 2011,
+      "url": "https://pubmed.ncbi.nlm.nih.gov/21534650/",
+      "accessed": "2026-11-12"
+    },
+    "milani_carbajal_2023": {
+      "id": "milani_carbajal_2023",
+      "title": "Experiences of Street Harassment and the Active Engagement of Bystanders: Insights From a Swiss Sample of Respondents",
+      "publisher": "Journal of Interpersonal Violence 38(19-20) (PubMed Central full text)",
+      "year": 2023,
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10466993/",
+      "accessed": "2026-11-12"
+    },
+    "fileborn_oneill_2023": {
+      "id": "fileborn_oneill_2023",
+      "title": "From 'Ghettoization' to a Field of Its Own: A Comprehensive Review of Street Harassment Research (abstract)",
+      "publisher": "Trauma, Violence, & Abuse 24(1), 125-138 (PubMed record)",
+      "year": 2023,
+      "url": "https://pubmed.ncbi.nlm.nih.gov/34098825/",
+      "accessed": "2026-11-12"
+    },
+    "nbcchicago_george_2019": {
+      "id": "nbcchicago_george_2019",
+      "title": "Man Killed UIC Student After She Ignored His Catcalls: Prosecutors",
+      "publisher": "NBC Chicago (WMAQ)",
+      "year": 2019,
+      "url": "https://www.nbcchicago.com/news/national-international/man-killed-uic-student-after-she-ignored-his-catcalls-prosecutors/2162509/",
+      "accessed": "2026-11-12"
+    },
+    "huffpost_spears_2014": {
+      "id": "huffpost_spears_2014",
+      "title": "The Man Who Allegedly Killed A Woman After She Rejected Him Has Been Charged With Murder",
+      "publisher": "HuffPost",
+      "year": 2014,
+      "url": "https://www.huffpost.com/entry/mary-spears-mark-dorch-detroit_n_6151152",
+      "accessed": "2026-11-12"
+    },
+    "wdiv_spears_2014": {
+      "id": "wdiv_spears_2014",
+      "title": "Police: Woman shot, killed by man she rejected at Detroit hall",
+      "publisher": "WDIV Local 4 / ClickOnDetroit",
+      "year": 2014,
+      "url": "https://www.clickondetroit.com/news/defenders/police-woman-shot-killed-by-man-she-rejected-at-detroit-hall",
+      "accessed": "2026-11-12"
+    },
+    "wpxi_talton_2017": {
+      "id": "wpxi_talton_2017",
+      "title": "Penn Hills man pleads guilty to killing woman who refused his advances",
+      "publisher": "WPXI Channel 11 Pittsburgh",
+      "year": 2017,
+      "url": "https://www.wpxi.com/news/penn-hills-man-pleads-guilty-to-killing-woman-who-refused-his-advances/494786381/",
+      "accessed": "2026-11-12"
+    },
+    "cbs_everard_2021": {
+      "id": "cbs_everard_2021",
+      "title": "Sarah Everard's murderer, London police officer Wayne Couzens, sentenced to life in prison",
+      "publisher": "CBS News",
+      "year": 2021,
+      "url": "https://www.cbsnews.com/news/sarah-everard-wayne-couzens-murder-london-police-officer-life-prison-sentence/",
+      "accessed": "2026-11-12"
+    },
+    "cbs_nessa_2022": {
+      "id": "cbs_nessa_2022",
+      "title": "CBS News / Associated Press report on the sentencing of Sabina Nessa's killer",
+      "publisher": "CBS News (with AP)",
+      "year": 2022,
+      "url": "https://cbsnews.com/news/sabina-nessa-murder-koci-selamaj-sentenced-36-years-prison-uk",
+      "accessed": "2026-11-12"
+    },
+    "aljazeera_nessa_2022": {
+      "id": "aljazeera_nessa_2022",
+      "title": "Man jailed for life for murder of teacher Sabina Nessa in London",
+      "publisher": "Al Jazeera (AFP)",
+      "year": 2022,
+      "url": "https://www.aljazeera.com/news/2022/4/8/man-jailed-for-life-for-uk-teachers-murder",
+      "accessed": "2026-11-12"
+    },
+    "manhattanda_lee_2024": {
+      "id": "manhattanda_lee_2024",
+      "title": "D.A. Bragg Announces Sentencing Of Assamad Nash For Murder Of Christina Yuna Lee",
+      "publisher": "Manhattan District Attorney's Office",
+      "year": 2024,
+      "url": "https://manhattanda.org/d-a-bragg-announces-sentencing-of-assamad-nash-for-murder-of-christina-yuna-lee/",
+      "accessed": "2026-11-12"
+    },
+    "nbcny_2train_2023": {
+      "id": "nbcny_2train_2023",
+      "title": "Manhattan Subway Rape Thwarted by Good Samaritan, Cops Say",
+      "publisher": "NBC New York (WNBC)",
+      "year": 2023,
+      "url": "https://nbcnewyork.com/news/local/manhattan-subway-rape-thwarted-by-good-samaritan-cops-say-suspect-at-large/4027767",
+      "accessed": "2026-11-12"
+    },
+    "cbsny_jtrain_2025": {
+      "id": "cbsny_jtrain_2025",
+      "title": "Video shows good Samaritans stop assault on Brooklyn subway platform",
+      "publisher": "CBS New York (WCBS)",
+      "year": 2025,
+      "url": "https://www.cbsnews.com/newyork/news/brooklyn-subway-platform-assault-good-samaritans-video",
+      "accessed": "2026-11-12"
+    },
+    "wins_bronx_2022": {
+      "id": "wins_bronx_2022",
+      "title": "Good Samaritan stabbed for defending woman aboard Bronx subway train; suspect in custody",
+      "publisher": "1010 WINS (Audacy)",
+      "year": 2022,
+      "url": "https://www.audacy.com/1010wins/news/local/good-samaritan-stabbed-aboard-bronx-subway-train",
+      "accessed": "2026-11-12"
+    }
+  },
+  "stats": [
+    {
+      "id": "who_1in3_lifetime",
+      "headline": "1 in 3",
+      "text": "women worldwide, around 736 million, experience physical or sexual violence from a partner, or sexual violence from a non-partner, in their lifetime.",
+      "detail": "WHO estimate published 9 March 2021. It measures physical and sexual violence, not street harassment.",
+      "sourceId": "who_2021",
+      "region": "global",
+      "topic": "prevalence"
+    },
+    {
+      "id": "who_840m_update",
+      "headline": "840 million",
+      "text": "women and girls worldwide, about 1 in 3 (31.6%), have experienced physical or sexual violence from a partner, or sexual violence from a non-partner, in their lifetime.",
+      "detail": "Updated WHO estimate as shown on the WHO fact sheet dated 18 June 2026. It measures physical and sexual violence, not street harassment.",
+      "sourceId": "who_factsheet",
+      "region": "global",
+      "topic": "prevalence"
+    },
+    {
+      "id": "who_nonpartner_8",
+      "headline": "8%",
+      "text": "of women over 15 worldwide, about 263 million, have experienced sexual violence from someone other than a partner.",
+      "detail": "WHO notes the actual prevalence is likely to be much higher than reported because violence against women is heavily stigmatised.",
+      "sourceId": "who_factsheet",
+      "region": "global",
+      "topic": "prevalence"
+    },
+    {
+      "id": "ssh2014_65",
+      "headline": "65%",
+      "text": "of women in the United States have experienced street harassment.",
+      "detail": "Nationally representative survey of about 2,000 adults conducted by GfK in February and March 2014; 25% of men had experienced it too.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "prevalence"
+    },
+    {
+      "id": "ssh2014_physical_41",
+      "headline": "41%",
+      "text": "of women in the United States have experienced physically aggressive street harassment, such as being touched, followed or flashed.",
+      "detail": "57% of all women had experienced verbal street harassment.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "prevalence"
+    },
+    {
+      "id": "ssh2014_followed_20",
+      "headline": "1 in 5",
+      "text": "women in the United States (20%) has been followed in a public space.",
+      "detail": "The same survey found 7% of men had been followed.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "following"
+    },
+    {
+      "id": "ssh2014_touched_23",
+      "headline": "23%",
+      "text": "of women in the United States have been purposely touched or brushed up against in an unwanted, sexual way in a public space.",
+      "detail": "8% of men reported the same.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "touching"
+    },
+    {
+      "id": "ssh2014_age17",
+      "headline": "About half",
+      "text": "of US women who have been street harassed (51%) say the first incident happened by age 17.",
+      "detail": "More than 80% of harassed women experienced street harassment between the ages of 13 and 25.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "age"
+    },
+    {
+      "id": "ssh2014_repeat_86",
+      "headline": "86%",
+      "text": "of US women who have been street harassed say it has happened to them more than once.",
+      "detail": "The report's executive summary gives 86%; its findings chapter gives 84%.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "prevalence"
+    },
+    {
+      "id": "ssh2014_escalation_68",
+      "headline": "68%",
+      "text": "of US women who have been street harassed were very or somewhat concerned that the incident would escalate into something worse.",
+      "detail": "25% said they were very concerned.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "escalation"
+    },
+    {
+      "id": "ssh2014_assess_47",
+      "headline": "47%",
+      "text": "of US women who have been street harassed say they now constantly assess their surroundings.",
+      "detail": "This was the most common change in behaviour reported.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "behaviour_change"
+    },
+    {
+      "id": "ssh2014_group_31",
+      "headline": "31%",
+      "text": "of US women who have been street harassed started going places in a group or with another person instead of alone.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "behaviour_change"
+    },
+    {
+      "id": "ssh2014_told_stop_31",
+      "headline": "31%",
+      "text": "of women in the United States have told a harasser to stop, back off or leave them or someone else alone.",
+      "detail": "This was the most common active response; 14% of women had physically defended themselves and 6% had asked others for help.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "response"
+    },
+    {
+      "id": "ssh2014_helped_other_20",
+      "headline": "1 in 5",
+      "text": "women in the United States (20%) has spoken up or done something to help someone else who was being harassed.",
+      "detail": "23% of men said the same.",
+      "sourceId": "ssh_2014",
+      "region": "us",
+      "topic": "bystander"
+    },
+    {
+      "id": "ssh2018_81",
+      "headline": "81%",
+      "text": "of women in the United States have experienced some form of sexual harassment or assault in their lifetime.",
+      "detail": "Nationally representative survey of about 2,000 adults by GfK, January 2018; 43% of men reported the same. Covers all settings, not only public spaces.",
+      "sourceId": "ssh_2018",
+      "region": "us",
+      "topic": "prevalence"
+    },
+    {
+      "id": "ssh2018_followed_34",
+      "headline": "More than 1 in 3",
+      "text": "women in the United States (34%) have been physically followed.",
+      "detail": "12% of men reported the same.",
+      "sourceId": "ssh_2018",
+      "region": "us",
+      "topic": "following"
+    },
+    {
+      "id": "ssh2018_touched_51",
+      "headline": "51%",
+      "text": "of women in the United States have been sexually touched in an unwelcome way.",
+      "detail": "17% of men reported the same. Covers all settings, not only public spaces.",
+      "sourceId": "ssh_2018",
+      "region": "us",
+      "topic": "touching"
+    },
+    {
+      "id": "ssh2018_public_66",
+      "headline": "66%",
+      "text": "of women in the United States have been sexually harassed in a public space, the most frequently reported location.",
+      "sourceId": "ssh_2018",
+      "region": "us",
+      "topic": "prevalence"
+    },
+    {
+      "id": "ssh2018_age17_57",
+      "headline": "57%",
+      "text": "of US women who have experienced sexual harassment or assault say it had happened by age 17.",
+      "detail": "Ages 14 to 17 were the most common time of the first experience (27% of women).",
+      "sourceId": "ssh_2018",
+      "region": "us",
+      "topic": "age"
+    },
+    {
+      "id": "ssh2018_route_23",
+      "headline": "23%",
+      "text": "of US women who have experienced sexual harassment or assault changed their route or regular routine because of it.",
+      "detail": "31% said they felt anxiety or depression.",
+      "sourceId": "ssh_2018",
+      "region": "us",
+      "topic": "behaviour_change"
+    },
+    {
+      "id": "ssh2018_report_1in10",
+      "headline": "Only 1 in 10",
+      "text": "US women who have experienced sexual harassment or assault filed an official complaint or report with an authority, including the police.",
+      "detail": "Among men the figure was 1 in 20.",
+      "sourceId": "ssh_2018",
+      "region": "us",
+      "topic": "reporting"
+    },
+    {
+      "id": "nyc_subway_63",
+      "headline": "63%",
+      "text": "of respondents to a 2007 Manhattan Borough President survey said they had been sexually harassed in the New York City subway.",
+      "detail": "Online survey of nearly 1,800 people who chose to take part, so it is not representative of all riders; 10% said they had been sexually assaulted in the subway system.",
+      "sourceId": "amny_stringer_2007",
+      "region": "nyc",
+      "topic": "prevalence"
+    },
+    {
+      "id": "nyc_subway_unreported_96",
+      "headline": "96%",
+      "text": "of respondents who experienced or witnessed sexual harassment in the New York City subway did not report it to the police or the MTA or seek support.",
+      "detail": "From the same 2007 Manhattan Borough President survey.",
+      "sourceId": "amny_stringer_2007",
+      "region": "nyc",
+      "topic": "reporting"
+    },
+    {
+      "id": "nyc_transit_75",
+      "headline": "75%",
+      "text": "of women surveyed in New York City had experienced harassment or theft on public transportation, compared with 47% of men.",
+      "detail": "NYU Rudin Center online survey, 547 complete responses, autumn 2018; not a representative sample.",
+      "sourceId": "amny_pinktax_2018",
+      "region": "nyc",
+      "topic": "prevalence"
+    },
+    {
+      "id": "nyc_transit_unreported_88",
+      "headline": "88%",
+      "text": "of New York City survey respondents who experienced harassment on public transportation did not report it.",
+      "detail": "From the same NYU Rudin Center survey.",
+      "sourceId": "amny_pinktax_2018",
+      "region": "nyc",
+      "topic": "reporting"
+    },
+    {
+      "id": "nyc_transit_latenight_29",
+      "headline": "29%",
+      "text": "of women surveyed in New York City do not take public transportation late at night because of a perceived safety threat, compared with 8% of men.",
+      "detail": "From the same NYU Rudin Center survey.",
+      "sourceId": "amny_pinktax_2018",
+      "region": "nyc",
+      "topic": "behaviour_change"
+    },
+    {
+      "id": "nyc_hollaback_alone_78",
+      "headline": "78%",
+      "text": "of New York City street harassment incidents reported to Hollaback! between 2005 and 2011 happened when the woman was alone.",
+      "detail": "Based on 99 self-reported incidents; none happened while the woman was with one male companion.",
+      "sourceId": "bastomski_2011",
+      "region": "nyc",
+      "topic": "prevalence"
+    },
+    {
+      "id": "nyc_hollaback_stalking_18",
+      "headline": "18%",
+      "text": "of New York City street harassment incidents reported to Hollaback! between 2005 and 2011 involved the harasser stalking the woman.",
+      "detail": "Based on 99 self-reported incidents: 80% included verbal harassment, 11% assault and 6% groping (an incident can fall into more than one category).",
+      "sourceId": "bastomski_2011",
+      "region": "nyc",
+      "topic": "following"
+    },
+    {
+      "id": "nyc_hollaback_response_41",
+      "headline": "41%",
+      "text": "of women in New York City incidents reported to Hollaback! tried to ignore the harasser or walk away, and 39% spoke to him.",
+      "detail": "Based on 99 self-reported incidents, 2005 to 2011.",
+      "sourceId": "bastomski_2011",
+      "region": "nyc",
+      "topic": "response"
+    },
+    {
+      "id": "nyc_bystanders_present_31",
+      "headline": "31%",
+      "text": "of New York City street harassment incidents analysed by Cornell researchers had bystanders present.",
+      "detail": "Random sample of 223 incidents submitted to Hollaback! from 2005 to 2008. Where bystanders were present they had a positive effect 26% of the time, a negative effect 22% of the time and took no action 19% of the time.",
+      "sourceId": "cornell_nyc_2012",
+      "region": "nyc",
+      "topic": "bystander"
+    },
+    {
+      "id": "gallup_us_58",
+      "headline": "58%",
+      "text": "of women in the United States feel safe walking alone at night where they live, compared with 84% of men.",
+      "detail": "Gallup survey data from 2024, published September 2025.",
+      "sourceId": "gallup_2025",
+      "region": "us",
+      "topic": "fear"
+    },
+    {
+      "id": "gallup_global_67",
+      "headline": "67%",
+      "text": "of women worldwide feel safe walking alone at night where they live, compared with 78% of men.",
+      "detail": "Gallup interviews with more than 145,000 adults in 144 countries and territories in 2024.",
+      "sourceId": "gallup_2025",
+      "region": "global",
+      "topic": "fear"
+    },
+    {
+      "id": "ons_quiet_street",
+      "headline": "1 in 2",
+      "text": "women in Great Britain felt unsafe walking alone after dark on a quiet street near their home, compared with 1 in 7 men.",
+      "detail": "Office for National Statistics survey, June 2021.",
+      "sourceId": "ons_2021",
+      "region": "uk",
+      "topic": "fear"
+    },
+    {
+      "id": "ons_park_82",
+      "headline": "82%",
+      "text": "of women in Great Britain felt very or fairly unsafe walking alone after dark in a park or other open space, compared with 42% of men.",
+      "detail": "Office for National Statistics survey, February to March 2022.",
+      "sourceId": "ons_2022",
+      "region": "uk",
+      "topic": "fear"
+    },
+    {
+      "id": "ons_followed_29",
+      "headline": "29%",
+      "text": "of women aged 16 to 34 in Great Britain felt they were being followed at least once in the previous 12 months.",
+      "detail": "In the same June 2021 survey, 44% of women aged 16 to 34 had experienced catcalls, whistles, unwanted sexual comments or jokes in the previous 12 months.",
+      "sourceId": "ons_2021",
+      "region": "uk",
+      "topic": "following"
+    },
+    {
+      "id": "yougov_keys_44",
+      "headline": "44%",
+      "text": "of women surveyed by YouGov say they regularly hold keys or another item as improvised self-defence, compared with 11% of men.",
+      "detail": "Research conducted with the BBC, published March 2022.",
+      "sourceId": "yougov_2022",
+      "region": "uk",
+      "topic": "behaviour_change"
+    },
+    {
+      "id": "yougov_phone_34",
+      "headline": "34%",
+      "text": "of women surveyed by YouGov say they regularly stay on the phone with someone while walking alone at night, compared with 5% of men.",
+      "detail": "Among women aged 18 to 29 the figure was 51%. This measures real calls; no verified figure was found for pretending to be on the phone.",
+      "sourceId": "yougov_2022",
+      "region": "uk",
+      "topic": "behaviour_change"
+    },
+    {
+      "id": "yougov_avoid_56",
+      "headline": "56%",
+      "text": "of women surveyed by YouGov say they regularly avoid certain areas or roads, compared with 29% of men.",
+      "detail": "53% of women regularly avoid being out at certain times, compared with 16% of men.",
+      "sourceId": "yougov_2022",
+      "region": "uk",
+      "topic": "behaviour_change"
+    },
+    {
+      "id": "uk_public_71",
+      "headline": "71%",
+      "text": "of women in the UK have experienced sexual harassment in a public space, rising to 86% among women aged 18 to 24.",
+      "detail": "YouGov survey of more than 1,000 women for UN Women UK, published March 2021. Early coverage gave higher figures (80% and 97%) that were later corrected.",
+      "sourceId": "guardian_unwomen_2021",
+      "region": "uk",
+      "topic": "prevalence"
+    },
+    {
+      "id": "uk_unreported_96",
+      "headline": "96%",
+      "text": "of respondents to a 2021 UK survey on sexual harassment in public spaces did not report the incidents they experienced.",
+      "detail": "45% said reporting would not change anything.",
+      "sourceId": "guardian_unwomen_2021",
+      "region": "uk",
+      "topic": "reporting"
+    },
+    {
+      "id": "loreal_78",
+      "headline": "78%",
+      "text": "of women across eight countries have experienced sexual harassment in public spaces.",
+      "detail": "Ipsos survey for L'Oreal Paris of 15,500 people in Canada, France, India, Italy, Mexico, Spain, the UK and the USA, February 2019.",
+      "sourceId": "loreal_ipsos_2019",
+      "region": "international",
+      "topic": "prevalence"
+    },
+    {
+      "id": "loreal_helped_25",
+      "headline": "Only 25%",
+      "text": "of people who experienced sexual harassment in public spaces say someone helped them.",
+      "detail": "From the same eight-country Ipsos survey for L'Oreal Paris.",
+      "sourceId": "loreal_ipsos_2019",
+      "region": "international",
+      "topic": "bystander"
+    },
+    {
+      "id": "loreal_dontknow_86",
+      "headline": "86%",
+      "text": "of people say they do not know what to do when they witness sexual harassment in public.",
+      "detail": "From the same eight-country Ipsos survey for L'Oreal Paris.",
+      "sourceId": "loreal_ipsos_2019",
+      "region": "international",
+      "topic": "bystander"
+    },
+    {
+      "id": "cctv_9in10",
+      "headline": "In 9 of 10",
+      "text": "public conflicts recorded by street cameras in the UK, the Netherlands and South Africa, at least one bystander did something to help.",
+      "detail": "Analysis of 219 real conflicts; it covers public aggression in general, not sexual harassment specifically.",
+      "sourceId": "philpot_2020",
+      "region": "international",
+      "topic": "bystander"
+    }
+  ],
+  "caseStudies": [
+    {
+      "id": "ruth_george_2019",
+      "name": "Ruth George",
+      "location": "Chicago, Illinois, USA",
+      "year": 2019,
+      "summary": "Ruth George, a 19-year-old University of Illinois Chicago student, was found dead in her car in a campus parking garage in November 2019. Prosecutors alleged that a man who tried to talk to her near a transit stop became angry when she ignored him, followed her into the garage and strangled her. A 26-year-old man was charged with first-degree murder and criminal sexual assault and held without bail. The outcome of the case could not be confirmed when this file was compiled.",
+      "relevance": "rejection_violence",
+      "sourceIds": [
+        "nbcchicago_george_2019"
+      ]
+    },
+    {
+      "id": "mary_spears_2014",
+      "name": "Mary \"Unique\" Spears",
+      "location": "Detroit, Michigan, USA",
+      "year": 2014,
+      "summary": "Mary Spears, a 27-year-old mother of three, was shot and killed in October 2014 at a hall in Detroit where her family had gathered after a funeral. Police and relatives said a man had approached her, she made clear she was not interested, and security escorted him out before he opened fire. Five other people were wounded. A 38-year-old man was charged with first-degree murder; the outcome of the case could not be confirmed when this file was compiled.",
+      "relevance": "rejection_violence",
+      "sourceIds": [
+        "huffpost_spears_2014",
+        "wdiv_spears_2014"
+      ]
+    },
+    {
+      "id": "janese_talton_jackson_2016",
+      "name": "Janese Talton-Jackson",
+      "location": "Pittsburgh, Pennsylvania, USA",
+      "year": 2016,
+      "summary": "Janese Talton-Jackson, 29, was shot and killed outside a bar in the Pittsburgh area in January 2016 after turning down a man's advances inside. The man pleaded guilty in February 2017 to third-degree murder and related charges and was sentenced to 20 to 40 years in prison. (Local reports also spell her name Ja-Nese Jackson Talton.)",
+      "relevance": "rejection_violence",
+      "sourceIds": [
+        "wpxi_talton_2017"
+      ]
+    },
+    {
+      "id": "sarah_everard_2021",
+      "name": "Sarah Everard",
+      "location": "London, UK",
+      "year": 2021,
+      "summary": "Sarah Everard, a 33-year-old marketing executive, was abducted in March 2021 while walking home from a friend's house in London. Prosecutors said a serving police officer staged a false arrest, using COVID-19 lockdown rules as a pretext. He was sentenced on 30 September 2021 to life in prison for her murder.",
+      "relevance": "walking_home",
+      "sourceIds": [
+        "cbs_everard_2021"
+      ]
+    },
+    {
+      "id": "sabina_nessa_2021",
+      "name": "Sabina Nessa",
+      "location": "London, UK",
+      "year": 2021,
+      "summary": "Sabina Nessa, a 28-year-old primary school teacher, was killed in September 2021 while making a short walk through a park near her home in south-east London to meet a friend. A man pleaded guilty to the attack and was sentenced in April 2022 to life in prison with a minimum term of 36 years.",
+      "relevance": "walking_home",
+      "sourceIds": [
+        "cbs_nessa_2022",
+        "aljazeera_nessa_2022"
+      ]
+    },
+    {
+      "id": "christina_yuna_lee_2022",
+      "name": "Christina Yuna Lee",
+      "location": "Chinatown, Manhattan, New York City, USA",
+      "year": 2022,
+      "summary": "Christina Yuna Lee, 35, was killed inside her apartment in Manhattan's Chinatown on 13 February 2022. According to the Manhattan District Attorney, a man followed her into her building and up six flights of stairs as she arrived home at about 4:20 a.m. He pleaded guilty to murder and sexually motivated burglary and was sentenced in July 2024 to 30 years to life in prison.",
+      "relevance": "followed",
+      "sourceIds": [
+        "manhattanda_lee_2024"
+      ]
+    },
+    {
+      "id": "nyc_2_train_2023",
+      "name": "Unnamed 18-year-old woman (2 train)",
+      "location": "Manhattan, New York City, USA",
+      "year": 2023,
+      "summary": "On New Year's Day 2023, police said a man followed an 18-year-old woman onto a southbound 2 train in Manhattan and tried to sexually assault her as the train approached 72nd Street. Another passenger stepped in and helped her get to a different train car. She was taken to hospital for evaluation, and police later arrested a 23-year-old man.",
+      "relevance": "bystander_helped",
+      "sourceIds": [
+        "nbcny_2train_2023"
+      ]
+    },
+    {
+      "id": "brooklyn_j_train_2025",
+      "name": "Unnamed 20-year-old woman (Norwood Avenue station)",
+      "location": "Brooklyn, New York City, USA",
+      "year": 2025,
+      "summary": "In 2025 a man grabbed a 20-year-old woman on a J train platform at Norwood Avenue station in Brooklyn. Witnesses shouted at him to let her go, and police said at least five people held him until officers arrived. The woman had minor injuries, and a 42-year-old man was arrested and charged.",
+      "relevance": "bystander_helped",
+      "sourceIds": [
+        "cbsny_jtrain_2025"
+      ]
+    }
+  ],
+  "harasserBehaviour": [
+    {
+      "id": "hb_who_lone_man",
+      "finding": "US national survey: 70% of harassed women said they had been harassed by one man acting alone, and 38% by two or more men (more than one answer allowed). Harassers of both women and men were overwhelmingly men.",
+      "sourceId": "ssh_2014",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_who_stranger",
+      "finding": "US national survey: for sexual harassment (as opposed to assault) the most frequently named perpetrator was a stranger in person (42% of women who had experienced harassment or assault).",
+      "sourceId": "ssh_2018",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_nyc_incident_types",
+      "finding": "99 New York City incidents reported to Hollaback! (2005-2011): 79.8% included verbal harassment, 18.2% stalking, 14.1% lewd looks or staring, 11.1% assault, 10.1% flashing, 6.1% groping. Categories overlap. The sample is self-selected, so severe incidents are probably over-represented.",
+      "sourceId": "bastomski_2011",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_nyc_verbal_content",
+      "finding": "In the same 99 NYC incidents, the verbal content was most often an uninvited greeting (49.5%), followed by comments evaluating the woman's looks (31.3%), sexually suggestive remarks (26.3%) and explicitly sexual or violent language (14.1%).",
+      "sourceId": "bastomski_2011",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_nyc_context",
+      "finding": "In the same 99 NYC incidents: 60.6% happened on the street or sidewalk and 22.2% on or around the subway or bus; the woman was alone in about 78%; the harasser acted alone in about 76%; 34 incidents were described as daytime and 32 as night (33 gave no time), so night was not clearly more common; no incident involved a woman accompanied by one male companion.",
+      "sourceId": "bastomski_2011",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_nyc_cornell_types",
+      "finding": "Random sample of 223 NYC incidents submitted to Hollaback! (2005-2008): 57% included verbal interactions (mostly sexual comments, solicitations and threats), 29% physical touching and 12% groping or attempted groping; 55% happened in the street or a park and 16% on public transportation.",
+      "sourceId": "cornell_nyc_2012",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_mobility_tactics",
+      "finding": "308 Hollaback! posts from New York and Chicago: 55.1% of harassers were on foot; in 42.9% the harasser used his body or a vehicle to affect the woman's movement (blocking her path, grabbing or following); 9.4% described the harasser making a quick exit afterwards; 38% took place at or near public transit.",
+      "sourceId": "hutson_krueger_2018",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_london_incident_types",
+      "finding": "546 incidents in 528 Hollaback London narratives (2012-2017): 68% verbal harassment, 28% physical contact (touching, groping, grabbing or assault) and 14% being followed or persistently stared at; 71% on the street and 17% on public transport; usually a lone woman and a lone man.",
+      "sourceId": "fleetwood_2019",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_women_responses_london",
+      "finding": "How women responded in the 546 London incidents: spoke or shouted at the harasser 40%; walked or ran away or hid 13%; said they did nothing 13% (most often no time, froze or scared); called on others at the time 7%; reported afterwards 6%; ignored 5%; physical response such as a push 5%; no response described 16%.",
+      "sourceId": "fleetwood_2019",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_women_responses_nyc",
+      "finding": "How women responded in the 99 NYC incidents: 41.4% tried to ignore the harasser or walked away; 39.4% verbally engaged him; 6 incidents involved physically defending herself and 6 were reported to police (the report prints 13.3% for these two, which does not match its own counts).",
+      "sourceId": "bastomski_2011",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_outcomes_are_mixed",
+      "finding": "The London narratives describe every kind of outcome after a woman responds: men walking away, going quiet or even apologising; responses with no visible effect; and, rarely, escalation. The author describes violent retaliation as very rare in the sample and gives no rates.",
+      "sourceId": "fleetwood_2019",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_motive_flirting",
+      "finding": "Survey of 258 heterosexual men: about 33% reported catcalling behaviour in the past year. Their most common stated reasons were to show they like the woman (85%), to show sexual interest (83%) and because they see it as a normal way of flirting (73%). Only 7% endorsed punishing women and 6% wanting to make her self-conscious. The sample was mostly mild, infrequent catcallers.",
+      "sourceId": "psypost_walton_2021",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_desired_reaction",
+      "finding": "The same catcallers mostly hoped for a friendly reaction: a smile (85%), flirting back (81%), a conversation (78%), feeling flattered (73%). A minority hoped she would be shocked (12%), intimidated (9%), angry (5%) or afraid (5%).",
+      "sourceId": "psypost_walton_2021",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_catcaller_attitudes",
+      "finding": "Men who reported catcalling scored higher than other men on hostile sexism, self-ascribed masculinity, social dominance orientation and tolerance of sexual harassment.",
+      "sourceId": "walton_pedersen_2021",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_groups_anonymity",
+      "finding": "Two studies of US college men: men with a higher likelihood to sexually harass were more likely to report harassing strangers when in a group than alone, and group harassment was motivated by anonymity and group bonding.",
+      "sourceId": "wesselmann_kelly_2010",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_low_power",
+      "finding": "Survey of 348 US undergraduates: men who believed they had less power than women were the most likely to report engaging in street harassment, and tolerance of sexual harassment was positively related to doing it.",
+      "sourceId": "delgreco_2021",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_power_not_attraction",
+      "finding": "A sociologist interviewed by PBS NewsHour describes street remarks as often intended to frighten or dominate, and as designed to go unnoticed by other people nearby.",
+      "sourceId": "pbs_2014",
+      "confidence": "inferred"
+    },
+    {
+      "id": "hb_rejection_lab_32pct",
+      "finding": "Lab study with 77 men in a dating simulation: when a simulated date refused a sexual advance, 25 men (32%) gave an aggressive immediate response and 52 did not. Aggression was most likely among men high in sexual dominance motivation who formed very hostile views of the woman. This is a dating simulation with college men, not a street encounter.",
+      "sourceId": "woerner_2018",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_rejection_male_hostility",
+      "finding": "Experiment on a mock dating platform: men, but not women, who were rejected by a desired partner showed increased hostility, both toward the person who rejected them and toward the opposite gender in general; anger explained the effect.",
+      "sourceId": "andrighetto_2019",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_rejection_sexual_goal",
+      "finding": "Experiment with 157 young men: after a romantic rejection, men whose sexual goals had been activated behaved more aggressively toward the woman who rejected them (measured by noise blasts).",
+      "sourceId": "blake_2018",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_honor_beliefs",
+      "finding": "Vignette studies summarised by Psychology Today: people who strongly endorse masculine honor beliefs expected a rejected man to feel insulted and less manly, rated aggressive reactions (such as grabbing her arm or insulting her) as more appropriate, and were less likely to expect him simply to walk away; a public rejection was seen as a bigger threat to his honor. Secondary summary; the original abstract could not be opened.",
+      "sourceId": "stratmoen_2018_pt",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_boyfriend_excuse",
+      "finding": "Two studies on excuses such as saying she already has a boyfriend: women who hold stronger masculine honor beliefs were more likely to use avoidant or deceptive rejections; men with stronger honor beliefs saw a deceptive rejection as a greater threat to the rejected man's honor; the authors suggest women use such excuses to soften the rejection and avoid retaliation. No data on how real harassers actually react.",
+      "sourceId": "stratmoen_2020",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_persistence_online",
+      "finding": "US national survey (online dating context): 60% of women aged 18 to 34 who have used dating sites or apps say someone kept contacting them after they said they were not interested; 44% were called an offensive name and 19% were threatened with physical harm. These are lifetime experiences, not per-incident rates.",
+      "sourceId": "pew_2020",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_slurs_22pct",
+      "finding": "US national survey: about 22% of all women had been called a sexist slur such as 'bitch' or 'slut' by a stranger in public, and 25% had been the target of comments about their body or obscene sounds.",
+      "sourceId": "ssh_2014",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_ignore_can_anger",
+      "finding": "Focus groups: several women described a man reacting to being ignored with anger or insults (for example demanding to know why she was ignoring him and then calling her names), and one described a man parking his car and following her on foot after she ignored his offer of a ride. Qualitative accounts only; no rates.",
+      "sourceId": "ssh_2014",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_polite_no_can_anger",
+      "finding": "Focus groups: one participant described a woman declining politely to give her number and the man turning belligerent anyway; another described a woman who finally said thank you to a persistent man, after which he backed off somewhat. Qualitative accounts only.",
+      "sourceId": "ssh_2014",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_friendly_invites_more",
+      "finding": "Focus groups: some women said that being pleasant, smiling or making small talk with men in public tends to lead to more approaches, so they act stern on purpose. This fits the finding that most catcallers hope for a smile or a conversation.",
+      "sourceId": "ssh_2014",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_refuge_works_anecdotal",
+      "finding": "Focus groups: women described ending an episode of being followed by going into a shop (one lost a man who had followed her for about 45 minutes by leaving through a grocery store's back exit) and a venue's bouncer removing a harasser. The report recommends businesses act as safe havens. Anecdotal; no rates.",
+      "sourceId": "ssh_2014",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_swearing_riskiest",
+      "finding": "Practitioner guidance from Stop Street Harassment (drawing on self-defence and harassment experts): respond calmly and firmly, name the behaviour and say what you want, do not apologise or offer excuses, do not get drawn into his questions or guilt-tripping, repeat yourself or leave. It warns that swearing or losing your temper is the reaction most likely to be met with anger and violence. Expert guidance, not measured data.",
+      "sourceId": "ssh_assertive",
+      "confidence": "inferred"
+    },
+    {
+      "id": "hb_no_right_response",
+      "finding": "Right To Be states there is no right or wrong way to respond because harassment is never the target's fault, that safety comes first, and that doing nothing, walking on or responding are all legitimate. Its founders report that years of confronting and trying to educate harassers did not seem to change them.",
+      "sourceId": "rtb_responding",
+      "confidence": "inferred"
+    },
+    {
+      "id": "hb_response_helps_target",
+      "finding": "Cornell analysis of 223 NYC incidents: women who took some action, in the moment or afterwards, appeared to suffer less negative emotional impact. Those who responded assertively described outward-directed emotions such as anger; more passive responders described inward ones such as embarrassment, helplessness and fear.",
+      "sourceId": "cornell_nyc_2012",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_active_coping",
+      "finding": "Study of young adult women: stranger harassment was linked to self-objectification for women who used the common coping strategies (passive, self-blame or treating it as benign) but not for the few who used active coping such as confronting the harasser; harassment was also linked to fear of rape and to restricting one's movement.",
+      "sourceId": "fairchild_rudman_2008",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_silent_walk_100",
+      "finding": "In a 2014 hidden-camera video made for Hollaback!, a woman who walked silently through Manhattan for ten hours without responding was the target of more than 100 incidents of street harassment. It is a single edited case, so it shows only that staying silent does not prevent remarks.",
+      "sourceId": "nbc_10hours_2014",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_silent_walk_caveat",
+      "finding": "The same 2014 video was criticised for over-representing men of colour in its editing, and the organisation apologised for the bias. Do not treat it as evidence about who harasses.",
+      "sourceId": "pbs_2014",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_fear_of_escalation",
+      "finding": "Most women cannot tell in the moment how an encounter will end: 68% of harassed women in the US national survey were concerned the incident would escalate.",
+      "sourceId": "ssh_2014",
+      "confidence": "data"
+    },
+    {
+      "id": "hb_field_is_thin",
+      "finding": "A comprehensive review of 182 sources describes street harassment research as an emergent field with inconsistent definitions and typologies. The search behind this file found no study that measures how harassers react to specific responses from the person targeted.",
+      "sourceId": "fileborn_oneill_2023",
+      "confidence": "inferred"
+    }
+  ],
+  "bystander": {
+    "fiveDs": [
+      {
+        "key": "distract",
+        "name": "Distract",
+        "description": "An indirect, low-key way to interrupt the incident: ignore the person doing the harassing, engage the person being harassed, and talk about something unrelated.",
+        "example": "Ask her for directions or the time, or greet her as if she were a friend you have just bumped into, and stand between the two of them."
+      },
+      {
+        "key": "delegate",
+        "name": "Delegate",
+        "description": "Ask someone else to help: the person next to you or someone with authority in the space. Say clearly what you see and what you want them to do.",
+        "example": "Tell a shop worker, bus driver or station agent what is happening and ask them to step in. Do not call the police unless the person being harassed asks you to."
+      },
+      {
+        "key": "document",
+        "name": "Document",
+        "description": "Record or take notes on what is happening, but only if someone else is already helping and you are safe.",
+        "example": "Film from a safe distance, then give the footage to the person who was harassed and let them decide what happens to it. Never post it without their permission."
+      },
+      {
+        "key": "delay",
+        "name": "Delay",
+        "description": "If you cannot act in the moment, check in with the person afterwards; it reduces the harm even when the incident is over.",
+        "example": "Ask whether she is okay, tell her you saw it and it was not acceptable, and offer to walk with her or sit with her for a while."
+      },
+      {
+        "key": "direct",
+        "name": "Direct",
+        "description": "Name the behaviour or tell the person to stop, briefly and firmly. Use with caution: it is the riskiest option because the person may turn on you or escalate.",
+        "example": "Say one short, calm sentence telling him to leave her alone, then turn your attention to her. Do not argue or debate."
+      }
+    ],
+    "findings": [
+      {
+        "id": "by_origin",
+        "finding": "Right To Be's 5Ds are Distract, Delegate, Document, Delay and Direct. Distract, Delegate and Direct came from the Green Dot programme (2012 partnership); Delay was added in 2015 and Document in 2017. Four of the five are indirect and are designed not to escalate.",
+        "sourceId": "rtb_5ds"
+      },
+      {
+        "id": "by_helped_25",
+        "finding": "Across eight countries, only 25% of people who experienced sexual harassment in public spaces said someone helped them.",
+        "sourceId": "loreal_ipsos_2019"
+      },
+      {
+        "id": "by_dont_know_86",
+        "finding": "Across the same eight countries, 86% of people said they did not know what to do when they witnessed sexual harassment in public.",
+        "sourceId": "loreal_ipsos_2019"
+      },
+      {
+        "id": "by_nyc_present_31",
+        "finding": "In 223 New York City incidents, bystanders were present in 31%. Where present, they had a positive effect 26% of the time, a negative effect 22% of the time and took no action 19% of the time.",
+        "sourceId": "cornell_nyc_2012"
+      },
+      {
+        "id": "by_confront_more_likely_cease",
+        "finding": "In the same NYC sample, harassment was more likely to stop when a bystander confronted the harasser. The report gives no percentage.",
+        "sourceId": "cornell_nyc_2012"
+      },
+      {
+        "id": "by_small_gestures_count",
+        "finding": "Help did not have to be dramatic: a knowing look or a supportive, empathetic remark was enough to improve how the targeted woman felt.",
+        "sourceId": "cornell_nyc_2012"
+      },
+      {
+        "id": "by_inaction_hurts",
+        "finding": "When bystanders were present but did nothing, their presence tended to make the target's negative feelings worse, and writers described that inaction as unacceptable.",
+        "sourceId": "cornell_nyc_2012"
+      },
+      {
+        "id": "by_us_helped_other",
+        "finding": "In the US national survey, 20% of women and 23% of men said they had spoken up or done something to help someone else who was being harassed.",
+        "sourceId": "ssh_2014"
+      },
+      {
+        "id": "by_swiss_nonintervention",
+        "finding": "In a Swiss survey (4,035 valid responses, not representative), 68% had witnessed street harassment; 45% of those witnesses had never intervened, mainly because they did not know what to do. The most common intervention was speaking to the harasser (about 30%), then supporting the target (about 20%).",
+        "sourceId": "milani_carbajal_2023"
+      },
+      {
+        "id": "by_bystander_effect_meta",
+        "finding": "A meta-analysis of more than 7,700 participants and 105 effect sizes confirms the classic bystander effect (individuals are less likely to help when others are present; overall effect g = -0.35), but the effect is weaker when the situation is clearly dangerous, when a perpetrator is present, and when bystanders know each other.",
+        "sourceId": "fischer_2011"
+      },
+      {
+        "id": "by_someone_usually_helps",
+        "finding": "In 219 real public conflicts filmed by street cameras in the UK, the Netherlands and South Africa, at least one bystander did something to help in 9 out of 10 cases, and more bystanders meant a higher chance that someone would act. The study covers public aggression generally, not sexual harassment.",
+        "sourceId": "philpot_2020"
+      },
+      {
+        "id": "by_direct_is_risky",
+        "finding": "Right To Be advises using Direct with caution because the person harassing may turn on the bystander or escalate. Before speaking up, check four things: you are physically safe, the person being harassed is physically safe, escalation seems unlikely, and the person seems to want someone to speak up. Keep it short and do not argue.",
+        "sourceId": "rtb_5ds"
+      },
+      {
+        "id": "by_direct_risk_example",
+        "finding": "A real example of the risk: in November 2022 a 54-year-old subway rider in the Bronx who stepped in to defend a woman who was being harassed was stabbed in the elbow; a suspect was arrested at the scene.",
+        "sourceId": "wins_bronx_2022"
+      },
+      {
+        "id": "by_police_only_with_consent",
+        "finding": "Right To Be advises against calling the police on someone's behalf unless that person has asked for it, because some people do not feel safe with police involvement.",
+        "sourceId": "rtb_5ds"
+      },
+      {
+        "id": "by_document_rules",
+        "finding": "Right To Be advises documenting only when someone else is already helping, and always letting the person who was harassed decide what happens to the recording.",
+        "sourceId": "rtb_5ds"
+      },
+      {
+        "id": "by_male_companion",
+        "finding": "Among 99 New York City incidents, none happened while the woman was accompanied by a man,. This is consistent with Distract tactics in which a bystander simply joins the woman.",
+        "sourceId": "bastomski_2011"
+      }
+    ]
+  },
+  "modelCalibration": {
+    "notes": "How to read this table. basis=data means the value is taken directly from a cited figure (the range shows the spread across sources; a single-source figure has a point range). basis=inferred means the value was derived from cited figures collected in a different setting or by combining figures. basis=assumption means no measurement exists and the value is a conservative placeholder; where the rationale says the direction or ordering is evidence-based, only the ordering should be treated as supported. Key limits: (1) No study measures how street harassers react to specific responses, so every response.* and bystander.<tactic>.* value is an assumption except where marked. (2) Incident-type shares come from self-selected story archives (Hollaback!) that over-represent memorable and severe incidents; national surveys give lifetime prevalence, not per-encounter rates. (3) Rejection-aggression experiments involve college men in dating or lab settings, not strangers on a street. Design guidance that follows from the evidence: let most of the variance come from the man's disposition, which is drawn at the start of a run, and let the trainee's response shift probabilities only modestly; never make a bad outcome the scripted consequence of a particular choice, because the evidence does not support a 'correct' response and guidance is explicit that harassment is not the target's fault; keep physical escalation rare; make friendly engagement prolong contact, insults the most likely to draw hostility, and reaching other people or a shop the most reliable way to end the encounter; in the bystander part, make indirect tactics low-risk and Direct effective but riskier for the bystander.",
+    "parameters": [
+      {
+        "key": "base.incident_includes_verbal",
+        "value": 0.8,
+        "range": [
+          0.57,
+          0.8
+        ],
+        "basis": "data",
+        "rationale": "Share of reported incidents that include verbal harassment: 79.8% (99 NYC incidents), 68% (546 London incidents), 57% (223 NYC incidents).",
+        "sourceIds": [
+          "bastomski_2011",
+          "fleetwood_2019",
+          "cornell_nyc_2012"
+        ]
+      },
+      {
+        "key": "base.incident_involves_following",
+        "value": 0.18,
+        "range": [
+          0.14,
+          0.2
+        ],
+        "basis": "data",
+        "rationale": "Share of reported incidents involving stalking or following: 18.2% (NYC, n=99); 14% followed or persistently stared at (London). Lifetime prevalence among US women is 20% (2014) to 34% (2018).",
+        "sourceIds": [
+          "bastomski_2011",
+          "fleetwood_2019",
+          "ssh_2014",
+          "ssh_2018"
+        ]
+      },
+      {
+        "key": "base.incident_involves_path_interference",
+        "value": 0.43,
+        "range": [
+          0.43,
+          0.43
+        ],
+        "basis": "data",
+        "rationale": "42.9% of 308 New York and Chicago Hollaback! posts described the harasser using his body or a vehicle to affect the woman's movement (blocking, grabbing or following). Self-selected posts, so treat as an upper bound for everyday encounters.",
+        "sourceIds": [
+          "hutson_krueger_2018"
+        ]
+      },
+      {
+        "key": "base.incident_involves_physical_contact_reported",
+        "value": 0.12,
+        "range": [
+          0.06,
+          0.29
+        ],
+        "basis": "data",
+        "rationale": "Share of reported incidents with physical contact: 6.1% groping and 11.1% assault (NYC, n=99); 12% groping or attempted groping and 29% any physical touching (NYC, n=223); 28% (London). These archives over-represent severe incidents.",
+        "sourceIds": [
+          "bastomski_2011",
+          "cornell_nyc_2012",
+          "fleetwood_2019"
+        ]
+      },
+      {
+        "key": "base.encounter_stays_verbal_only",
+        "value": 0.7,
+        "range": [
+          0.55,
+          0.85
+        ],
+        "basis": "inferred",
+        "rationale": "No source reports this directly. Reported-incident archives put physical contact at 6-29% and following at 14-18% with unknown overlap, which implies roughly 55-70% non-contact, non-following incidents; archives over-sample severe incidents and far more US women report verbal harassment (57%) than touching (23%) or following (20%), so the everyday rate is probably higher.",
+        "sourceIds": [
+          "bastomski_2011",
+          "cornell_nyc_2012",
+          "fleetwood_2019",
+          "ssh_2014"
+        ]
+      },
+      {
+        "key": "base.physical_escalation_per_run",
+        "value": 0.03,
+        "range": [
+          0,
+          0.05
+        ],
+        "basis": "assumption",
+        "rationale": "No per-encounter denominator exists anywhere. Set deliberately below the 6-12% groping or assault share seen in self-selected incident archives. Physical escalation should stay rare and must never be scripted as the consequence of a particular trainee choice.",
+        "sourceIds": [
+          "bastomski_2011",
+          "cornell_nyc_2012"
+        ]
+      },
+      {
+        "key": "base.harasser_is_lone_man",
+        "value": 0.7,
+        "range": [
+          0.7,
+          0.76
+        ],
+        "basis": "data",
+        "rationale": "70% of harassed US women were harassed by one man (national survey); about 76% of NYC incidents involved a lone perpetrator.",
+        "sourceIds": [
+          "ssh_2014",
+          "bastomski_2011"
+        ]
+      },
+      {
+        "key": "base.harasser_on_foot",
+        "value": 0.55,
+        "range": [
+          0.55,
+          0.55
+        ],
+        "basis": "data",
+        "rationale": "55.1% of harassers in 308 New York and Chicago posts were on foot.",
+        "sourceIds": [
+          "hutson_krueger_2018"
+        ]
+      },
+      {
+        "key": "base.target_is_alone",
+        "value": 0.78,
+        "range": [
+          0.78,
+          0.78
+        ],
+        "basis": "data",
+        "rationale": "About 78% of 99 NYC incidents happened when the woman was alone.",
+        "sourceIds": [
+          "bastomski_2011"
+        ]
+      },
+      {
+        "key": "base.bystander_present",
+        "value": 0.31,
+        "range": [
+          0.31,
+          0.31
+        ],
+        "basis": "data",
+        "rationale": "Bystanders were present in 31% of 223 NYC incidents.",
+        "sourceIds": [
+          "cornell_nyc_2012"
+        ]
+      },
+      {
+        "key": "base.someone_helps",
+        "value": 0.25,
+        "range": [
+          0.25,
+          0.26
+        ],
+        "basis": "data",
+        "rationale": "25% of people harassed in public say someone helped (eight-country Ipsos survey); bystanders had a positive effect in 26% of NYC incidents where they were present.",
+        "sourceIds": [
+          "loreal_ipsos_2019",
+          "cornell_nyc_2012"
+        ]
+      },
+      {
+        "key": "base.witness_does_not_know_what_to_do",
+        "value": 0.86,
+        "range": [
+          0.45,
+          0.86
+        ],
+        "basis": "data",
+        "rationale": "86% of people say they do not know what to do when they witness harassment (Ipsos); in a Swiss survey 45% of witnesses had never intervened, mainly for that reason.",
+        "sourceIds": [
+          "loreal_ipsos_2019",
+          "milani_carbajal_2023"
+        ]
+      },
+      {
+        "key": "base.incident_reported_to_authority",
+        "value": 0.1,
+        "range": [
+          0.04,
+          0.13
+        ],
+        "basis": "data",
+        "rationale": "About 1 in 10 US women who experienced harassment or assault filed an official report; 4% (NYC subway survey), 12% (NYC transit survey), 6% (London narratives) and 6 of 99 NYC incidents were reported.",
+        "sourceIds": [
+          "ssh_2018",
+          "amny_stringer_2007",
+          "amny_pinktax_2018",
+          "fleetwood_2019",
+          "bastomski_2011"
+        ]
+      },
+      {
+        "key": "woman.concerned_about_escalation",
+        "value": 0.68,
+        "range": [
+          0.68,
+          0.68
+        ],
+        "basis": "data",
+        "rationale": "68% of harassed US women were very or somewhat concerned the incident would escalate (25% very concerned). Useful for pacing the trainee's sense of uncertainty rather than the man's behaviour.",
+        "sourceIds": [
+          "ssh_2014"
+        ]
+      },
+      {
+        "key": "man.disposition.wants_friendly_response",
+        "value": 0.85,
+        "range": [
+          0.73,
+          0.85
+        ],
+        "basis": "data",
+        "rationale": "Among self-reported catcallers, 85% hoped for a smile, 81% for flirting back, 78% for a conversation and 73% that she would feel flattered. The sample was mostly mild, infrequent catcallers.",
+        "sourceIds": [
+          "psypost_walton_2021"
+        ]
+      },
+      {
+        "key": "man.disposition.hostile_from_start",
+        "value": 0.08,
+        "range": [
+          0.05,
+          0.12
+        ],
+        "basis": "inferred",
+        "rationale": "Among self-reported catcallers, 5% hoped for fear or anger, 9% hoped she would feel intimidated, 12% shocked, and 7% endorsed punishing women. The surveyed men were at the mild end, so the true share among persistent night-time harassers may be higher.",
+        "sourceIds": [
+          "psypost_walton_2021",
+          "walton_pedersen_2021"
+        ]
+      },
+      {
+        "key": "man.disposition.persistent_entitled",
+        "value": 0.25,
+        "range": [
+          0.15,
+          0.35
+        ],
+        "basis": "assumption",
+        "rationale": "No data on the share of harassers who keep going after a clear no. Guided loosely by the finding that catcallers score higher on hostile sexism and tolerance of harassment, and by online-dating data showing that persistence after a refusal is a common experience for young women.",
+        "sourceIds": [
+          "walton_pedersen_2021",
+          "pew_2020"
+        ]
+      },
+      {
+        "key": "response.firm_boundary.p_verbal_hostility",
+        "value": 0.3,
+        "range": [
+          0.15,
+          0.4
+        ],
+        "basis": "inferred",
+        "rationale": "In a lab dating simulation, 25 of 77 men (32%) reacted aggressively to a clear sexual refusal. Different setting (college men, simulated date), so applied with a wide range.",
+        "sourceIds": [
+          "woerner_2018",
+          "andrighetto_2019"
+        ]
+      },
+      {
+        "key": "response.firm_boundary.p_back_off",
+        "value": 0.45,
+        "range": [
+          0.3,
+          0.6
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Narrative studies describe men walking away, going quiet or apologising after women spoke back, alongside cases with no effect; practitioner guidance recommends a short, calm, firm statement.",
+        "sourceIds": [
+          "fleetwood_2019",
+          "ssh_assertive"
+        ]
+      },
+      {
+        "key": "response.ignore.p_verbal_hostility",
+        "value": 0.15,
+        "range": [
+          0.05,
+          0.3
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Focus-group accounts show ignoring sometimes triggers anger and insults, but there is no evidence on how often, or on whether it is more or less common than after an explicit refusal.",
+        "sourceIds": [
+          "ssh_2014"
+        ]
+      },
+      {
+        "key": "response.ignore.p_persist_or_follow",
+        "value": 0.35,
+        "range": [
+          0.2,
+          0.5
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. A woman who stayed silent for ten hours in Manhattan still drew over 100 remarks, and focus-group accounts describe men following after being ignored. The scenario's man is persistent by design, so this is set higher than the 14-18% following rate in incident archives.",
+        "sourceIds": [
+          "nbc_10hours_2014",
+          "ssh_2014",
+          "bastomski_2011"
+        ]
+      },
+      {
+        "key": "response.ignore.p_back_off",
+        "value": 0.5,
+        "range": [
+          0.35,
+          0.65
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Ignoring or walking away was the most common response in NYC reports (41%), most reported incidents are verbal only, and Right To Be notes that much harassment happens in passing.",
+        "sourceIds": [
+          "bastomski_2011",
+          "rtb_5ds"
+        ]
+      },
+      {
+        "key": "response.polite_deflection.p_persist",
+        "value": 0.5,
+        "range": [
+          0.35,
+          0.65
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Guidance says apologies and excuses invite negotiation, and most catcallers are hoping for conversation, so a soft answer is assumed to prolong the exchange more often than a firm one.",
+        "sourceIds": [
+          "ssh_assertive",
+          "psypost_walton_2021"
+        ]
+      },
+      {
+        "key": "response.polite_deflection.p_verbal_hostility",
+        "value": 0.1,
+        "range": [
+          0.05,
+          0.25
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Focus-group accounts include a polite refusal met with belligerence, so this cannot be zero; set below the firm-boundary value because a soft refusal poses less of a public status threat.",
+        "sourceIds": [
+          "ssh_2014",
+          "stratmoen_2018_pt"
+        ]
+      },
+      {
+        "key": "response.hostile_insult.p_verbal_hostility",
+        "value": 0.5,
+        "range": [
+          0.35,
+          0.65
+        ],
+        "basis": "assumption",
+        "rationale": "Magnitude is a guess; the ordering is evidence-based. Practitioner guidance identifies swearing or losing one's temper as the reaction most likely to provoke anger and violence, and honor-belief research links perceived insult to endorsement of aggression. Keep this the highest hostility value.",
+        "sourceIds": [
+          "ssh_assertive",
+          "stratmoen_2018_pt"
+        ]
+      },
+      {
+        "key": "response.hostile_insult.p_intimidation",
+        "value": 0.15,
+        "range": [
+          0.05,
+          0.25
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Narrative research describes violent retaliation as very rare; this covers stepping closer, threats or blocking rather than physical contact.",
+        "sourceIds": [
+          "fleetwood_2019"
+        ]
+      },
+      {
+        "key": "response.lie_or_excuse.p_persist",
+        "value": 0.45,
+        "range": [
+          0.3,
+          0.6
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Research on the boyfriend excuse measures perceptions, not harasser behaviour; guidance warns that excuses invite argument (for example questioning the excuse).",
+        "sourceIds": [
+          "stratmoen_2020",
+          "ssh_assertive"
+        ]
+      },
+      {
+        "key": "response.lie_or_excuse.p_verbal_hostility",
+        "value": 0.1,
+        "range": [
+          0.05,
+          0.2
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Women report using excuses to soften rejection and avoid retaliation, and men with strong honor beliefs see deception as an added honor threat if detected.",
+        "sourceIds": [
+          "stratmoen_2020"
+        ]
+      },
+      {
+        "key": "response.threat_police_or_attention.p_back_off",
+        "value": 0.55,
+        "range": [
+          0.4,
+          0.7
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Guidance notes that visibly recording details can scare a harasser into stopping and that harassers rely on going unnoticed; group-harassment research points to anonymity as a motive.",
+        "sourceIds": [
+          "ssh_assertive",
+          "wesselmann_kelly_2010",
+          "pbs_2014"
+        ]
+      },
+      {
+        "key": "response.threat_police_or_attention.p_verbal_hostility",
+        "value": 0.2,
+        "range": [
+          0.1,
+          0.35
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. A public threat is a status challenge, so hostility is assumed to be somewhat more likely than after ignoring and less likely than after an insult.",
+        "sourceIds": [
+          "stratmoen_2018_pt"
+        ]
+      },
+      {
+        "key": "response.seek_refuge.p_back_off",
+        "value": 0.75,
+        "range": [
+          0.6,
+          0.9
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Focus-group accounts describe shops and venue staff ending episodes of following, and harassers overwhelmingly target women who are alone (78% of NYC incidents).",
+        "sourceIds": [
+          "ssh_2014",
+          "bastomski_2011"
+        ]
+      },
+      {
+        "key": "response.engage_friendly.p_persist",
+        "value": 0.8,
+        "range": [
+          0.65,
+          0.9
+        ],
+        "basis": "assumption",
+        "rationale": "Magnitude is a guess; the direction is evidence-based. Most catcallers hope for a smile or conversation, and women in focus groups report that being pleasant leads to more approaches.",
+        "sourceIds": [
+          "psypost_walton_2021",
+          "ssh_2014"
+        ]
+      },
+      {
+        "key": "bystander.any_action.p_harassment_stops",
+        "value": 0.65,
+        "range": [
+          0.5,
+          0.8
+        ],
+        "basis": "assumption",
+        "rationale": "Magnitude is a guess; the direction is evidence-based. The NYC analysis found harassment was more likely to stop when a bystander confronted the harasser but gives no number, and no reported NYC incident involved a woman accompanied by a man.",
+        "sourceIds": [
+          "cornell_nyc_2012",
+          "bastomski_2011"
+        ]
+      },
+      {
+        "key": "bystander.distract.p_harassment_stops",
+        "value": 0.65,
+        "range": [
+          0.5,
+          0.8
+        ],
+        "basis": "assumption",
+        "rationale": "No outcome data by tactic. Joining the woman removes the condition under which most incidents occur (woman alone) without challenging the man.",
+        "sourceIds": [
+          "rtb_5ds",
+          "bastomski_2011"
+        ]
+      },
+      {
+        "key": "bystander.distract.p_hostility_toward_bystander",
+        "value": 0.05,
+        "range": [
+          0,
+          0.1
+        ],
+        "basis": "assumption",
+        "rationale": "No outcome data. Right To Be describes Distract as an option when open confrontation might escalate.",
+        "sourceIds": [
+          "rtb_5ds"
+        ]
+      },
+      {
+        "key": "bystander.direct.p_harassment_stops",
+        "value": 0.65,
+        "range": [
+          0.5,
+          0.8
+        ],
+        "basis": "assumption",
+        "rationale": "Magnitude is a guess; the direction is evidence-based. Confrontation by a bystander made harassment more likely to stop in NYC incidents (no number given).",
+        "sourceIds": [
+          "cornell_nyc_2012"
+        ]
+      },
+      {
+        "key": "bystander.direct.p_hostility_toward_bystander",
+        "value": 0.25,
+        "range": [
+          0.1,
+          0.4
+        ],
+        "basis": "assumption",
+        "rationale": "No rates exist. Right To Be warns Direct can redirect abuse to the bystander or escalate, and real cases of bystanders being injured exist. Should be clearly higher than for Distract.",
+        "sourceIds": [
+          "rtb_5ds",
+          "wins_bronx_2022"
+        ]
+      },
+      {
+        "key": "bystander.delegate.p_harassment_stops",
+        "value": 0.55,
+        "range": [
+          0.4,
+          0.7
+        ],
+        "basis": "assumption",
+        "rationale": "No outcome data. Depends on whether the delegate (shop worker, transit staff, another passer-by) acts; group presence increases the chance that someone intervenes.",
+        "sourceIds": [
+          "rtb_5ds",
+          "philpot_2020"
+        ]
+      },
+      {
+        "key": "bystander.document.p_harassment_stops",
+        "value": 0.15,
+        "range": [
+          0.05,
+          0.3
+        ],
+        "basis": "assumption",
+        "rationale": "No outcome data. Right To Be says documenting alone, while nobody is helping, can add to the target's distress; its value is mainly after the fact.",
+        "sourceIds": [
+          "rtb_5ds"
+        ]
+      },
+      {
+        "key": "bystander.delay.target_distress_reduction",
+        "value": 0.3,
+        "range": [
+          0.15,
+          0.45
+        ],
+        "basis": "assumption",
+        "rationale": "Magnitude is a guess; the direction is evidence-based. Even a supportive look or remark improved how targets felt, and Right To Be says checking in afterwards reduces harm. Delay does not change the harasser's behaviour.",
+        "sourceIds": [
+          "cornell_nyc_2012",
+          "rtb_5ds"
+        ]
+      },
+      {
+        "key": "bystander.nothing.target_distress_increase",
+        "value": 0.25,
+        "range": [
+          0.1,
+          0.4
+        ],
+        "basis": "assumption",
+        "rationale": "Magnitude is a guess; the direction is evidence-based. Bystanders who were present and did nothing made targets feel worse.",
+        "sourceIds": [
+          "cornell_nyc_2012"
+        ]
+      },
+      {
+        "key": "bystander.group_size_helps",
+        "value": 1,
+        "range": [
+          1,
+          1
+        ],
+        "basis": "data",
+        "rationale": "Flag, not a probability: in real public conflicts, more bystanders present meant a higher chance that at least one intervened, and at least one helped in about 9 of 10 conflicts. The classic bystander effect (each individual less likely to act) is weaker when danger is clear and a perpetrator is present.",
+        "sourceIds": [
+          "philpot_2020",
+          "fischer_2011"
+        ]
+      }
+    ]
+  },
+  "resources": [
+    {
+      "name": "Emergency services (United States)",
+      "description": "If you or someone else is in immediate danger, call 911.",
+      "url": "",
+      "phone": "911",
+      "region": "us"
+    },
+    {
+      "name": "RAINN National Sexual Assault Hotline",
+      "description": "Free, confidential support 24/7 from trained staff, by phone, online chat or text (text HOPE to 64673).",
+      "url": "https://rainn.org/help-and-healing/hotline/",
+      "phone": "800-656-4673",
+      "region": "us"
+    },
+    {
+      "name": "Crisis Text Line",
+      "description": "Free, confidential 24/7 support by text message. In the US text HOME to 741741; Canada 686868; UK 85258; Ireland 50808.",
+      "url": "https://www.crisistextline.org/",
+      "phone": "Text HOME to 741741",
+      "region": "us"
+    },
+    {
+      "name": "Right To Be - free bystander intervention and harassment response training",
+      "description": "Free public trainings on the 5Ds of bystander intervention and on responding to harassment, plus tailored training for organisations, schools and colleges.",
+      "url": "https://righttobe.org/our-training/",
+      "phone": "",
+      "region": "international"
+    },
+    {
+      "name": "Right To Be - The 5Ds of Bystander Intervention",
+      "description": "The full guide to Distract, Delegate, Document, Delay and Direct, with safety advice.",
+      "url": "https://righttobe.org/guides/bystander-intervention-training/",
+      "phone": "",
+      "region": "international"
+    },
+    {
+      "name": "Right To Be - Responding to Public Harassment",
+      "description": "Guidance for people who experience harassment: trust your instincts, reclaim your space if it is safe, and look after yourself afterwards.",
+      "url": "https://righttobe.org/guides/how-to-respond-to-public-harassment/",
+      "phone": "",
+      "region": "international"
+    },
+    {
+      "name": "Stand Up Against Street Harassment",
+      "description": "Online training in the 5Ds from L'Oreal Paris and Right To Be, with sites for many countries.",
+      "url": "https://www.standup-international.com/",
+      "phone": "",
+      "region": "international"
+    },
+    {
+      "name": "Stop Street Harassment - Assertive Responses",
+      "description": "Practical ideas for what to say to a harasser, and other help pages.",
+      "url": "https://stopstreetharassment.org/strategies/assertive-responses/",
+      "phone": "",
+      "region": "us"
+    },
+    {
+      "name": "Safe Horizon 24-hour hotline (New York City)",
+      "description": "Round-the-clock hotline for anyone affected by crime, abuse, sexual assault or domestic violence, with interpretation in more than 25 languages and an online chat.",
+      "url": "https://www.safehorizon.org/hotlines/",
+      "phone": "1-800-621-4673",
+      "region": "nyc"
+    },
+    {
+      "name": "MTA - report sexual misconduct on New York City transit",
+      "description": "Report an incident online (anonymously if you prefer); the MTA forwards reports to law enforcement. The phone number is the NYPD Transit Special Victims Squad.",
+      "url": "https://www.mta.info/safety-and-security",
+      "phone": "212-267-7273",
+      "region": "nyc"
+    },
+    {
+      "name": "NYC Sexual Assault Hotline",
+      "description": "Listed by the NYPD among resources for people who experience sex offences on transit.",
+      "url": "https://www.nyc.gov/site/nypd/bureaus/transit-housing/transit-sex-offense.page",
+      "phone": "212-227-3000",
+      "region": "nyc"
+    },
+    {
+      "name": "NYC Anti-Violence Project hotline",
+      "description": "Listed by the NYPD among resources for people who experience sex offences on transit.",
+      "url": "https://www.nyc.gov/site/nypd/bureaus/transit-housing/transit-sex-offense.page",
+      "phone": "212-714-1141",
+      "region": "nyc"
+    },
+    {
+      "name": "Rape Crisis England & Wales - 24/7 Rape & Sexual Abuse Support Line",
+      "description": "Free support line and online chat for anyone aged 16 or over in England and Wales who has been affected by sexual violence. Not an emergency service; call 999 in an emergency.",
+      "url": "https://rapecrisis.org.uk/get-help/want-to-talk/",
+      "phone": "0808 500 2222",
+      "region": "uk"
+    },
+    {
+      "name": "NO MORE Global Directory",
+      "description": "International directory of domestic and sexual violence helplines and support services covering almost every country and territory, created with the United Nations and the World Bank.",
+      "url": "https://nomoredirectory.org/",
+      "phone": "",
+      "region": "international"
+    }
+  ]
+}

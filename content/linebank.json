@@ -1,0 +1,1441 @@
+{
+ "_about": "Fallback and instant lines for scenario 'walk-home'. The Worker uses these when the line model is slow, refuses or returns rubbish, for the opening call-out (so 'begin' answers with no latency) and for the moment of escalation. 'woman' is keyed by the man's stance (woman POV); 'bystander' by situation (bystander POV). Every entry has the line and her matching inner thought; scripts/gen-voice.mjs renders both to public/audio/vo/<id>.mp3 and public/audio/vo/<id>_t.mp3. Crude language is deliberate and bounded: no slurs about race, religion, disability or orientation, no sexual description, no threats of sexual violence, no weapons.",
+ "woman": {
+  "opening": [
+   {
+    "id": "lb_opening_1",
+    "speaker": "man",
+    "text": "Hey. Hey, beautiful. Where you headed?",
+    "emotion": "friendly",
+    "delivery": "call_out",
+    "thought": "Don't look. Just keep walking.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_opening_2",
+    "speaker": "man",
+    "text": "Hey, miss! Lemme talk to you for a second.",
+    "emotion": "smirk",
+    "delivery": "call_out",
+    "thought": "Great. Here we go.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_opening_3",
+    "speaker": "man",
+    "text": "Damn. You walking home all by yourself?",
+    "emotion": "friendly",
+    "delivery": "call_out",
+    "thought": "He knows I'm alone.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_opening_4",
+    "speaker": "man",
+    "text": "Hey, gorgeous. Smile, it's not that bad.",
+    "emotion": "smirk",
+    "delivery": "call_out",
+    "thought": "Keep your head down. Keep moving.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_opening_5",
+    "speaker": "man",
+    "text": "Hey, sweetheart. What's your name?",
+    "emotion": "friendly",
+    "delivery": "call_out",
+    "thought": "Don't answer. Don't slow down.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_opening_6",
+    "speaker": "man",
+    "text": "Hey! Hey, pretty lady. Where you going so fast?",
+    "emotion": "smirk",
+    "delivery": "call_out",
+    "thought": "He's talking to me. Of course he is.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_opening_7",
+    "speaker": "man",
+    "text": "Good evening, beautiful. You look good tonight.",
+    "emotion": "friendly",
+    "delivery": "call_out",
+    "thought": "Just walk. Don't give him anything.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_opening_8",
+    "speaker": "man",
+    "text": "Hey, miss. Miss! Can I walk with you?",
+    "emotion": "smirk",
+    "delivery": "call_out",
+    "thought": "No. Please, not tonight.",
+    "thoughtEmotion": "worried"
+   }
+  ],
+  "persist": [
+   {
+    "id": "lb_persist_1",
+    "speaker": "man",
+    "text": "C'mon, I'm just saying hi. What's your name?",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "He's not going to stop.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_persist_2",
+    "speaker": "man",
+    "text": "You can't even talk to me? One minute, that's all.",
+    "emotion": "friendly",
+    "delivery": "normal",
+    "thought": "How far is my door from here?",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_persist_3",
+    "speaker": "man",
+    "text": "You got a man? I bet you don't have a man.",
+    "emotion": "leer",
+    "delivery": "normal",
+    "thought": "Whatever I say, he'll use it.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_persist_4",
+    "speaker": "man",
+    "text": "Why you so quiet, sweetheart? I don't bite.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "Is anyone else on this street?",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_persist_5",
+    "speaker": "man",
+    "text": "Lemme get your number. Real quick.",
+    "emotion": "friendly",
+    "delivery": "normal",
+    "thought": "Don't give him anything real.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_persist_6",
+    "speaker": "man",
+    "text": "Where do you live? I'll walk you.",
+    "emotion": "leer",
+    "delivery": "normal",
+    "thought": "He cannot find out where I live.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_persist_7",
+    "speaker": "man",
+    "text": "Come on, smile for me. Just one smile.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "If I smile, does he leave?",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_persist_8",
+    "speaker": "man",
+    "text": "I'm a nice guy, I swear. Ask anybody.",
+    "emotion": "friendly",
+    "delivery": "normal",
+    "thought": "Nice guys don't do this.",
+    "thoughtEmotion": "worried"
+   }
+  ],
+  "follow": [
+   {
+    "id": "lb_follow_1",
+    "speaker": "man",
+    "text": "I'm just walking the same way. Relax.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "He's still behind me.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_follow_2",
+    "speaker": "man",
+    "text": "Where you running to? Slow down.",
+    "emotion": "leer",
+    "delivery": "normal",
+    "thought": "Don't run. Don't let him see you run.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_follow_3",
+    "speaker": "man",
+    "text": "You walk fast for somebody so little.",
+    "emotion": "neutral",
+    "delivery": "normal",
+    "thought": "His footsteps are matching mine.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_follow_4",
+    "speaker": "man",
+    "text": "I can do this all night, sweetheart.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "I can't lead him to my door.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_follow_5",
+    "speaker": "man",
+    "text": "Don't be scared. I'm just keeping you company.",
+    "emotion": "leer",
+    "delivery": "normal",
+    "thought": "The shop. The shop is still open.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_follow_6",
+    "speaker": "man",
+    "text": "You gonna make me chase you?",
+    "emotion": "neutral",
+    "delivery": "normal",
+    "thought": "Keys. Where are my keys?",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_follow_7",
+    "speaker": "man",
+    "text": "Hey, I'm talking to you. Turn around.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "Don't turn around. Keep going.",
+    "thoughtEmotion": "afraid"
+   }
+  ],
+  "block": [
+   {
+    "id": "lb_block_1",
+    "speaker": "man",
+    "text": "Hold up, hold up. One second.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "He's in my way.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_block_2",
+    "speaker": "man",
+    "text": "Whoa, slow down. I'm talking to you.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "I can't get past him.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_block_3",
+    "speaker": "man",
+    "text": "Just one minute. You're not in that much of a hurry.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "Go around. Which side?",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_block_4",
+    "speaker": "man",
+    "text": "No, no. You're gonna stop and talk to me.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Don't let him touch me.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_block_5",
+    "speaker": "man",
+    "text": "Where you going? I'm not done.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "The street. Step into the street.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_block_6",
+    "speaker": "man",
+    "text": "Look at me when I'm talking to you.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Don't make him angry. Think.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_block_7",
+    "speaker": "man",
+    "text": "Relax. I just want to see that pretty face.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "Too close. He's too close.",
+    "thoughtEmotion": "afraid"
+   }
+  ],
+  "guilt": [
+   {
+    "id": "lb_guilt_1",
+    "speaker": "man",
+    "text": "Damn, why you gotta be like that? I'm just being nice.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Now it's my fault somehow.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_guilt_2",
+    "speaker": "man",
+    "text": "I give you a compliment and you can't even say thank you?",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "I don't owe him a thank you.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_guilt_3",
+    "speaker": "man",
+    "text": "See, that's the problem with girls like you. Can't take a compliment.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Don't argue. Just keep walking.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_guilt_4",
+    "speaker": "man",
+    "text": "I'm trying to be a gentleman and you're acting all rude.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "He thinks I'm the rude one.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_guilt_5",
+    "speaker": "man",
+    "text": "All I said was hi. Why you treating me like a criminal?",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Because you won't leave me alone.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_guilt_6",
+    "speaker": "man",
+    "text": "You could at least be polite. Somebody raised you better.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Stay calm. Don't set him off.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_guilt_7",
+    "speaker": "man",
+    "text": "It's a compliment, sweetheart. Most girls would say thank you.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Just let it go. Please let it go.",
+    "thoughtEmotion": "worried"
+   }
+  ],
+  "hostile": [
+   {
+    "id": "lb_hostile_1",
+    "speaker": "man",
+    "text": "Stuck-up bitch. You think you're too good for me?",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "There it is. Keep moving.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_hostile_2",
+    "speaker": "man",
+    "text": "You're not even that cute. Don't flatter yourself.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "A minute ago I was beautiful.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_hostile_3",
+    "speaker": "man",
+    "text": "Fuck you, then. Nobody wants you anyway.",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "Don't answer. Don't look back.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_hostile_4",
+    "speaker": "man",
+    "text": "Bitch, I was being nice to you.",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "How angry is he? How close?",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_hostile_5",
+    "speaker": "man",
+    "text": "Who the hell you think you are?",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "Don't make it worse. Just go.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_hostile_6",
+    "speaker": "man",
+    "text": "Ugly-ass attitude. That's why you're by yourself.",
+    "emotion": "mocking",
+    "delivery": "normal",
+    "thought": "Almost there. Keep walking.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_hostile_7",
+    "speaker": "man",
+    "text": "Yeah, keep walking! Dumb bitch.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "He's shouting. Is he following?",
+    "thoughtEmotion": "afraid"
+   }
+  ],
+  "intimidate": [
+   {
+    "id": "lb_intimidate_1",
+    "speaker": "man",
+    "text": "Watch your mouth.",
+    "emotion": "angry",
+    "delivery": "low",
+    "thought": "Don't move. Don't say anything.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_intimidate_2",
+    "speaker": "man",
+    "text": "Who you think you're talking to?",
+    "emotion": "contempt",
+    "delivery": "low",
+    "thought": "He's too close. Back up.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_intimidate_3",
+    "speaker": "man",
+    "text": "You need to be careful how you talk to people out here.",
+    "emotion": "angry",
+    "delivery": "low",
+    "thought": "Nobody would hear me.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_intimidate_4",
+    "speaker": "man",
+    "text": "Say that again. Go ahead. Say it again.",
+    "emotion": "contempt",
+    "delivery": "low",
+    "thought": "Don't say it again.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_intimidate_5",
+    "speaker": "man",
+    "text": "I'm being real nice right now. You don't want me not nice.",
+    "emotion": "angry",
+    "delivery": "low",
+    "thought": "Find a way out. Now.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_intimidate_6",
+    "speaker": "man",
+    "text": "Nobody around, huh? Just me and you.",
+    "emotion": "contempt",
+    "delivery": "low",
+    "thought": "He's right. There's nobody.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_intimidate_7",
+    "speaker": "man",
+    "text": "You hear me talking to you? Don't disrespect me.",
+    "emotion": "angry",
+    "delivery": "low",
+    "thought": "Agree with him. Just get away.",
+    "thoughtEmotion": "afraid"
+   }
+  ],
+  "back_off": [
+   {
+    "id": "lb_back_off_1",
+    "speaker": "man",
+    "text": "Alright. Whatever. Have a good night.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "He's going. Is he going?",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_back_off_2",
+    "speaker": "man",
+    "text": "Forget it. You're not worth the trouble.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Don't answer. Let him go.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_back_off_3",
+    "speaker": "man",
+    "text": "Your loss, sweetheart.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "Just keep walking. Don't look.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_back_off_4",
+    "speaker": "man",
+    "text": "Okay, okay. Damn. I'm going.",
+    "emotion": "sheepish",
+    "delivery": "normal",
+    "thought": "Wait until he's really gone.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_back_off_5",
+    "speaker": "man",
+    "text": "Man, forget you. Stay lonely.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Fine. Just leave.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_back_off_6",
+    "speaker": "man",
+    "text": "Alright, be like that. I was just being friendly.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Breathe. Keep moving.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_back_off_7",
+    "speaker": "man",
+    "text": "Yeah, go on home. Nobody's stopping you.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Is that it? Is it over?",
+    "thoughtEmotion": "worried"
+   }
+  ],
+  "escalate": [
+   {
+    "id": "lb_escalate_1",
+    "speaker": "man",
+    "text": "Hey! Don't you walk away from me!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "No. No, no, no.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_escalate_2",
+    "speaker": "man",
+    "text": "I said I'm talking to you!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "Run.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_escalate_3",
+    "speaker": "man",
+    "text": "Come here. Come here!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "Get off me.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_escalate_4",
+    "speaker": "man",
+    "text": "You don't walk away from me!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "Somebody. Please.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_escalate_5",
+    "speaker": "man",
+    "text": "Hey! Look at me!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "No.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_escalate_6",
+    "speaker": "man",
+    "text": "No. You're gonna listen now.",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "Please, no.",
+    "thoughtEmotion": "afraid"
+   }
+  ]
+ },
+ "bystander": {
+  "b_man_thrown": [
+   {
+    "id": "lb_b_thrown_1",
+    "speaker": "man",
+    "text": "Uh... what? No, I don't know, man.",
+    "emotion": "surprised",
+    "delivery": "normal",
+    "thought": "Oh thank god. Someone's here.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_thrown_2",
+    "speaker": "man",
+    "text": "You two know each other? Alright. Whatever.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Play along. Just play along.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_thrown_3",
+    "speaker": "man",
+    "text": "I was just talking to her. It's all good.",
+    "emotion": "sheepish",
+    "delivery": "normal",
+    "thought": "Stay next to them. Don't leave.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_thrown_4",
+    "speaker": "man",
+    "text": "Okay, okay. I see how it is. Have a good night.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "He's stepping back. He's stepping back.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_thrown_5",
+    "speaker": "man",
+    "text": "Man... forget it. I'm out.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Don't say anything. Let him go.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_thrown_6",
+    "speaker": "man",
+    "text": "Alright then. Take care of your friend.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "Friend. Yes. I'm with my friend.",
+    "thoughtEmotion": "relieved"
+   }
+  ],
+  "b_man_defensive_leave": [
+   {
+    "id": "lb_b_defensive_1",
+    "speaker": "man",
+    "text": "We just talking, man. Damn. Relax.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Somebody said something. Finally.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_defensive_2",
+    "speaker": "man",
+    "text": "Nobody's bothering her. Alright, I'm going.",
+    "emotion": "sheepish",
+    "delivery": "normal",
+    "thought": "Don't let him change his mind.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_defensive_3",
+    "speaker": "man",
+    "text": "Relax, relax. It's not that serious.",
+    "emotion": "sheepish",
+    "delivery": "normal",
+    "thought": "He's backing up. Keep him backing up.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_defensive_4",
+    "speaker": "man",
+    "text": "Whatever, man. She's not even worth it.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Fine. Say what you want. Just go.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_defensive_5",
+    "speaker": "man",
+    "text": "Okay, hero. You got it. I'm gone.",
+    "emotion": "mocking",
+    "delivery": "normal",
+    "thought": "Please just let that be it.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_defensive_6",
+    "speaker": "man",
+    "text": "I was being friendly. Everybody's so sensitive out here.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Not friendly. Never friendly.",
+    "thoughtEmotion": "relieved"
+   }
+  ],
+  "b_man_dismiss": [
+   {
+    "id": "lb_b_dismiss_1",
+    "speaker": "man",
+    "text": "Hey, mind your business. We're talking.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "No. Don't leave. Please don't leave.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_dismiss_2",
+    "speaker": "man",
+    "text": "Nobody asked you. Keep walking.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Stay. Please stay.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_dismiss_3",
+    "speaker": "man",
+    "text": "This is between me and her, pal.",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "It isn't. Tell him it isn't.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_dismiss_4",
+    "speaker": "man",
+    "text": "We're good here. Go on about your night.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "We are not good here.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_dismiss_5",
+    "speaker": "man",
+    "text": "She's fine. Aren't you fine, sweetheart?",
+    "emotion": "smirk",
+    "delivery": "normal",
+    "thought": "Say no. Why can't I say no?",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_dismiss_6",
+    "speaker": "man",
+    "text": "Man, walk away. Nobody's talking to you.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Don't walk away.",
+    "thoughtEmotion": "afraid"
+   }
+  ],
+  "b_man_turn": [
+   {
+    "id": "lb_b_turn_1",
+    "speaker": "man",
+    "text": "The fuck are you? Her bodyguard?",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "Now he's angry at them. Move.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_turn_2",
+    "speaker": "man",
+    "text": "You got something to say to me? Say it to my face.",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "Go. Go while he's not looking.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_turn_3",
+    "speaker": "man",
+    "text": "Who asked you? Mind your fucking business.",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "Don't get hurt because of me.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_turn_4",
+    "speaker": "man",
+    "text": "Oh, you a tough guy now? Come here.",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "This is my chance. Walk.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_turn_5",
+    "speaker": "man",
+    "text": "You wanna play hero? Step up, then.",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "Please don't let him hit them.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_turn_6",
+    "speaker": "man",
+    "text": "What'd you say to me? No, say it again.",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "Get to the door. Now.",
+    "thoughtEmotion": "afraid"
+   }
+  ],
+  "b_man_squareup": [
+   {
+    "id": "lb_b_squareup_1",
+    "speaker": "man",
+    "text": "Go ahead. Say one more thing.",
+    "emotion": "angry",
+    "delivery": "low",
+    "thought": "Don't say anything else. Please.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_squareup_2",
+    "speaker": "man",
+    "text": "You don't know me. You don't know what I'll do.",
+    "emotion": "contempt",
+    "delivery": "low",
+    "thought": "Neither do I. That's the problem.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_squareup_3",
+    "speaker": "man",
+    "text": "Keep running your mouth. See what happens.",
+    "emotion": "angry",
+    "delivery": "low",
+    "thought": "Someone call somebody.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_squareup_4",
+    "speaker": "man",
+    "text": "I'm right here. What are you gonna do?",
+    "emotion": "contempt",
+    "delivery": "low",
+    "thought": "Just walk away. Both of us.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_squareup_5",
+    "speaker": "man",
+    "text": "You're real brave for somebody shaking.",
+    "emotion": "angry",
+    "delivery": "low",
+    "thought": "He's looking for a reason.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_squareup_6",
+    "speaker": "man",
+    "text": "Back up. I'm not gonna tell you twice.",
+    "emotion": "contempt",
+    "delivery": "low",
+    "thought": "Back up. Do what he says.",
+    "thoughtEmotion": "afraid"
+   }
+  ],
+  "b_man_bluster_leave": [
+   {
+    "id": "lb_b_bluster_1",
+    "speaker": "man",
+    "text": "Man, fuck this. You two aren't worth it.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "He's leaving. He's actually leaving.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_bluster_2",
+    "speaker": "man",
+    "text": "You're lucky I got somewhere to be.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Let him have the last word.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_bluster_3",
+    "speaker": "man",
+    "text": "Whatever. Keep her. I'm out.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Don't answer him. Let him go.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_bluster_4",
+    "speaker": "man",
+    "text": "Alright, tough guy. I'll see you around.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Please don't let that be true.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_bluster_5",
+    "speaker": "man",
+    "text": "Couple of clowns. For real.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Fine. Clowns. Just go.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_bluster_6",
+    "speaker": "man",
+    "text": "Not worth my time. Neither of you.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Breathe. It's over. Is it over?",
+    "thoughtEmotion": "relieved"
+   }
+  ],
+  "b_man_clerk_leave": [
+   {
+    "id": "lb_b_clerk_1",
+    "speaker": "man",
+    "text": "Alright, alright. I didn't do anything. I'm going.",
+    "emotion": "sheepish",
+    "delivery": "normal",
+    "thought": "He listens to him. Of course.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_clerk_2",
+    "speaker": "man",
+    "text": "Relax, old man. I'm leaving.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Thank you. Thank you.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_clerk_3",
+    "speaker": "man",
+    "text": "Nobody needs to call any cops. I'm out.",
+    "emotion": "sheepish",
+    "delivery": "normal",
+    "thought": "He's going. Don't move yet.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_clerk_4",
+    "speaker": "man",
+    "text": "We were just talking. Damn. Okay.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Just talking. Sure.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_clerk_5",
+    "speaker": "man",
+    "text": "Okay, okay. Put the phone down, I'm gone.",
+    "emotion": "sheepish",
+    "delivery": "normal",
+    "thought": "Stay by the shop. Stay in the light.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_clerk_6",
+    "speaker": "man",
+    "text": "Everybody so dramatic. I'm walking, see?",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Keep walking. Further.",
+    "thoughtEmotion": "relieved"
+   }
+  ],
+  "b_man_filmed": [
+   {
+    "id": "lb_b_filmed_1",
+    "speaker": "man",
+    "text": "Hey, you recording me? Put that shit away.",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "Someone's filming. Someone sees.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_filmed_2",
+    "speaker": "man",
+    "text": "Get that phone out my face.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Don't stop filming. Please.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_filmed_3",
+    "speaker": "man",
+    "text": "The fuck you filming for? I didn't do anything.",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "He's looking at them, not me.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_filmed_4",
+    "speaker": "man",
+    "text": "You gonna post me? For talking to a girl?",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Talking. He calls this talking.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_filmed_5",
+    "speaker": "man",
+    "text": "Point that somewhere else, pal.",
+    "emotion": "angry",
+    "delivery": "normal",
+    "thought": "Keep it on him.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_filmed_6",
+    "speaker": "man",
+    "text": "What, you a cop now? Turn it off.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "Now. Go now.",
+    "thoughtEmotion": "worried"
+   }
+  ],
+  "b_man_filmed_leave": [
+   {
+    "id": "lb_b_filmed_leave_1",
+    "speaker": "man",
+    "text": "Oh, you're filming? Alright. I'm out.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "The camera. He saw the camera.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_filmed_leave_2",
+    "speaker": "man",
+    "text": "No, I'm not doing this on camera. Forget it.",
+    "emotion": "sheepish",
+    "delivery": "normal",
+    "thought": "He doesn't want to be seen.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_filmed_leave_3",
+    "speaker": "man",
+    "text": "Oh, we're recording now? Whatever, man.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Thank you. Whoever you are.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_filmed_leave_4",
+    "speaker": "man",
+    "text": "Get your little video. I'm gone.",
+    "emotion": "annoyed",
+    "delivery": "normal",
+    "thought": "He's leaving. Because someone looked.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_filmed_leave_5",
+    "speaker": "man",
+    "text": "Nothing to see here. I'm walking.",
+    "emotion": "sheepish",
+    "delivery": "normal",
+    "thought": "Keep filming until he's gone.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_filmed_leave_6",
+    "speaker": "man",
+    "text": "Put that away, man. I'm leaving, damn.",
+    "emotion": "contempt",
+    "delivery": "normal",
+    "thought": "Almost. Almost gone.",
+    "thoughtEmotion": "relieved"
+   }
+  ],
+  "b_man_shout_after": [
+   {
+    "id": "lb_b_shout_1",
+    "speaker": "man",
+    "text": "Yeah, go on! Run home!",
+    "emotion": "contempt",
+    "delivery": "shout",
+    "thought": "Don't stop. Don't look back.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_shout_2",
+    "speaker": "man",
+    "text": "You're not all that anyway!",
+    "emotion": "mocking",
+    "delivery": "shout",
+    "thought": "Keep going. Door. Keys.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_shout_3",
+    "speaker": "man",
+    "text": "Go ahead! Nobody wants you!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "Let him shout. Just get inside.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_shout_4",
+    "speaker": "man",
+    "text": "Stuck-up! Both of you!",
+    "emotion": "contempt",
+    "delivery": "shout",
+    "thought": "Almost there. Almost there.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_shout_5",
+    "speaker": "man",
+    "text": "Whatever! I didn't want you anyway!",
+    "emotion": "mocking",
+    "delivery": "shout",
+    "thought": "It's just noise now. Keep walking.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_shout_6",
+    "speaker": "man",
+    "text": "Yeah, keep walking!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "I am. I am.",
+    "thoughtEmotion": "worried"
+   }
+  ],
+  "b_man_escalate": [
+   {
+    "id": "lb_b_escalate_1",
+    "speaker": "man",
+    "text": "The fuck you say?!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "No.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_escalate_2",
+    "speaker": "man",
+    "text": "Come here!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "Oh god.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_escalate_3",
+    "speaker": "man",
+    "text": "You want it? You got it!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "Stop. Stop!",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_escalate_4",
+    "speaker": "man",
+    "text": "I told you! I told you!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "Somebody help them!",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_escalate_5",
+    "speaker": "man",
+    "text": "Say it again! Say it!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "No, no, no.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_escalate_6",
+    "speaker": "man",
+    "text": "No, fuck that!",
+    "emotion": "angry",
+    "delivery": "shout",
+    "thought": "Run. Get help.",
+    "thoughtEmotion": "afraid"
+   }
+  ],
+  "b_woman_play_along": [
+   {
+    "id": "lb_b_w_play_1",
+    "speaker": "woman",
+    "text": "Oh my god, hi! I've been looking for you.",
+    "emotion": "friendly",
+    "delivery": "normal",
+    "thought": "I have no idea who this is. Thank you.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_w_play_2",
+    "speaker": "woman",
+    "text": "There you are! Sorry, I'm late. Let's go.",
+    "emotion": "friendly",
+    "delivery": "normal",
+    "thought": "Go along with it. Go.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_w_play_3",
+    "speaker": "woman",
+    "text": "Hey! Yes. Yes, I'm coming.",
+    "emotion": "friendly",
+    "delivery": "normal",
+    "thought": "Don't let go of this.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_w_play_4",
+    "speaker": "woman",
+    "text": "Hi! I thought you weren't coming.",
+    "emotion": "friendly",
+    "delivery": "normal",
+    "thought": "Stay close to them.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_w_play_5",
+    "speaker": "woman",
+    "text": "Oh, hey. Yeah. Um, it's this way, I'll show you.",
+    "emotion": "friendly",
+    "delivery": "normal",
+    "thought": "Anything. Anything to walk away.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_w_play_6",
+    "speaker": "woman",
+    "text": "Finally! I was about to call you.",
+    "emotion": "friendly",
+    "delivery": "normal",
+    "thought": "Keep talking. Keep walking.",
+    "thoughtEmotion": "relieved"
+   }
+  ],
+  "b_woman_answer_ok": [
+   {
+    "id": "lb_b_w_ok_1",
+    "speaker": "woman",
+    "text": "No. I... I just want to go home.",
+    "emotion": "afraid",
+    "delivery": "normal",
+    "thought": "Someone asked. Someone actually asked.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_w_ok_2",
+    "speaker": "woman",
+    "text": "I don't know him. He won't leave me alone.",
+    "emotion": "afraid",
+    "delivery": "normal",
+    "thought": "I said it out loud.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_w_ok_3",
+    "speaker": "woman",
+    "text": "Can you... can you stay with me a second?",
+    "emotion": "afraid",
+    "delivery": "normal",
+    "thought": "Please say yes.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_w_ok_4",
+    "speaker": "woman",
+    "text": "I'm not okay. Please don't go.",
+    "emotion": "afraid",
+    "delivery": "normal",
+    "thought": "Don't leave me with him.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_w_ok_5",
+    "speaker": "woman",
+    "text": "He's been following me.",
+    "emotion": "afraid",
+    "delivery": "normal",
+    "thought": "Now somebody else knows.",
+    "thoughtEmotion": "afraid"
+   },
+   {
+    "id": "lb_b_w_ok_6",
+    "speaker": "woman",
+    "text": "I just want him to stop.",
+    "emotion": "afraid",
+    "delivery": "normal",
+    "thought": "Please make him stop.",
+    "thoughtEmotion": "afraid"
+   }
+  ],
+  "b_woman_thanks": [
+   {
+    "id": "lb_b_w_thanks_1",
+    "speaker": "woman",
+    "text": "Thank you. I didn't know what to do.",
+    "emotion": "relieved",
+    "delivery": "normal",
+    "thought": "My hands won't stop shaking.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_w_thanks_2",
+    "speaker": "woman",
+    "text": "I'm okay. I think. Thank you for stopping.",
+    "emotion": "relieved",
+    "delivery": "normal",
+    "thought": "They stopped. Nobody ever stops.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_w_thanks_3",
+    "speaker": "woman",
+    "text": "Yeah. Yeah, I'm alright. Thank you. Really.",
+    "emotion": "relieved",
+    "delivery": "normal",
+    "thought": "I'm not alright. But I will be.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_w_thanks_4",
+    "speaker": "woman",
+    "text": "Could you walk with me to the corner? Just to the corner.",
+    "emotion": "relieved",
+    "delivery": "normal",
+    "thought": "Just until I can't see him.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_w_thanks_5",
+    "speaker": "woman",
+    "text": "I thought nobody was going to do anything.",
+    "emotion": "relieved",
+    "delivery": "normal",
+    "thought": "Somebody did.",
+    "thoughtEmotion": "relieved"
+   },
+   {
+    "id": "lb_b_w_thanks_6",
+    "speaker": "woman",
+    "text": "Thank you. I'm sorry. I'm shaking.",
+    "emotion": "relieved",
+    "delivery": "normal",
+    "thought": "Why am I the one apologising?",
+    "thoughtEmotion": "relieved"
+   }
+  ],
+  "b_woman_leaving": [
+   {
+    "id": "lb_b_w_leaving_1",
+    "speaker": "woman",
+    "text": "I have to go. Thank you.",
+    "emotion": "worried",
+    "delivery": "normal",
+    "thought": "Go. Go now.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_w_leaving_2",
+    "speaker": "woman",
+    "text": "Let's go. Please, let's just go.",
+    "emotion": "worried",
+    "delivery": "normal",
+    "thought": "Don't look at him.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_w_leaving_3",
+    "speaker": "woman",
+    "text": "I'm going. I'm going home.",
+    "emotion": "worried",
+    "delivery": "normal",
+    "thought": "Keys. Door. Lock.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_w_leaving_4",
+    "speaker": "woman",
+    "text": "Thank you. I'm sorry. I have to go.",
+    "emotion": "worried",
+    "delivery": "normal",
+    "thought": "Don't stop until I'm inside.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_w_leaving_5",
+    "speaker": "woman",
+    "text": "Come on. This way.",
+    "emotion": "worried",
+    "delivery": "normal",
+    "thought": "Keep them between us.",
+    "thoughtEmotion": "worried"
+   },
+   {
+    "id": "lb_b_w_leaving_6",
+    "speaker": "woman",
+    "text": "Okay. Okay. I'm going.",
+    "emotion": "worried",
+    "delivery": "normal",
+    "thought": "Almost home.",
+    "thoughtEmotion": "worried"
+   }
+  ]
+ }
+}

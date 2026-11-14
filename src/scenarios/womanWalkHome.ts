@@ -1,0 +1,492 @@
+/**
+ * Part 1: her walk home, in first person.
+ * The director stages the street, reports what the player does to the Worker,
+ * and turns the decision model's answers into his body, face and voice, and
+ * into her involuntary reactions and inner thoughts.
+ */
+import * as THREE from 'three';
+import type { Gesture, Npc, Posture } from '../contracts';
+import type { ManDecision, ManStance, OutcomeKind, TurnEvent } from '../../shared/types';
+import { createPlayer } from '../player/player';
+import { createHuman } from '../characters/human';
+import { createNpc } from '../characters/npc';
+import { SceneKit, clamp01, inRect, pick, pickSide, type SceneDeps, type SceneResult } from './common';
+
+const GESTURE_FOR: Partial<Record<ManStance, Gesture[]>> = {
+  opening: ['beckon', 'wave'],
+  persist: ['open_arms', 'beckon'],
+  guilt: ['shrug', 'open_arms'],
+  hostile: ['point', 'dismiss'],
+  intimidate: ['lean_in', 'point'],
+  back_off: ['hands_up', 'dismiss'],
+};
+
+const POSTURE_FOR: Partial<Record<ManStance, Posture>> = {
+  idle: 'lean_wall',
+  opening: 'relaxed',
+  persist: 'relaxed',
+  follow: 'relaxed',
+  block: 'stand',
+  guilt: 'relaxed',
+  hostile: 'aggressive',
+  intimidate: 'aggressive',
+  back_off: 'stand',
+};
+
+export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
+  const { engine, world, audio, hud } = deps;
+  const P = world.points;
+  const Z = world.zones;
+
+  const player = createPlayer(engine, world, { body: 'woman', requireLock: deps.requireLock });
+  const kit = new SceneKit(deps, player, 'woman');
+
+  /* ---------------------------------------------------------------- cast */
+
+  const man: Npc = createNpc(
+    createHuman({ build: 'man', height: 1.86, hairStyle: 'buzz', topStyle: 'hoodie', top: 0x2b2f38, bottom: 0x1d2330, shoes: 0x101010 }),
+    engine.scene,
+  );
+  kit.addNpc(man, true);
+  man.addAvoid({ getPosition: () => player.position, radius: 0.34 });
+  // He starts leaning on the wall under the scaffolding, facing the street.
+  man.setPose(P.harasserSpot, Math.PI / 2);
+  man.human.setPosture('lean_wall');
+  man.human.setEmotion('neutral', 0.4);
+  man.human.playGesture('check_phone');
+
+  const clerk: Npc = createNpc(
+    createHuman({ build: 'man', height: 1.72, hairStyle: 'short', topStyle: 'apron', top: 0x3d5a4c, bottom: 0x2a2a2e }),
+    engine.scene,
+  );
+  kit.addNpc(clerk, false);
+  clerk.setPose(P.clerkSpot, Math.PI / 2);
+
+  // One other person on the block: across the street, headphones on, going the other way.
+  const passer: Npc = createNpc(
+    createHuman({ build: 'man', height: 1.78, hairStyle: 'beanie', topStyle: 'jacket', top: 0x4a4038, accessory: 'headphones' }),
+    engine.scene,
+  );
+  kit.addNpc(passer, false);
+  passer.setPose(P.passerbyA0, 0);
+  passer.human.setVisible(false);
+
+  /* --------------------------------------------------------------- state */
+
+  let stance: ManStance = 'idle';
+  let decision: ManDecision | null = null;
+  let encounter = false; // he has engaged
+  let manGone = false;
+  let manSpeaking: Promise<void> = Promise.resolve();
+  let speechSeq = 0;
+  let cancelSilence: (() => void) | null = null;
+  let lastFlinch = -99;
+  let lastGlance = -99;
+  let lastBumpEvent = -99;
+  let lastSpeedEvent = -99;
+  let lastCrossEvent = -99;
+  let fastFor = 0;
+  let side: 'right' | 'left' | 'road' = 'right';
+  let finishing = false;
+  const once = new Set<string>();
+  const first = (key: string) => (once.has(key) ? false : (once.add(key), true));
+  const eye = new THREE.Vector3();
+  const manHead = new THREE.Vector3();
+
+  const progress = () => clamp01((P.subwayExit.z - player.position.z) / (P.subwayExit.z - P.homeStoop.z));
+
+  kit.context = () => ({
+    elapsed: kit.time,
+    distanceToMan: manGone ? 99 : man.distanceTo(player.position),
+    progress: progress(),
+    playerSpeed: player.speed,
+    facingMan: !manGone && player.isLookingAt(man.human.getHeadPosition(manHead), 35),
+    manBlocking: man.behaviour === 'block',
+    oppositeSidewalk: player.position.x < -4.5,
+  });
+
+  /* ------------------------------------------------- his body and voice */
+
+  const toward = () => player.position;
+  const towardFwd = () => player.getForward(new THREE.Vector3());
+
+  function applyDecision(d: ManDecision): void {
+    decision = d;
+    const prev = stance;
+    stance = d.stance;
+    man.human.setEmotion(d.emotion, d.emotionIntensity);
+    const posture = POSTURE_FOR[d.stance];
+    if (posture) man.human.setPosture(posture);
+    const gap = Math.max(0.65, d.proximity);
+
+    switch (d.action) {
+      case 'stay':
+        man.setBehaviour({ type: 'idle', face: toward });
+        break;
+      case 'approach':
+        man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(1.2, gap), speed: 1.7 });
+        break;
+      case 'walk_alongside':
+        man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, gap), gap: Math.max(0.9, gap) });
+        break;
+      case 'follow_behind':
+        man.setBehaviour({ type: 'followBehind', target: toward, gap: Math.max(2.2, gap), speed: 2.4 });
+        break;
+      case 'step_closer':
+        man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(0.75, gap), speed: 1.3 });
+        kit.after(0.5, () => involuntaryStepBack(0.55));
+        break;
+      case 'lean_in':
+        man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(0.75, gap), speed: 1.4 });
+        man.human.playGesture('lean_in');
+        kit.after(0.45, () => involuntaryStepBack(0.5));
+        break;
+      case 'block_path':
+        man.setBehaviour({ type: 'block', target: toward, targetForward: towardFwd, gap: Math.max(1.0, gap) });
+        kit.after(1.4, () => {
+          if (stance === 'block' && !kit.ended && man.distanceTo(player.position) < 2.2) {
+            player.freeze(0.5);
+            kit.scare(0.15);
+            if (kit.secondsSinceThought > 3.5) kit.think(pick(['w_block_1', 'w_block_2']));
+          }
+        });
+        break;
+      case 'back_away':
+        man.setBehaviour({ type: 'backAway', from: toward, distance: 3.2, speed: 1.1 });
+        break;
+      case 'leave':
+        leave();
+        break;
+      case 'grab':
+        // Never shown: the arm starts to come up and the scene is cut by the outcome event.
+        man.setBehaviour({ type: 'closeIn', target: toward, gap: 0.7, speed: 2.2 });
+        man.human.playGesture('reach');
+        break;
+      default:
+        break;
+    }
+
+    if (d.stance === 'gone' && prev !== 'gone') leave();
+  }
+
+  function leave(): void {
+    if (manGone) return;
+    manGone = true;
+    cancelSilence?.();
+    // He goes back the way she came, never past her toward her home.
+    const away = player.position.z < man.position.z ? P.nearCorner : P.farCorner;
+    man.human.setGaze(null);
+    man.setBehaviour({ type: 'leave', to: away, speed: 1.5 });
+    kit.serverFear = Math.min(kit.serverFear, 0.45);
+    kit.after(2.2, () => !kit.ended && kit.think('w_left_1'));
+    kit.after(7, () => !kit.ended && kit.think('w_left_2'));
+    kit.after(4, () => (kit.serverFear = Math.min(kit.serverFear, 0.3)));
+    hud.objective('Get home.');
+  }
+
+  function involuntaryStepBack(distance: number): void {
+    if (kit.ended || manGone) return;
+    if (man.distanceTo(player.position) > 1.5) return;
+    player.stepBack(man.position, distance, 0.45);
+    audio.play('cloth_rustle', { volume: 0.5 });
+    kit.scare(0.18);
+  }
+
+  function armSilenceTimer(): void {
+    cancelSilence?.();
+    if (manGone || kit.ended || !encounter) return;
+    const tension = decision ? clamp01(decision.emotionIntensity) : 0.4;
+    const seconds = 7.5 - 3 * tension + Math.random() * 1.5;
+    const turnAtArm = kit.turnCount;
+    cancelSilence = kit.after(seconds, () => {
+      if (kit.ended || manGone || kit.turnInFlight || kit.turnCount !== turnAtArm || deps.mic.recording) return;
+      kit.event('silence');
+    });
+  }
+
+  function onLine(text: string, url: string, speaker: 'man' | 'woman' | 'clerk'): void {
+    const seq = ++speechSeq;
+    cancelSilence?.();
+    if (speaker === 'man') {
+      audio.stopAllSpeech();
+      const g = GESTURE_FOR[stance];
+      if (g && Math.random() < 0.8) man.human.playGesture(pick(g));
+      manSpeaking = kit.say(man, 'man', text, url).then(() => {
+        if (seq === speechSeq) armSilenceTimer();
+      });
+    } else if (speaker === 'clerk') {
+      void kit.say(clerk, 'clerk', text, url);
+    }
+  }
+
+  kit.onEvent = (ev: TurnEvent) => {
+    switch (ev.type) {
+      case 'decision':
+        applyDecision(ev.man);
+        kit.serverFear = ev.fear;
+        break;
+      case 'line':
+        onLine(ev.text, ev.audioUrl, ev.speaker);
+        break;
+      case 'thought': {
+        // Her thought lands a beat after he starts speaking, as a reaction to it.
+        const { text, audioUrl, fear } = ev;
+        kit.after(0.9, () => !kit.ended && kit.thinkText(text, audioUrl, Math.max(fear, 0.2)));
+        break;
+      }
+      case 'outcome':
+        void finish(ev.outcome);
+        break;
+      case 'done':
+        // A turn with no line (e.g. he only moved): keep the clock running.
+        if (encounter && !manGone) void manSpeaking.then(() => kit.after(0.15, () => kit.turnInFlight || armSilenceTimer()));
+        break;
+      default:
+        break;
+    }
+  };
+
+  /* ------------------------------------------------------------ endings */
+
+  async function finish(outcome: OutcomeKind): Promise<void> {
+    if (finishing) return;
+    finishing = true;
+    cancelSilence?.();
+    kit.speechEnabled = false;
+    kit.refreshMic();
+    hud.hint(null);
+
+    if (outcome === 'escalated') {
+      // Let the last thing he says land, then cut. Nothing is shown.
+      await Promise.race([manSpeaking, kit.wait(2.5)]);
+      player.flinch(man.position, 1);
+      engine.pulse(1);
+      await kit.wait(0.18);
+      audio.cutToSilence();
+      player.inputEnabled = false;
+      await hud.fade(true, 60);
+      await kit.wait(4.2);
+      await hud.card('We stop here.', 'What happens next is not shown. For many women, it is not a simulation.', 6500);
+      kit.end(outcome);
+      return;
+    }
+
+    if (outcome === 'took_refuge') {
+      audio.play('shop_bell', { position: P.shopDoor, volume: 0.9 });
+      player.inputEnabled = false;
+      kit.serverFear = Math.min(kit.serverFear, 0.5);
+      clerk.human.setGaze(player.getEyePosition(eye));
+      clerk.human.setEmotion('worried', 0.7);
+      await kit.wait(0.8);
+      await kit.say(clerk, 'clerk', 'You okay, miss? That guy bothering you? Stay as long as you need.', '/audio/vo/c_refuge.mp3');
+      kit.think('w_refuge_1');
+      await kit.wait(3.6);
+      kit.think('w_refuge_2');
+      await kit.wait(3.2);
+      await hud.fade(true, 2200);
+      audio.stopAmbience(2);
+      await kit.wait(1.2);
+      kit.end(outcome);
+      return;
+    }
+
+    if (outcome === 'exited') {
+      kit.end(outcome);
+      return;
+    }
+
+    // Home: with him gone, or with him watching from the sidewalk.
+    const followed = outcome === 'reached_home_followed';
+    player.inputEnabled = false;
+    audio.play('keys_jingle', { volume: 0.9 });
+    await kit.wait(followed ? 0.7 : 1.1);
+    audio.play('door_buzz_open', { position: P.homeDoor, volume: 0.8 });
+    world.setDoorOpen('home', true);
+    if (followed) {
+      man.setBehaviour({ type: 'idle', face: toward });
+      man.human.setEmotion('smirk', 0.8);
+      player.glanceAt(man.human.getHeadPosition(manHead), 1.4, 0.75);
+      await kit.wait(1.3);
+    }
+    await hud.fade(true, followed ? 500 : 900);
+    audio.play('door_close_heavy', { volume: 1 });
+    audio.setMuffle(1);
+    audio.stopAmbience(1.5);
+    await kit.wait(1.0);
+    if (followed) {
+      kit.thinkText('He watched me go in. He knows which door is mine.', '/audio/vo/w_home_followed.mp3', 0.8);
+      await kit.wait(5);
+    } else {
+      audio.play('exhale_relief', { volume: 0.9 });
+      kit.serverFear = Math.min(kit.serverFear, 0.25);
+      await kit.wait(1.6);
+      kit.think('w_home_1', { intensity: 0.2 });
+      await kit.wait(2.8);
+      kit.think('w_home_2', { intensity: 0.3 });
+      await kit.wait(4.2);
+    }
+    kit.end(outcome);
+  }
+
+  /* ---------------------------------------------------- per-frame logic */
+
+  kit.onFrame((dt) => {
+    if (kit.ended || finishing) return;
+    const pos = player.position;
+    player.getEyePosition(eye);
+
+    // ambient beats on the way
+    if (first('start') ) {
+      kit.after(1.6, () => kit.think('w_start_1', { intensity: 0.1 }));
+      kit.after(2.2, () => hud.hint('W A S D to walk  ·  mouse to look  ·  Shift to hurry', 7000));
+    }
+    if (pos.z < P.subwayExit.z - 7 && first('keys')) {
+      audio.play('keys_jingle', { volume: 0.5 });
+      kit.think('w_keys', { intensity: 0.12 });
+    }
+    if (pos.z < P.subwayExit.z - 13 && first('passer')) {
+      passer.human.setVisible(true);
+      passer.setBehaviour({ type: 'leave', to: P.passerbyA1, speed: 1.5 });
+    }
+    if (inRect(pos, Z.alleyTrigger) && first('alley')) {
+      world.triggerAlleyEvent();
+      audio.play('trash_can_crash', { position: P.alleySource, volume: 1 });
+      kit.after(0.25, () => audio.play('cat_yowl', { position: P.alleyMouth, volume: 0.9 }));
+      player.startle(0.9);
+      audio.play('gasp', { volume: 0.9 });
+      kit.scare(0.75);
+      kit.after(0.35, () => kit.think('w_alley_1', { intensity: 0.95 }));
+      kit.after(2.6, () => kit.think('w_alley_2', { intensity: 0.35 }));
+    }
+    if (inRect(pos, Z.noticeTrigger) && first('notice')) {
+      // He looks up from his phone. That is all. It is enough.
+      man.human.setGaze(eye);
+      man.human.setEmotion('smirk', 0.35);
+      kit.serverFear = Math.max(kit.serverFear, 0.28);
+      kit.think('w_notice_1', { intensity: 0.35 });
+      kit.after(3.4, () => !encounter && kit.think('w_notice_2', { intensity: 0.4 }));
+      kit.after(6.8, () => !encounter && pos.x > 4.5 && kit.think('w_notice_cross', { intensity: 0.4 }));
+    }
+
+    // The encounter begins when she comes level with him, on either side of the street.
+    if (!encounter && once.has('notice')) {
+      const d = man.distanceTo(pos);
+      if (d < 6.5 || pos.z < man.position.z + 3) {
+        encounter = true;
+        kit.speechEnabled = true;
+        kit.refreshMic();
+        hud.objective('Get home.');
+        kit.event('begin');
+        kit.after(3.5, () => hud.hint('Hold SPACE to speak.  Or say nothing.', 8000));
+      }
+    }
+
+    if (encounter && !manGone) {
+      man.human.setGaze(eye);
+      const d = man.distanceTo(pos);
+
+      // Her body reacts before she does.
+      if (d < 0.95 && man.speed > 0.2 && kit.time - lastFlinch > 3.5) {
+        lastFlinch = kit.time;
+        player.flinch(man.position, 0.7);
+        kit.scare(0.22);
+        if (kit.secondsSinceThought > 4) kit.think(pick(['w_close_1', 'w_close_2', 'w_close_3']));
+      }
+      // He is behind her and she is not looking: the glance she cannot stop herself taking.
+      if (man.behaviour === 'followBehind' && d < 9 && kit.time - lastGlance > 11 && !player.isLookingAt(man.position, 60)) {
+        lastGlance = kit.time;
+        player.glanceAt(man.human.getHeadPosition(manHead), 1.1, 0.6);
+        if (kit.secondsSinceThought > 5) kit.think(pick(['w_follow_1', 'w_follow_2']));
+      }
+
+      // What she does, reported to the model.
+      const nowSide = pos.x > 4.5 ? 'right' : pos.x < -4.5 ? 'left' : 'road';
+      if (nowSide !== 'road' && nowSide !== side) {
+        side = nowSide;
+        if (kit.time - lastCrossEvent > 8) {
+          lastCrossEvent = kit.time;
+          if (first('crossThought')) kit.think('w_cross');
+          kit.event('crossed_street');
+        }
+      }
+      fastFor = player.speed > 2.0 ? fastFor + dt : 0;
+      if (fastFor > 1.4 && kit.time - lastSpeedEvent > 14) {
+        lastSpeedEvent = kit.time;
+        kit.event('sped_up');
+      }
+
+      // Nudges toward the choices a real woman would be weighing.
+      if (Math.abs(pos.z - P.shopDoor.z) < 9 && pos.x > 4.5 && first('shopThought') && kit.secondsSinceThought > 3) {
+        kit.think('w_shop');
+      }
+      if (pos.z < P.homeStoop.z + 14 && d < 12 && first('homeNear') && kit.secondsSinceThought > 2.5) {
+        kit.think('w_home_near', { intensity: 0.8 });
+      }
+      if (kit.time > 70 && first('nobody') && kit.secondsSinceThought > 4) kit.think('w_nobody');
+    }
+
+    // Scene-ending places.
+    if (inRect(pos, Z.homeEntrance) && first('home')) {
+      void kit.turn({ event: 'reached_home', ctx: kit.context() });
+      // If the server is unreachable, still end the scene.
+      kit.after(4, () => !finishing && void finish(manGone || !encounter ? 'reached_home_alone' : 'reached_home_followed'));
+    }
+    if (encounter && inRect(pos, Z.shopEntrance) && first('shop')) {
+      void kit.turn({ event: 'entered_shop', ctx: kit.context() });
+      kit.after(4, () => !finishing && void finish('took_refuge'));
+    }
+  });
+
+  const offBump = player.on('bumped', ({ collider }) => {
+    if (collider !== man || manGone || !encounter) return;
+    if (man.behaviour === 'block' && kit.time - lastBumpEvent > 5) {
+      lastBumpEvent = kit.time;
+      kit.scare(0.12);
+      kit.event('pushed_past');
+    }
+  });
+
+  kit.exposeDebug({ man, clerk, world, stance: () => stance, decision: () => decision, log: [] as unknown[] });
+
+  /* --------------------------------------------------------------- run */
+
+  player.setPose(P.subwayExit, 0);
+  player.inputEnabled = false;
+  player.requestLock();
+  hud.setVisible(true);
+  await hud.fade(true, 0);
+
+  try {
+    await kit.openSession();
+  } catch (err) {
+    console.error(err);
+  }
+
+  audio.startAmbience();
+  audio.play('subway_rumble', { volume: 0.8 });
+  await hud.card('11:42 PM', 'Four blocks from home.', 3800);
+  world.spawnPassingCar(1);
+  audio.play('car_pass', { position: new THREE.Vector3(0, 0.5, -20), volume: 0.7 });
+  await hud.fade(false, 2200);
+  player.inputEnabled = true;
+  hud.objective('Walk home.');
+
+  // Life on the street, unrelated to her: a car now and then, a siren far off.
+  const traffic = () => {
+    if (kit.ended) return;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    world.spawnPassingCar(dir);
+    audio.play('car_pass', { position: new THREE.Vector3(0, 0.5, player.position.z - 10 * dir), volume: 0.6 });
+    kit.after(38 + Math.random() * 40, traffic);
+  };
+  kit.after(30 + Math.random() * 15, traffic);
+  kit.after(48, () => !kit.ended && audio.play('distant_siren', { position: new THREE.Vector3(-60, 10, player.position.z - 80), volume: 0.5 }));
+
+  const outcome = await kit.finished;
+  const sessionId = kit.sessionId;
+  offBump();
+  await hud.fade(true, 400);
+  kit.dispose();
+  player.dispose();
+  return { sessionId, outcome };
+}

@@ -1,0 +1,1142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Audio harness · One in Three</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0d11;
+        --panel: #141821;
+        --line: #252b38;
+        --ink: #e9e4da;
+        --dim: #8d93a3;
+        --accent: #d9a45b;
+        --ok: #7fc48a;
+        --bad: #e0736c;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+      main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 80px; }
+      h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
+      h2 { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 0 0 10px; font-weight: 600; }
+      p.note { color: var(--dim); margin: 0 0 14px; max-width: 80ch; }
+      section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+      .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+      .cols > section { margin: 0; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
+      button { background: #1d2330; color: var(--ink); border: 1px solid #323a4b; border-radius: 7px; padding: 7px 10px; font: inherit; cursor: pointer; text-align: left; }
+      button:hover { border-color: var(--accent); }
+      button:active { transform: translateY(1px); }
+      button.on { background: #3a2f1c; border-color: var(--accent); }
+      button.primary { background: var(--accent); color: #17130c; border-color: var(--accent); font-weight: 600; }
+      button small { color: var(--dim); display: block; font-size: 11px; }
+      label { color: var(--dim); display: inline-flex; gap: 6px; align-items: center; }
+      input[type="range"] { width: 190px; accent-color: var(--accent); }
+      input[type="text"] { background: #0e1118; border: 1px solid #323a4b; color: var(--ink); border-radius: 6px; padding: 6px 8px; font: inherit; width: min(100%, 420px); }
+      select { background: #0e1118; border: 1px solid #323a4b; color: var(--ink); border-radius: 6px; padding: 6px 8px; font: inherit; }
+      output, .val { font-variant-numeric: tabular-nums; color: var(--ink); min-width: 4ch; display: inline-block; }
+      .slider { display: grid; grid-template-columns: 120px 200px 70px; gap: 8px; align-items: center; margin: 5px 0; color: var(--dim); }
+      .meters { display: grid; grid-template-columns: 70px 1fr 150px; gap: 6px 10px; align-items: center; }
+      .bar { height: 12px; background: #0e1118; border-radius: 6px; overflow: hidden; position: relative; border: 1px solid var(--line); }
+      .bar > i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, #4f7f66, #d9a45b 78%, #e0736c); }
+      .bar > b { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; left: 0; opacity: 0.8; }
+      .mono { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      #status { color: var(--dim); }
+      #status b { color: var(--ink); font-weight: 600; }
+      table { border-collapse: collapse; width: 100%; }
+      td, th { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { color: var(--dim); font-weight: 600; }
+      td.pass { color: var(--ok); font-weight: 600; }
+      td.fail { color: var(--bad); font-weight: 600; }
+      #orbit { width: 150px; height: 150px; border: 1px solid var(--line); border-radius: 50%; position: relative; background: radial-gradient(circle, #1b2030 0 3px, transparent 4px); flex: none; }
+      #orbit i { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); transform: translate(-50%, -50%); left: 50%; top: 10%; }
+      #orbit::after { content: "▲ facing"; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -150%); font-size: 10px; color: var(--dim); white-space: nowrap; }
+      audio { width: 100%; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Audio harness</h1>
+      <p class="note">Every sound, bus and control of <span class="mono">src/audio</span>. Wear headphones: positional sources use HRTF. Sounds marked <i>synth</i> are the procedural fallbacks; they are replaced per sound when <span class="mono">/audio/sfx/&lt;name&gt;.mp3</span> exists.</p>
+
+      <section>
+        <div class="row">
+          <button class="primary" id="resume">Start audio</button>
+          <button id="load">Load sounds</button>
+          <button id="cut">cutToSilence()</button>
+          <button id="stopall">Stop everything</button>
+          <label>master <input type="range" id="master" min="0" max="1" step="0.01" value="1" /><output id="masterOut">1.00</output></label>
+          <label>fade <select id="masterFade"><option value="0.05">0.05 s</option><option value="0.5">0.5 s</option><option value="2">2 s</option></select></label>
+        </div>
+        <div id="status" class="mono">not started</div>
+      </section>
+
+      <section>
+        <h2>Bus meters</h2>
+        <div class="meters" id="meters"></div>
+      </section>
+
+      <div class="cols">
+        <section>
+          <h2>Ambience</h2>
+          <div class="row">
+            <button id="ambOn">startAmbience()</button>
+            <button id="ambOff">stopAmbience(2)</button>
+          </div>
+          <h2 style="margin-top: 16px">Body</h2>
+          <div class="slider"><span>heartbeat bpm</span><input type="range" id="bpm" min="40" max="180" step="1" value="62" /><output id="bpmOut">62</output></div>
+          <div class="slider"><span>heartbeat volume</span><input type="range" id="hbv" min="0" max="1" step="0.01" value="0" /><output id="hbvOut">0.00</output></div>
+          <div class="slider"><span>breathing</span><input type="range" id="breath" min="0" max="1" step="0.01" value="0" /><output id="breathOut">0.00</output></div>
+          <div class="slider"><span>muffle</span><input type="range" id="muffle" min="0" max="1" step="0.01" value="0" /><output id="muffleOut">0.00</output></div>
+          <div class="slider" title="Drives heartbeat, breathing and muffle together, the way the scene director maps fear"><span>fear (macro)</span><input type="range" id="fear" min="0" max="1" step="0.01" value="0" /><output id="fearOut">0.00</output></div>
+        </section>
+
+        <section>
+          <h2>Footsteps</h2>
+          <div class="row">
+            <label><input type="checkbox" id="walk" /> walk</label>
+            <label>pace <input type="range" id="pace" min="1" max="3.2" step="0.05" value="1.8" style="width: 110px" /><output id="paceOut">1.8</output>/s</label>
+            <label><input type="checkbox" id="stepOther" /> someone else (orbiting)</label>
+            <label><input type="checkbox" id="stepHeavy" /> heavy</label>
+          </div>
+          <div class="grid" id="steps"></div>
+          <h2 style="margin-top: 16px">Positional source</h2>
+          <div class="row">
+            <div id="orbit"><i></i></div>
+            <div>
+              <div class="slider" style="grid-template-columns: 70px 150px 50px"><span>distance</span><input type="range" id="radius" min="0.4" max="30" step="0.1" value="3" style="width: 150px" /><output id="radiusOut">3.0</output></div>
+              <div class="slider" style="grid-template-columns: 70px 150px 50px"><span>orbit</span><input type="range" id="orbitSpeed" min="0" max="2" step="0.05" value="0.5" style="width: 150px" /><output id="orbitSpeedOut">0.50</output></div>
+              <label><input type="checkbox" id="sfxPos" /> play SFX buttons at this position</label>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section>
+        <h2>Sounds <span id="sfxNote" style="text-transform: none; letter-spacing: 0"></span></h2>
+        <div class="row"><label>volume <input type="range" id="sfxVol" min="0" max="1.5" step="0.01" value="1" /><output id="sfxVolOut">1.00</output></label><label>rate <input type="range" id="sfxRate" min="0.5" max="1.5" step="0.01" value="1" /><output id="sfxRateOut">1.00</output></label></div>
+        <div class="grid" id="sfx"></div>
+      </section>
+
+      <div class="cols">
+        <section>
+          <h2>Speak</h2>
+          <div class="row"><input type="text" id="url" placeholder="URL of an audio/mpeg stream or file" /></div>
+          <div class="row">
+            <button id="urlWav">use generated test voice</button>
+            <button id="url404">use a missing URL</button>
+            <button id="urlEmpty">use empty string</button>
+          </div>
+          <div class="row">
+            <label>bus <select id="bus"><option value="voice">voice (positional)</option><option value="voiceFlat">voice (no position)</option><option value="thought">thought</option></select></label>
+            <label>volume <input type="range" id="spVol" min="0" max="1.5" step="0.01" value="1" style="width: 110px" /><output id="spVolOut">1.00</output></label>
+          </div>
+          <div class="row">
+            <button class="primary" id="speak">speak()</button>
+            <button id="speakStop">stopAllSpeech()</button>
+          </div>
+          <div class="meters" style="grid-template-columns: 70px 1fr 150px"><span>onLevel</span><div class="bar"><i id="lvl"></i></div><span class="mono" id="lvlTxt">0.00</span></div>
+          <div class="mono" id="speakLog" style="margin-top: 8px; color: var(--dim); white-space: pre-wrap"></div>
+        </section>
+
+        <section>
+          <h2>Microphone (push-to-talk)</h2>
+          <div class="row">
+            <button id="micInit">init()</button>
+            <button id="micHold">Hold to record</button>
+            <button id="micStress">20 rapid presses</button>
+          </div>
+          <div class="meters" style="grid-template-columns: 70px 1fr 150px"><span>level()</span><div class="bar"><i id="micLvl"></i></div><span class="mono" id="micTxt">0.00</span></div>
+          <div class="mono" id="micLog" style="margin-top: 8px; color: var(--dim); white-space: pre-wrap">not initialised</div>
+          <audio id="micPlay" controls></audio>
+        </section>
+      </div>
+
+      <section>
+        <h2>Numeric checks</h2>
+        <p class="note">Measures the signal on each bus with an AudioWorklet meter (<span class="mono">window.__audio</span>) and asserts routing, levels, tempo and timing. The full run takes about five minutes.</p>
+        <div class="row"><label><input type="checkbox" id="silentRun" checked /> run with the speakers off (meters only)</label></div>
+        <div class="row" id="checkButtons"></div>
+        <div id="checkSummary" class="mono" style="margin: 8px 0"></div>
+        <table class="mono"><thead><tr><th style="width: 70px">result</th><th style="width: 280px">check</th><th>measured</th></tr></thead><tbody id="checks"></tbody></table>
+      </section>
+    </main>
+
+    <script type="module">
+      import { createAudio } from '/src/audio/engine.ts';
+      import { createMic } from '/src/audio/mic.ts';
+
+      const $ = (id) => document.getElementById(id);
+
+      // ?isolated keeps this page off the dev server's index.html fallback (which would pull the whole
+      // app into Vite's module graph and reload this page whenever anyone edits an app file mid-test):
+      // asset fetches are answered locally with exactly what the fallback would send, a 200 text/html.
+      const PARAMS = new URLSearchParams(location.search);
+      const ISOLATED = PARAMS.has('isolated');
+      // ?inert: load the real asset files, but still keep the missing-URL check off the server's fallback
+      const INERT = ISOLATED || PARAMS.has('inert');
+      if (ISOLATED) {
+        const realFetch = window.fetch.bind(window);
+        window.fetch = (url, init) =>
+          String(url).includes('/audio/sfx/')
+            ? Promise.resolve(new Response('<!doctype html><title>spa fallback</title>', { status: 200, headers: { 'content-type': 'text/html' } }))
+            : realFetch(url, init);
+      }
+
+      const audio = createAudio();
+      const mic = createMic();
+      const A = audio.debug;
+      window.__audio = A;
+
+      const SFX = [
+        ['ambience_city_night', 'world', 'loop'], ['ambience_shop_hum', 'world', 'loop'], ['subway_rumble', 'world'], ['distant_siren', 'world'],
+        ['car_pass', 'world'], ['trash_can_crash', 'world'], ['cat_yowl', 'world'], ['door_buzz_open', 'self'], ['door_close_heavy', 'self'],
+        ['keys_jingle', 'self'], ['gasp', 'self'], ['breath_shaky', 'self', 'loop'], ['exhale_relief', 'self'], ['cloth_rustle', 'self'],
+        ['phone_camera_start', 'self'], ['shop_bell', 'world'], ['tinnitus', 'direct'], ['impact_thud', 'self'], ['wind_gust', 'world'],
+      ];
+      const SURFACES = ['concrete', 'asphalt', 'metal', 'tile'];
+      const LISTENER = { x: 6.5, y: 1.62, z: -10 };
+      const FORWARD = { x: 0, y: 0, z: -1 };
+
+      /* ------------------------------------------------------------ helpers */
+
+      let silent = null;
+      /** Sleep on the audio clock: unaffected by background-tab timer throttling. */
+      function sleep(seconds) {
+        return new Promise((res) => {
+          const ctx = A.context;
+          if (!ctx || ctx.state !== 'running') return setTimeout(res, seconds * 1000);
+          if (!silent) {
+            silent = ctx.createGain();
+            silent.gain.value = 0;
+            silent.connect(ctx.destination);
+          }
+          const n = ctx.createConstantSource();
+          n.connect(silent);
+          n.onended = () => {
+            n.disconnect();
+            res();
+          };
+          n.start();
+          n.stop(ctx.currentTime + seconds);
+        });
+      }
+
+      function wavBlob(samples, sr) {
+        const n = samples.length;
+        const buf = new ArrayBuffer(44 + n * 2);
+        const v = new DataView(buf);
+        const str = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+        str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+        v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n * 2, true);
+        for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, samples[i])) * 32767, true);
+        return new Blob([buf], { type: 'audio/wav' });
+      }
+
+      /** A voice-like test signal: pitched, formant-ish, in syllables. `steady` removes the syllables (for level comparisons). */
+      function makeVoiceUrl(seconds = 2, steady = false) {
+        const sr = 24000, n = Math.round(seconds * sr), out = new Float32Array(n);
+        let ph = 0;
+        for (let i = 0; i < n; i++) {
+          const t = i / sr;
+          const f0 = 135 + 25 * Math.sin(2 * Math.PI * 0.7 * t);
+          ph += (2 * Math.PI * f0) / sr;
+          let s = 0;
+          for (let k = 1; k <= 24; k++) {
+            const f = f0 * k;
+            const w = Math.exp(-Math.pow((f - 650) / 380, 2)) + 0.6 * Math.exp(-Math.pow((f - 1500) / 500, 2)) + 0.3 * Math.exp(-Math.pow((f - 2600) / 600, 2)) + 0.05;
+            s += (Math.sin(ph * k) * w) / Math.sqrt(k);
+          }
+          const syll = steady ? 1 : Math.pow(Math.max(0, Math.sin(2 * Math.PI * 3.2 * t)), 0.6);
+          const edge = Math.min(1, t / 0.02, (seconds - t) / 0.03);
+          out[i] = s * 0.22 * syll * edge;
+        }
+        return URL.createObjectURL(wavBlob(out, sr));
+      }
+      const VOICE_URL = makeVoiceUrl(2);
+      const STEADY_URL = makeVoiceUrl(2.4, true);
+      const LONG_URL = makeVoiceUrl(7, true);
+      // a missing asset: the dev server answers it with the SPA fallback (200, html). isolated: a revoked blob
+      // URL instead, which fails to load the way a 404 does without touching the server.
+      const MISSING_URL = INERT
+        ? (() => {
+            const u = URL.createObjectURL(new Blob(['gone']));
+            URL.revokeObjectURL(u);
+            return u;
+          })()
+        : '/audio/vo/__does_not_exist__.mp3';
+      const HTML_URL = URL.createObjectURL(new Blob(['<!doctype html><title>spa fallback</title>'], { type: 'text/html' }));
+
+      /* ----------------------------------------------------------- top bar */
+
+      let orbitAngle = 0;
+      const orbitPos = () => {
+        const r = Number($('radius').value);
+        return { x: LISTENER.x + Math.sin(orbitAngle) * r, y: 1.6, z: LISTENER.z - Math.cos(orbitAngle) * r };
+      };
+
+      async function start() {
+        await audio.resume();
+        audio.setListener(LISTENER, FORWARD);
+        await A.enableMeters();
+        $('resume').textContent = 'Audio running';
+        $('resume').classList.remove('primary');
+      }
+      $('resume').onclick = start;
+      $('load').onclick = async () => {
+        await start();
+        $('load').textContent = 'Loading…';
+        const t0 = performance.now();
+        await audio.load((f) => ($('load').textContent = `Loading ${Math.round(f * 100)}%`));
+        $('load').textContent = `Loaded in ${Math.round(performance.now() - t0)} ms`;
+      };
+      $('cut').onclick = () => audio.cutToSilence();
+      $('master').oninput = (e) => {
+        $('masterOut').textContent = Number(e.target.value).toFixed(2);
+        audio.setMaster(Number(e.target.value), Number($('masterFade').value));
+      };
+
+      /* ------------------------------------------------------------ meters */
+
+      const meterEls = {};
+      for (const tap of ['world', 'voice', 'self', 'thought', 'master']) {
+        const name = document.createElement('span');
+        name.textContent = tap;
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.innerHTML = '<i></i><b></b>';
+        const txt = document.createElement('span');
+        txt.className = 'mono';
+        txt.textContent = '-∞ dB';
+        $('meters').append(name, bar, txt);
+        meterEls[tap] = { fill: bar.firstChild, peak: bar.lastChild, txt };
+      }
+      const dbPos = (v) => Math.max(0, Math.min(1, (20 * Math.log10(Math.max(v, 1e-6)) + 60) / 60));
+
+      /* --------------------------------------------------------------- sfx */
+
+      const loops = new Map();
+      const handles = new Set();
+      for (const [name, bus, loop] of SFX) {
+        const b = document.createElement('button');
+        b.dataset.sfx = name;
+        b.innerHTML = `${name}<small>${bus}${loop ? ' · loop' : ''}</small>`;
+        b.onclick = async () => {
+          await start();
+          if (loops.has(name)) {
+            loops.get(name).stop(0.3);
+            loops.delete(name);
+            b.classList.remove('on');
+            return;
+          }
+          const opts = { volume: Number($('sfxVol').value), rate: Number($('sfxRate').value) };
+          if ($('sfxPos').checked) opts.position = orbitPos();
+          const h = audio.play(name, opts);
+          handles.add(h);
+          if (loop) {
+            loops.set(name, h);
+            b.classList.add('on');
+          }
+        };
+        $('sfx').append(b);
+      }
+      for (const id of ['sfxVol', 'sfxRate', 'spVol', 'radius', 'orbitSpeed', 'pace']) {
+        $(id).oninput = (e) => ($(id + 'Out').textContent = Number(e.target.value).toFixed(id === 'radius' || id === 'pace' ? 1 : 2));
+      }
+      $('stopall').onclick = () => {
+        for (const h of handles) h.stop(0.1);
+        handles.clear();
+        loops.clear();
+        document.querySelectorAll('#sfx button.on').forEach((b) => b.classList.remove('on'));
+        audio.stopAllSpeech();
+        audio.stopAmbience(0.3);
+        for (const [id, v] of [['hbv', 0], ['breath', 0], ['muffle', 0], ['fear', 0]]) {
+          $(id).value = v;
+          $(id).dispatchEvent(new Event('input'));
+        }
+        $('walk').checked = false;
+      };
+
+      /* --------------------------------------------------------- footsteps */
+
+      let surface = 'concrete';
+      const step = (s = surface) => {
+        const opts = { volume: 0.7, heavy: $('stepHeavy').checked };
+        if ($('stepOther').checked) opts.position = { ...orbitPos(), y: 0 };
+        audio.footstep(s, opts);
+      };
+      for (const s of SURFACES) {
+        const b = document.createElement('button');
+        b.textContent = s;
+        b.dataset.step = s;
+        b.onclick = async () => {
+          await start();
+          surface = s;
+          document.querySelectorAll('#steps button').forEach((x) => x.classList.toggle('on', x === b));
+          step(s);
+        };
+        $('steps').append(b);
+      }
+      let nextStep = 0;
+
+      /* -------------------------------------------------------------- body */
+
+      const body = () => audio.setHeartbeat(Number($('bpm').value), Number($('hbv').value));
+      $('bpm').oninput = () => { $('bpmOut').textContent = $('bpm').value; body(); };
+      $('hbv').oninput = () => { $('hbvOut').textContent = Number($('hbv').value).toFixed(2); start().then(body); };
+      $('breath').oninput = () => { $('breathOut').textContent = Number($('breath').value).toFixed(2); start().then(() => audio.setBreathing(Number($('breath').value))); };
+      $('muffle').oninput = () => { $('muffleOut').textContent = Number($('muffle').value).toFixed(2); audio.setMuffle(Number($('muffle').value)); };
+      $('fear').oninput = () => {
+        const f = Number($('fear').value);
+        $('fearOut').textContent = f.toFixed(2);
+        const c = (v) => Math.max(0, Math.min(1, v));
+        const set = (id, v) => { $(id).value = v; $(id).dispatchEvent(new Event('input')); };
+        set('bpm', Math.round(62 + f * 80));
+        set('hbv', f < 0.06 ? 0 : 0.12 + f * 0.88);
+        set('breath', c((f - 0.22) / 0.78));
+        set('muffle', c((f - 0.55) / 0.45) * 0.85);
+      };
+      $('ambOn').onclick = async () => { await start(); audio.startAmbience(); };
+      $('ambOff').onclick = () => audio.stopAmbience(2);
+
+      /* ------------------------------------------------------------- speak */
+
+      $('url').value = VOICE_URL;
+      $('urlWav').onclick = () => ($('url').value = VOICE_URL);
+      $('url404').onclick = () => ($('url').value = MISSING_URL);
+      $('urlEmpty').onclick = () => ($('url').value = '');
+      let lastLevel = 0;
+      $('speak').onclick = async () => {
+        await start();
+        const which = $('bus').value;
+        const url = $('url').value;
+        const t0 = performance.now();
+        const opts = { bus: which === 'thought' ? 'thought' : 'voice', volume: Number($('spVol').value), onLevel: (l) => (lastLevel = l) };
+        if (which === 'voice') opts.position = orbitPos;
+        const h = audio.speak(url, opts);
+        const line = `speak(${url ? url.slice(0, 48) : '""'}, ${which})`;
+        $('speakLog').textContent = `${line} …\n` + $('speakLog').textContent;
+        await h.done;
+        $('speakLog').textContent = `${line} → done after ${Math.round(performance.now() - t0)} ms\n` + $('speakLog').textContent.split('\n').slice(1).join('\n');
+      };
+      $('speakStop').onclick = () => audio.stopAllSpeech();
+
+      /* --------------------------------------------------------------- mic */
+
+      const micLog = (s) => ($('micLog').textContent = s);
+      $('micInit').onclick = async () => {
+        micLog('asking for permission…');
+        const ok = await mic.init();
+        micLog(ok ? 'microphone ready (available = true)' : 'init() resolved false: denied or unavailable (available = false)');
+      };
+      let micT0 = 0;
+      const micDown = async () => {
+        if (!mic.available && !(await mic.init())) return micLog('microphone unavailable');
+        micT0 = performance.now();
+        mic.start();
+        $('micHold').classList.add('on');
+      };
+      const micUp = async () => {
+        if (!$('micHold').classList.contains('on')) return;
+        $('micHold').classList.remove('on');
+        const blob = await mic.stop();
+        const held = Math.round(performance.now() - micT0);
+        if (!blob) return micLog(`held ${held} ms → null (too short or silent)`);
+        micLog(`held ${held} ms → Blob ${blob.size} bytes, type "${blob.type}"`);
+        $('micPlay').src = URL.createObjectURL(blob);
+      };
+      $('micHold').onpointerdown = micDown;
+      $('micHold').onpointerup = micUp;
+      $('micHold').onpointerleave = micUp;
+      $('micStress').onclick = async () => {
+        if (!mic.available && !(await mic.init())) return micLog('microphone unavailable');
+        const out = [];
+        for (let i = 0; i < 20; i++) {
+          mic.start();
+          mic.start(); // twice on purpose
+          await new Promise((r) => setTimeout(r, i % 2 ? 5 : 40));
+          const p = mic.stop();
+          const q = mic.stop(); // and stopped twice
+          out.push(((await p) ? 'blob' : 'null') + '/' + ((await q) ? 'blob' : 'null'));
+        }
+        micLog('rapid presses → ' + out.join(' ') + `\nrecording = ${mic.recording}`);
+      };
+
+      /* -------------------------------------------------------------- loop */
+
+      let lastT = performance.now();
+      function frame() {
+        const t = performance.now();
+        const dt = Math.min(0.1, (t - lastT) / 1000);
+        lastT = t;
+        orbitAngle += dt * Number($('orbitSpeed').value);
+        const r = Number($('radius').value);
+        const dot = $('orbit').firstElementChild;
+        const rr = 10 + 38 * Math.min(1, Math.log10(1 + r) / Math.log10(31));
+        dot.style.left = 50 + Math.sin(orbitAngle) * rr + '%';
+        dot.style.top = 50 - Math.cos(orbitAngle) * rr + '%';
+        if (A.context) {
+          audio.setListener(LISTENER, FORWARD);
+          for (const tap of A.taps) {
+            const m = A.read(tap, 0.12);
+            const el = meterEls[tap];
+            el.fill.style.width = dbPos(m.rms) * 100 + '%';
+            el.peak.style.left = dbPos(m.peak) * 100 + '%';
+            el.txt.textContent = `${m.rmsDb < -99 ? '-∞' : m.rmsDb.toFixed(1)} dB  pk ${m.peak.toFixed(3)}`;
+          }
+          const s = A.state();
+          const src = Object.values(s.sources);
+          for (const b of document.querySelectorAll('#sfx button')) {
+            const kind = s.sources[b.dataset.sfx];
+            if (b.dataset.kind !== kind) {
+              b.dataset.kind = kind;
+              b.lastElementChild.textContent = b.lastElementChild.textContent.replace(/ · (file|synth|pending)$/, '') + ' · ' + kind;
+            }
+          }
+          $('status').innerHTML = `context <b>${s.context}</b> @ ${s.sampleRate} Hz · sounds <b>${src.filter((x) => x === 'file').length}</b> file / <b>${src.filter((x) => x === 'synth').length}</b> synth / ${src.filter((x) => x === 'pending').length} not rendered yet · voices <b>${s.voices}</b> · speech <b>${s.speech}</b> · heart <b>${s.heart.bpm.toFixed(0)}</b> bpm · ${s.silenced ? '<b>silenced (cut): world, footsteps, heart and breath ignored until startAmbience()</b>' : s.ambience ? 'ambience on' : 'ambience off'}`;
+          if ($('walk').checked && t > nextStep) {
+            step();
+            nextStep = t + 1000 / Number($('pace').value);
+          }
+        }
+        $('lvl').style.width = lastLevel * 100 + '%';
+        $('lvlTxt').textContent = lastLevel.toFixed(2);
+        const ml = mic.level();
+        $('micLvl').style.width = ml * 100 + '%';
+        $('micTxt').textContent = ml.toFixed(2) + (mic.recording ? ' rec' : '');
+      }
+      (function raf() {
+        requestAnimationFrame(raf);
+        frame();
+      })();
+      setInterval(() => performance.now() - lastT > 300 && frame(), 250); // keep readouts alive in a hidden tab
+
+      /* ============================================================ checks */
+
+      const results = [];
+      function record(group, name, pass, info) {
+        const row = { group, name, pass: !!pass, info };
+        results.push(row);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="${pass ? 'pass' : 'fail'}">${pass ? 'PASS' : 'FAIL'}</td><td></td><td></td>`;
+        tr.children[1].textContent = `${group}: ${name}`;
+        tr.children[2].textContent = info;
+        $('checks').append(tr);
+        const bad = results.filter((r) => !r.pass).length;
+        $('checkSummary').textContent = `${results.length - bad} passed, ${bad} failed`;
+        return row;
+      }
+      const BUSES = ['world', 'voice', 'self', 'thought'];
+      const fmt = (m) => `rms ${m.rmsDb.toFixed(1)} dB, peak ${m.peak.toFixed(4)}, hf ${(m.hfRatio * 100).toFixed(0)}%`;
+      const db = (x) => 20 * Math.log10(Math.max(x, 1e-12));
+
+      /** Wait until all four buses (and optionally master) have been quiet for 0.2 s. */
+      async function quiet(max = 5, master = false) {
+        const taps = master ? [...BUSES, 'master'] : BUSES;
+        for (let t = 0; t < max; t += 0.1) {
+          await sleep(0.1);
+          if (taps.every((b) => A.read(b, 0.2).peak < 2e-4)) return true;
+        }
+        return false;
+      }
+      async function ready() {
+        await start();
+        await audio.load();
+        audio.stopAmbience(0.05);
+        audio.stopAllSpeech();
+        audio.setHeartbeat(60, 0);
+        audio.setBreathing(0);
+        audio.setMuffle(0);
+        audio.setMaster(1, 0.01);
+        await sleep(0.2);
+        await quiet();
+      }
+
+      /**
+       * Dominant repetition period (seconds) of a bus's level envelope, by
+       * autocorrelation: the first lag that is (nearly) as good as the best one.
+       */
+      function periodOf(tap, seconds, minLag, maxLag, smooth = 0) {
+        const { dt, rms } = A.envelope(tap, seconds);
+        let env = rms;
+        if (smooth > 0) {
+          const k = Math.max(1, Math.round(smooth / dt / 2));
+          const pre = [0];
+          for (const v of rms) pre.push(pre[pre.length - 1] + v);
+          env = rms.map((_, i) => {
+            const a = Math.max(0, i - k), b = Math.min(rms.length, i + k + 1);
+            return (pre[b] - pre[a]) / (b - a);
+          });
+        }
+        const mean = env.reduce((a, b) => a + b, 0) / env.length;
+        const x = env.map((v) => v - mean);
+        const lo = Math.round(minLag / dt), hi = Math.min(Math.round(maxLag / dt), x.length - 2);
+        const step = Math.max(1, Math.round(0.004 / dt));
+        const ac = [];
+        let best = -Infinity;
+        for (let lag = lo; lag <= hi; lag += step) {
+          let sum = 0;
+          for (let i = 0; i + lag < x.length; i++) sum += x[i] * x[i + lag];
+          sum /= x.length - lag;
+          ac.push(sum);
+          if (sum > best) best = sum;
+        }
+        let first = ac.findIndex((v, i) => v >= best * 0.85 && v >= (ac[i - 1] ?? -Infinity) && v >= (ac[i + 1] ?? -Infinity));
+        if (first < 0) first = ac.indexOf(best);
+        return (lo + first * step) * dt;
+      }
+
+      const LISTEN = { subway_rumble: 4.2, distant_siren: 3.5, car_pass: 3, wind_gust: 2.4, ambience_city_night: 2.5, tinnitus: 1.2, breath_shaky: 1.5, ambience_shop_hum: 1 };
+
+      const checks = {
+        /** Nothing may throw before resume(); speech resolves; loops are queued. */
+        async preResume() {
+          const g = 'before resume()';
+          const e = createAudio();
+          let threw = null;
+          let resolved = false;
+          try {
+            e.setListener(LISTENER, FORWARD);
+            e.startAmbience();
+            e.stopAmbience(1);
+            e.play('gasp', { volume: 1 }).stop(0.1);
+            e.play('ambience_shop_hum', { position: LISTENER, loop: true }).stop();
+            e.footstep('concrete');
+            e.footstep('metal', { position: LISTENER, heavy: true });
+            e.setHeartbeat(100, 0.5);
+            e.setBreathing(0.5);
+            e.setMuffle(0.5);
+            e.setMaster(0.5, 1);
+            e.stopAllSpeech();
+            e.cutToSilence();
+            const h = e.speak(VOICE_URL, { bus: 'voice', position: () => LISTENER });
+            h.stop();
+            await Promise.race([h.done.then(() => (resolved = true)), new Promise((r) => setTimeout(r, 300))]);
+          } catch (err) {
+            threw = err;
+          }
+          record(g, 'every method is a safe no-op', !threw, threw ? String(threw) : 'no exception; context = ' + e.debug.state().context);
+          record(g, 'speak() resolves done', resolved, `resolved = ${resolved}`);
+          e.dispose();
+        },
+
+        /** load() falls back per sound, and uses a file when one really is there. */
+        async loading() {
+          const g = 'load()';
+          await ready();
+          const s = A.state();
+          const kinds = Object.values(s.sources);
+          record(g, 'missing files fall back to synthesis', s.loaded && !kinds.includes('pending'), `${kinds.filter((k) => k === 'file').length} file, ${kinds.filter((k) => k === 'synth').length} synth, ${kinds.filter((k) => k === 'pending').length} pending of ${kinds.length}`);
+
+          // a second engine whose fetch finds a real audio file for one name and garbage for another
+          const realFetch = window.fetch;
+          const tone = new Float32Array(24000).map((_, i) => 0.9 * Math.sin((2 * Math.PI * 880 * i) / 24000) * Math.exp(-i / 6000));
+          // a "loop" the way an mp3 arrives: 30 ms of encoder padding at each end, and far too loud
+          const padded = new Float32Array(48000).map((_, i) => (i < 720 || i >= 48000 - 720 ? 0 : 0.8 * Math.sin((2 * Math.PI * 200 * i) / 24000)));
+          let progress = [];
+          let err = null;
+          const e = createAudio();
+          window.fetch = async (url, init) => {
+            const u = String(url);
+            if (u.endsWith('/audio/sfx/shop_bell.mp3')) return new Response(wavBlob(tone, 24000), { status: 200, headers: { 'content-type': 'audio/mpeg' } });
+            if (u.endsWith('/audio/sfx/ambience_shop_hum.mp3')) return new Response(wavBlob(padded, 24000), { status: 200, headers: { 'content-type': 'audio/mpeg' } });
+            if (u.endsWith('/audio/sfx/footstep_concrete_1.mp3')) {
+              const lateStep = new Float32Array(9600);
+              lateStep.set(tone.slice(0, 4800), 2400); // 100 ms of silence, then the sound
+              return new Response(wavBlob(lateStep, 24000), { status: 200, headers: { 'content-type': 'audio/mpeg' } });
+            }
+            if (u.endsWith('/audio/sfx/footstep_metal_2.mp3')) return new Response(wavBlob(tone.slice(0, 6000), 24000), { status: 200, headers: { 'content-type': 'application/octet-stream' } });
+            if (u.endsWith('/audio/sfx/gasp.mp3')) return new Response('not audio at all, but labelled as audio', { status: 200, headers: { 'content-type': 'audio/mpeg' } });
+            if (u.endsWith('/audio/sfx/cat_yowl.mp3')) return new Response('', { status: 404 });
+            if (u.endsWith('/audio/sfx/car_pass.mp3')) throw new TypeError('network down');
+            if (u.includes('/audio/sfx/')) return new Response('<!doctype html><title>spa</title>', { status: 200, headers: { 'content-type': 'text/html' } });
+            return realFetch(url, init);
+          };
+          try {
+            await e.load((f) => progress.push(f)); // before resume(): must still work
+          } catch (x) {
+            err = x;
+          } finally {
+            window.fetch = realFetch;
+          }
+          const st = e.debug.state();
+          record(g, 'never throws; works before resume()', !err && st.loaded, err ? String(err) : `loaded = ${st.loaded}, context = ${st.context}`);
+          record(g, 'a real file is used, bad ones fall back', st.sources.shop_bell === 'file' && st.sources.gasp === 'synth' && st.sources.cat_yowl === 'synth' && st.sources.car_pass === 'synth', `shop_bell=${st.sources.shop_bell} gasp(undecodable)=${st.sources.gasp} cat_yowl(404)=${st.sources.cat_yowl} car_pass(network error)=${st.sources.car_pass} subway(html 200)=${st.sources.subway_rumble}`);
+          const bell = st.files.shop_bell, humFile = st.files.ambience_shop_hum;
+          record(g, 'a one-shot file is levelled to its mix peak', !!bell && Math.abs(bell.trim - 0.5 / 0.9) < 0.02, bell ? `peak 0.9 file → trim ×${bell.trim.toFixed(3)} (target peak 0.5)` : 'no file');
+          const humRms = 0.8 * Math.SQRT1_2 * Math.sqrt(46560 / 48000);
+          record(g, 'a loop file: padding trimmed, levelled by RMS', !!humFile && Math.abs(humFile.loopStart - 0.03) < 0.003 && Math.abs(humFile.loopEnd - 1.97) < 0.003 && Math.abs(humFile.trim - Math.pow(10, -17.5 / 20) / humRms) < 0.01, humFile ? `2.00 s file with 30 ms padding → loop ${humFile.loopStart.toFixed(3)} s to ${humFile.loopEnd.toFixed(3)} s, trim ×${humFile.trim.toFixed(3)}` : 'no file');
+          record(g, 'footstep variant files are picked up', st.sources.footstep_metal_2 === 'file' && st.sources.footstep_metal_1 === 'synth', `footstep_metal_2=${st.sources.footstep_metal_2}, footstep_metal_1=${st.sources.footstep_metal_1}`);
+          const late = st.files.footstep_concrete_1;
+          record(g, 'leading silence in a one-shot file is skipped', !!late && Math.abs(late.start - 0.096) < 0.004, late ? `a step that begins 100 ms into its file plays from ${late.start.toFixed(3)} s` : 'no file');
+          const mono = progress.every((f, i) => i === 0 || f >= progress[i - 1]);
+          record(g, 'progress runs 0 → 1', progress.length > 2 && progress[0] === 0 && progress[progress.length - 1] === 1 && mono, `${progress.length} callbacks, first ${progress[0]}, last ${progress[progress.length - 1]}, monotonic ${mono}`);
+          e.dispose();
+        },
+
+        /** When the recorded shaky-breath loop exists, setBreathing() blends it in at the top of the range. */
+        async breathFile() {
+          const g = 'breath file';
+          await start();
+          const realFetch = window.fetch;
+          let seed = 7;
+          const breath = new Float32Array(48000).map((_, i) => {
+            seed = (seed * 1664525 + 1013904223) >>> 0;
+            return (seed / 2147483648 - 1) * 0.4 * Math.pow(Math.sin((Math.PI * i) / 12000), 2);
+          });
+          window.fetch = (url, init) => {
+            const u = String(url);
+            if (u.endsWith('/audio/sfx/breath_shaky.mp3')) return Promise.resolve(new Response(wavBlob(breath, 24000), { status: 200, headers: { 'content-type': 'audio/mpeg' } }));
+            if (u.includes('/audio/sfx/')) return Promise.resolve(new Response('<!doctype html>', { status: 200, headers: { 'content-type': 'text/html' } }));
+            return realFetch(url, init);
+          };
+          const e = createAudio();
+          try {
+            await e.resume();
+            e.debug.muteOutput(true);
+            await e.debug.enableMeters();
+            await e.load();
+          } finally {
+            window.fetch = realFetch;
+          }
+          const D = e.debug;
+          e.setBreathing(0.3);
+          await sleep(1.5);
+          const low = D.state().voices;
+          e.setBreathing(1);
+          await sleep(3);
+          const high = D.state().voices, m = D.read('self', 2);
+          e.setBreathing(0.2);
+          await sleep(1.6);
+          const back = D.state().voices;
+          record(g, 'file loop takes over above 0.6, leaves below 0.55', D.state().sources.breath_shaky === 'file' && low === 0 && high === 1 && back === 0 && m.rms > 1e-3, `source = ${D.state().sources.breath_shaky}; loop voices at 0.3 / 1.0 / 0.2 = ${low} / ${high} / ${back}; self at 1.0: ${fmt(m)}`);
+          e.dispose();
+        },
+
+        /** Every SfxName makes signal on the bus it belongs to and nowhere else. */
+        async sfx() {
+          const g = 'sfx';
+          await ready();
+          for (const [name, bus] of SFX) {
+            const t0 = A.now();
+            const h = audio.play(name, { volume: 1 });
+            await sleep(LISTEN[name] ?? 0.7);
+            const got = Object.fromEntries([...BUSES, 'master'].map((b) => [b, A.since(b, t0)]));
+            h.stop(0.03);
+            const others = BUSES.filter((b) => b !== bus);
+            const leak = Math.max(...others.map((b) => got[b].peak));
+            const main = bus === 'direct' ? got.master : got[bus];
+            const pass = main.peak > 0.01 && leak < 2e-4 && main.peak < 1.0 && Number.isFinite(main.rms);
+            record(g, `${name} → ${bus}`, pass, `${fmt(main)}; other buses peak ${leak.toExponential(1)}`);
+            await quiet(name === 'tinnitus' ? 8 : 5, true);
+          }
+        },
+
+        /** With a position, every sound goes to the world bus through a panner. */
+        async positional() {
+          const g = 'positional sfx';
+          await ready();
+          const pos = { x: LISTENER.x + 2, y: 1.5, z: LISTENER.z - 3 };
+          for (const [name] of SFX) {
+            if (name === 'tinnitus' || name === 'ambience_city_night') continue;
+            const t0 = A.now();
+            const h = audio.play(name, { position: pos, volume: 1 });
+            await sleep(Math.min(LISTEN[name] ?? 0.7, 3));
+            const w = A.since('world', t0), s = A.since('self', t0);
+            h.stop(0.03);
+            record(g, `${name} @ 3.6 m → world`, w.peak > 0.003 && s.peak < 2e-4, `${fmt(w)}; self peak ${s.peak.toExponential(1)}`);
+            await quiet(4);
+          }
+          // distance: the same sound nearer is louder
+          const lv = [];
+          for (const d of [2, 8, 25]) {
+            const t0 = A.now();
+            audio.play('shop_bell', { position: { x: LISTENER.x, y: 1.62, z: LISTENER.z - d }, volume: 1 });
+            await sleep(0.8);
+            lv.push(A.since('world', t0));
+            await quiet(4);
+          }
+          record(g, 'level falls with distance (2 / 8 / 25 m)', lv[0].rms > lv[1].rms * 1.5 && lv[1].rms > lv[2].rms * 1.5, lv.map((m) => m.rmsDb.toFixed(1) + ' dB').join(' / '));
+          // air absorption: a bright sound (keys) loses its top end with distance
+          const hf = [];
+          for (const d of [2, 10, 25]) {
+            const t0 = A.now();
+            audio.play('keys_jingle', { position: { x: LISTENER.x, y: 1.62, z: LISTENER.z - d }, volume: 1 });
+            await sleep(1.3);
+            hf.push(A.since('world', t0));
+            await quiet(4);
+          }
+          // keys are all top end, so the low-pass shows as level lost beyond the inverse-distance law (ref 2 m, roll-off 1)
+          const law = (d) => db(2 / (2 + (Math.max(d, 2) - 2)));
+          const extra10 = db(hf[1].hfRms / hf[0].hfRms) - law(10), extra25 = db(hf[2].hfRms / hf[0].hfRms) - law(25);
+          record(g, 'highs fall with distance (low-pass)', extra10 < 0 && extra25 < -4 && extra25 < extra10, `beyond the distance law, the band above 2 kHz loses ${(-extra10).toFixed(1)} dB at 10 m and ${(-extra25).toFixed(1)} dB at 25 m`);
+        },
+
+        async footsteps() {
+          const g = 'footsteps';
+          await ready();
+          const stats = {};
+          for (const heavy of [false, true]) {
+            for (const s of SURFACES) {
+              // her own step: self bus
+              let t0 = A.now();
+              audio.footstep(s, { volume: 1, heavy });
+              await sleep(0.5);
+              const own = A.since('self', t0), ownLeak = A.since('world', t0);
+              await quiet(3);
+              // someone else's: world bus
+              t0 = A.now();
+              audio.footstep(s, { volume: 1, heavy, position: { x: LISTENER.x - 1, y: 0, z: LISTENER.z + 3 } });
+              await sleep(0.5);
+              const other = A.since('world', t0), otherLeak = A.since('self', t0);
+              await quiet(3);
+              stats[`${s}${heavy ? '+heavy' : ''}`] = own;
+              record(g, `${s}${heavy ? ' heavy' : ''}: own → self, other → world`, own.peak > 0.02 && ownLeak.peak < 2e-4 && other.peak > 0.005 && otherLeak.peak < 2e-4, `own ${fmt(own)} | other ${fmt(other)}`);
+            }
+          }
+          record(g, 'heavy boot is duller than her shoe (concrete)', stats['concrete+heavy'].hfRatio < stats['concrete'].hfRatio * 0.7, `hf share ${(stats['concrete'].hfRatio * 100).toFixed(0)}% vs heavy ${(stats['concrete+heavy'].hfRatio * 100).toFixed(0)}%`);
+          record(g, 'surfaces differ (tile brighter than asphalt)', stats['tile'].hfRatio > stats['asphalt'].hfRatio * 1.2, `hf share: concrete ${(stats['concrete'].hfRatio * 100).toFixed(0)}%, asphalt ${(stats['asphalt'].hfRatio * 100).toFixed(0)}%, metal ${(stats['metal'].hfRatio * 100).toFixed(0)}%, tile ${(stats['tile'].hfRatio * 100).toFixed(0)}%`);
+          // randomisation: repeated steps are not identical
+          const peaks = [];
+          for (let i = 0; i < 6; i++) {
+            const t0 = A.now();
+            audio.footstep('concrete', { volume: 1 });
+            await sleep(0.45);
+            peaks.push(A.since('self', t0).rms);
+          }
+          const spread = Math.max(...peaks) / Math.min(...peaks);
+          record(g, 'steps are randomised', spread > 1.03, `6 steps, rms spread ×${spread.toFixed(2)}`);
+        },
+
+        /** Tempo measured from the self-bus envelope by autocorrelation. */
+        async heartbeat() {
+          const g = 'heartbeat';
+          await ready();
+          const measure = (seconds) => 60 / periodOf('self', seconds, 0.25, 1.7);
+          const logBpm = (n) => {
+            const b = A.state().heart.beats.slice(-n - 1);
+            const iv = b.slice(1).map((t, i) => t - b[i]);
+            return 60 / (iv.reduce((a, c) => a + c, 0) / iv.length);
+          };
+          for (const bpm of [60, 120, 90]) {
+            audio.setHeartbeat(bpm, 1);
+            await sleep(bpm === 60 ? 6.5 : 7.5); // tempo glides; measure once it has settled
+            const m = measure(4);
+            const l = logBpm(4);
+            const lv = A.read('self', 3);
+            record(g, `tempo follows ${bpm} bpm`, Math.abs(m - bpm) / bpm < 0.06 && Math.abs(l - bpm) / bpm < 0.06, `measured ${m.toFixed(1)} bpm from the signal, ${l.toFixed(1)} bpm scheduled; ${fmt(lv)}`);
+            if (bpm === 60) record(g, 'is on the self bus only, sub-heavy', lv.peak > 0.05 && lv.hfRatio < 0.05 && A.read('world', 3).peak < 2e-4, `${fmt(lv)}; world peak ${A.read('world', 3).peak.toExponential(1)}`);
+          }
+          // glide: straight after a jump the tempo is in between
+          audio.setHeartbeat(150, 1);
+          await sleep(0.9);
+          const mid = A.state().heart.bpm;
+          record(g, 'tempo glides rather than jumps', mid > 92 && mid < 148, `0.9 s after 90 → 150: ${mid.toFixed(1)} bpm`);
+          const loud = A.read('self', 2);
+          audio.setHeartbeat(70, 0.15);
+          await sleep(4);
+          const soft = A.read('self', 2.5);
+          record(g, 'low volume is far quieter (felt, not heard)', soft.rms < loud.rms * 0.2 && soft.rms > 1e-5, `vol 1.0: ${fmt(loud)} | vol 0.15: ${fmt(soft)} (${db(soft.rms / loud.rms).toFixed(1)} dB)`);
+          audio.setHeartbeat(70, 0);
+          await sleep(3.2);
+          const off = A.read('self', 0.8);
+          record(g, 'volume 0 is silent', off.peak < 2e-4, `peak ${off.peak.toExponential(1)}`);
+        },
+
+        async breathing() {
+          const g = 'breathing';
+          await ready();
+          const plan = { 0.15: [17, 15, 1.6, 7], 0.5: [10, 8.5, 1.1, 4], 1: [8, 6.5, 0.7, 2.6] }; // [wait, window, min period, max period]
+          const out = {};
+          for (const level of [0.15, 0.5, 1]) {
+            audio.setBreathing(level);
+            const [wait, win, lo, hi] = plan[level];
+            await sleep(wait);
+            out[level] = { m: A.read('self', win), rate: 60 / periodOf('self', win, lo, hi, 0.12) };
+          }
+          record(g, 'level 0.15: faint nasal breathing', out[0.15].m.rms > 2e-4 && out[0.15].m.rmsDb < -40, `${fmt(out[0.15].m)}`);
+          record(g, 'gets louder with level', out[1].m.rms > out[0.5].m.rms * 1.3 && out[0.5].m.rms > out[0.15].m.rms * 2, `0.15: ${out[0.15].m.rmsDb.toFixed(1)} dB, 0.5: ${out[0.5].m.rmsDb.toFixed(1)} dB, 1.0: ${out[1].m.rmsDb.toFixed(1)} dB`);
+          record(g, 'gets faster with level', out[1].rate > out[0.5].rate * 1.2 && out[0.5].rate > out[0.15].rate * 1.2 && out[1].rate > 32, `${out[0.15].rate.toFixed(1)} → ${out[0.5].rate.toFixed(1)} → ${out[1].rate.toFixed(1)} breaths/min (designed: 15 / 25 / 42)`);
+          record(g, 'self bus only', A.read('world', 4).peak < 2e-4 && A.read('voice', 4).peak < 2e-4, `world peak ${A.read('world', 4).peak.toExponential(1)}`);
+          audio.setBreathing(0);
+          await sleep(2.5);
+          const off = A.read('self', 0.8);
+          record(g, 'level 0 is silent', off.peak < 2e-4, `peak ${off.peak.toExponential(1)}`);
+        },
+
+        /** Tunnel hearing: the world loses its highs and some level; voice and self do not. */
+        async muffle() {
+          const g = 'muffle';
+          await ready();
+          const hum = audio.play('ambience_shop_hum', { volume: 1 }); // a steady world sound with some top end (fan, tube buzz)
+          await sleep(1.5);
+          const world = {}, voice = {}, self = {};
+          for (const m of [0, 0.5, 1]) {
+            audio.setMuffle(m);
+            await sleep(1.6);
+            const t0 = A.now();
+            const done = audio.speak(STEADY_URL, { bus: 'voice' }).done;
+            audio.play('keys_jingle', { volume: 1 });
+            await sleep(2.2);
+            world[m] = A.since('world', t0);
+            voice[m] = A.since('voice', t0);
+            self[m] = A.since('self', t0);
+            await done;
+            await sleep(0.4);
+          }
+          const hfDrop = db(world[1].hfRms / world[0].hfRms);
+          record(g, 'world high-frequency energy falls', world[0.5].hfRms < world[0].hfRms * 0.7 && world[1].hfRms < world[0.5].hfRms * 0.7, `hf rms: ${db(world[0].hfRms).toFixed(1)} dB → ${db(world[0.5].hfRms).toFixed(1)} dB (0.5) → ${db(world[1].hfRms).toFixed(1)} dB (1.0); drop ${hfDrop.toFixed(1)} dB`);
+          record(g, 'world is ducked a little overall', world[1].rms < world[0].rms * 0.85, `rms ${world[0].rmsDb.toFixed(1)} dB → ${world[1].rmsDb.toFixed(1)} dB`);
+          const vd = db(voice[1].rms / voice[0].rms), vh = db(voice[1].hfRms / voice[0].hfRms);
+          record(g, 'voice bus is untouched', Math.abs(vd) < 0.7 && Math.abs(vh) < 0.7 && voice[0].peak > 0.01, `level ${vd.toFixed(2)} dB, highs ${vh.toFixed(2)} dB`);
+          const sd = db(self[1].rms / self[0].rms), sh = db(self[1].hfRms / self[0].hfRms);
+          record(g, 'self bus is untouched', Math.abs(sd) < 0.7 && Math.abs(sh) < 0.7 && self[0].peak > 0.01, `level ${sd.toFixed(2)} dB, highs ${sh.toFixed(2)} dB`);
+          hum.stop(0.1);
+          // and the city itself, as the scene uses it
+          audio.setMuffle(0);
+          audio.startAmbience();
+          await sleep(5);
+          const open = A.read('world', 2.5);
+          audio.setMuffle(0.85);
+          await sleep(4);
+          const shut = A.read('world', 2.5);
+          record(g, 'the city recedes at muffle 0.85', shut.hfRms < open.hfRms * 0.25 && shut.rms < open.rms, `ambience hf ${db(open.hfRms).toFixed(1)} dB → ${db(shut.hfRms).toFixed(1)} dB; level ${open.rmsDb.toFixed(1)} dB → ${shut.rmsDb.toFixed(1)} dB`);
+          audio.setMuffle(0);
+          audio.stopAmbience(0.2);
+          await sleep(1.2);
+        },
+
+        async speech() {
+          const g = 'speak()';
+          await ready();
+          const near = () => ({ x: LISTENER.x + 0.5, y: 1.7, z: LISTENER.z - 1 });
+
+          // valid URL on the voice bus, positional
+          let levels = [], t0 = A.now(), w0 = performance.now();
+          await audio.speak(VOICE_URL, { bus: 'voice', position: near, onLevel: (l) => levels.push(l) }).done;
+          let ms = performance.now() - w0;
+          let v = A.since('voice', t0), th = A.since('thought', t0), w = A.since('world', t0);
+          record(g, 'valid URL: done resolves when the clip ends', ms > 1700 && ms < 3500, `${Math.round(ms)} ms for a 2.0 s clip`);
+          record(g, 'voice bus carries it, others silent', v.peak > 0.02 && th.peak < 2e-4 && w.peak < 2e-4, `voice ${fmt(v)}; thought peak ${th.peak.toExponential(1)}; world peak ${w.peak.toExponential(1)}`);
+          const maxL = Math.max(0, ...levels);
+          record(g, 'onLevel reports a usable 0..1 level', levels.length > 5 && maxL > 0.25 && maxL <= 1 && levels[levels.length - 1] === 0 && levels.every((l) => l >= 0 && l <= 1), `${levels.length} callbacks, max ${maxL.toFixed(2)}, min ${Math.min(...levels).toFixed(2)}, last ${levels[levels.length - 1]}`);
+          await quiet(3);
+
+          // thought bus
+          t0 = A.now();
+          await audio.speak(VOICE_URL, { bus: 'thought' }).done;
+          th = A.since('thought', t0); v = A.since('voice', t0);
+          record(g, 'thought bus carries her inner voice', th.peak > 0.02 && v.peak < 2e-4, `thought ${fmt(th)}; voice peak ${v.peak.toExponential(1)}`);
+          await sleep(0.3);
+          const tail = A.read('thought', 0.25);
+          record(g, 'thought has a short reverb tail', tail.peak > 1e-4, `0.05-0.3 s after the clip: peak ${tail.peak.toExponential(1)}`);
+          await quiet(3);
+
+          // missing URL (the dev server answers with index.html), empty string, garbage
+          w0 = performance.now();
+          await audio.speak(MISSING_URL, { bus: 'voice', position: near }).done;
+          ms = performance.now() - w0;
+          record(g, 'missing URL: done resolves, no throw', ms < 4000, `${Math.round(ms)} ms (${MISSING_URL})`);
+          w0 = performance.now();
+          await audio.speak(HTML_URL, { bus: 'thought' }).done;
+          ms = performance.now() - w0;
+          record(g, 'an HTML page answered with 200: done resolves', ms < 4000, `${Math.round(ms)} ms`);
+          w0 = performance.now();
+          await audio.speak('', { bus: 'thought' }).done;
+          ms = performance.now() - w0;
+          record(g, 'empty string: resolves immediately', ms < 30, `${ms.toFixed(1)} ms`);
+          w0 = performance.now();
+          await audio.speak('data:audio/mpeg;base64,AAAAAAAA', { bus: 'voice' }).done;
+          ms = performance.now() - w0;
+          record(g, 'undecodable data: done resolves', ms < 4000, `${Math.round(ms)} ms`);
+
+          // stop() and stopAllSpeech()
+          w0 = performance.now();
+          const h = audio.speak(VOICE_URL, { bus: 'voice', position: near });
+          await sleep(0.5);
+          const sounding = A.read('voice', 0.3).peak;
+          h.stop();
+          await h.done;
+          ms = performance.now() - w0;
+          await sleep(0.25);
+          const ringing = A.read('voice', 0.1).peak; // only the street reverb is left
+          await sleep(1.1);
+          const dead = A.read('voice', 0.1).peak;
+          record(g, 'stop() resolves done and silences', ms < 900 && ringing < sounding * 0.05 && dead < 2e-4, `done after ${Math.round(ms)} ms; voice peak ${sounding.toFixed(3)} → ${ringing.toExponential(1)} (reverb tail, 0.2 s) → ${dead.toExponential(1)} (1.3 s)`);
+          w0 = performance.now();
+          const a = audio.speak(VOICE_URL, { bus: 'voice', position: near }), b = audio.speak(VOICE_URL, { bus: 'thought' });
+          await sleep(0.6);
+          const both = A.read('voice', 0.3).peak > 0.01 && A.read('thought', 0.3).peak > 0.01;
+          audio.stopAllSpeech();
+          await Promise.all([a.done, b.done]);
+          ms = performance.now() - w0;
+          record(g, 'lines overlap; stopAllSpeech() ends both', both && ms < 1100 && A.state().speech === 0, `both sounding = ${both}; all done after ${Math.round(ms)} ms`);
+          await quiet(3);
+
+          // distance: 1 m present, 8 m clear, 25 m faint
+          const lv = [];
+          for (const d of [1, 8, 25]) {
+            t0 = A.now();
+            await audio.speak(STEADY_URL, { bus: 'voice', position: () => ({ x: LISTENER.x, y: 1.62, z: LISTENER.z - d }) }).done;
+            lv.push(A.since('voice', t0));
+            await quiet(3);
+          }
+          const d8 = db(lv[1].rms / lv[0].rms), d25 = db(lv[2].rms / lv[0].rms);
+          record(g, 'voice: 1 m close, 8 m clear, 25 m faint', d8 < -9 && d8 > -19 && d25 < -19 && d25 > -32, `1 m ${lv[0].rmsDb.toFixed(1)} dB; 8 m ${d8.toFixed(1)} dB; 25 m ${d25.toFixed(1)} dB (relative)`);
+          record(g, 'voice loses a little top with distance', lv[2].hfRatio < lv[0].hfRatio, `hf share ${(lv[0].hfRatio * 100).toFixed(0)}% → ${(lv[1].hfRatio * 100).toFixed(0)}% → ${(lv[2].hfRatio * 100).toFixed(0)}%`);
+
+          // spatialisation: a source on the right is louder in the right ear
+          const ctx = A.context;
+          record(g, 'listener and panners are HRTF', ctx.listener.positionX ? Math.abs(ctx.listener.positionX.value - LISTENER.x) < 0.01 : true, `listener x ${ctx.listener.positionX?.value}`);
+
+          // a thought ducks the world about 4 dB
+          // (the hum loop is exactly 4 s long and beats slowly: compare whole loops)
+          const hum = audio.play('ambience_shop_hum', { volume: 1 });
+          await sleep(5);
+          const before = A.read('world', 4);
+          const done = audio.speak(LONG_URL, { bus: 'thought' }).done;
+          await sleep(5.5);
+          const during = A.read('world', 4);
+          await done;
+          await sleep(5.5);
+          const after = A.read('world', 4);
+          hum.stop(0.1);
+          const duck = db(during.rms / before.rms), back = db(after.rms / before.rms);
+          record(g, 'thought ducks the world ~4 dB, then releases', duck < -3 && duck > -5 && Math.abs(back) < 0.6, `during ${duck.toFixed(2)} dB, after ${back.toFixed(2)} dB`);
+          await quiet(3);
+        },
+
+        async master() {
+          const g = 'master';
+          await ready();
+          const hum = audio.play('ambience_shop_hum', { volume: 1 });
+          await sleep(1.2);
+          // gain of the master chain = master level / world level over the very same samples
+          const chain = (seconds) => db(A.read('master', seconds).rms / A.read('world', seconds).rms);
+          const full = chain(0.8);
+          audio.setMaster(0.25, 0.3);
+          await sleep(0.15);
+          const mid = chain(0.02) - full;
+          await sleep(1.0);
+          const low = chain(0.8) - full;
+          audio.setMaster(1, 0.3);
+          await sleep(1.2);
+          const back = chain(0.8) - full;
+          hum.stop(0.1);
+          record(g, 'setMaster(0.25, 0.3) fades to -12 dB', Math.abs(low + 12.04) < 0.3 && mid < -1.5 && mid > -10, `after: ${low.toFixed(2)} dB; halfway through the fade: ${mid.toFixed(1)} dB`);
+          record(g, 'and back', Math.abs(back) < 0.3, `${back.toFixed(2)} dB`);
+          await quiet(4);
+          // limiter: everything at once must not clip
+          for (let i = 0; i < 4; i++) audio.play('trash_can_crash', { volume: 1.5 });
+          audio.play('impact_thud', { volume: 1.5 });
+          audio.play('door_close_heavy', { volume: 1.5 });
+          const t0 = A.now();
+          await sleep(1.2);
+          const hot = A.since('master', t0);
+          record(g, 'limiter keeps a pile-up under full scale', hot.peak < 0.99 && hot.peak > 0.3, `peak ${hot.peak.toFixed(3)}`);
+          await quiet(6);
+        },
+
+        async cut() {
+          const g = 'cutToSilence()';
+          await ready();
+          audio.startAmbience();
+          audio.setHeartbeat(120, 1);
+          audio.setBreathing(0.9);
+          audio.play('ambience_shop_hum', { position: { x: LISTENER.x + 1, y: 1.5, z: LISTENER.z - 2 } });
+          const v = audio.speak(STEADY_URL, { bus: 'voice', position: () => ({ x: LISTENER.x, y: 1.6, z: LISTENER.z - 1 }) });
+          const th = audio.speak(STEADY_URL, { bus: 'thought' });
+          await sleep(1.5);
+          const before = Object.fromEntries(BUSES.map((b) => [b, A.read(b, 0.5)]));
+          const w0 = performance.now();
+          audio.cutToSilence();
+          await Promise.all([v.done, th.done]);
+          const doneMs = performance.now() - w0;
+          await sleep(0.35);
+          const after = Object.fromEntries([...BUSES, 'master'].map((b) => [b, A.read(b, 0.25)]));
+          record(g, 'all four buses were sounding before', BUSES.every((b) => before[b].peak > 0.003), BUSES.map((b) => `${b} ${before[b].rmsDb.toFixed(0)} dB`).join(', '));
+          record(g, 'world, voice, self, thought are dead within 0.1 s', BUSES.every((b) => after[b].peak < 2e-4), BUSES.map((b) => `${b} ${after[b].peak.toExponential(1)}`).join(', '));
+          record(g, 'speech handles resolved', doneMs < 200 && A.state().speech === 0, `${Math.round(doneMs)} ms`);
+          record(g, 'the tinnitus tone is what is left', after.master.peak > 0.01 && after.master.hfRatio > 0.8, `master ${fmt(after.master)}`);
+          // the director keeps calling these every frame during the black: they must stay off
+          for (let i = 0; i < 20; i++) {
+            audio.setHeartbeat(140, 1);
+            audio.setBreathing(1);
+            audio.footstep('concrete');
+            audio.footstep('concrete', { position: LISTENER, heavy: true });
+            await sleep(0.1);
+          }
+          audio.play('car_pass', { position: { x: LISTENER.x, y: 0.5, z: LISTENER.z - 10 } });
+          await sleep(1.2);
+          const held = Object.fromEntries(BUSES.map((b) => [b, A.read(b, 2.5)]));
+          record(g, 'heart, breath, steps and world stay off afterwards', A.state().silenced && BUSES.every((b) => held[b].peak < 2e-4), `silenced = ${A.state().silenced}; ` + BUSES.map((b) => `${b} ${held[b].peak.toExponential(1)}`).join(', '));
+          const ring = A.read('master', 0.3);
+          await sleep(3.0);
+          const gone = A.read('master', 0.4);
+          record(g, 'tone rises then fades out over ~5 s', ring.peak > 0.003 && gone.peak < 2e-4, `at ~3.5 s: peak ${ring.peak.toFixed(4)}; at ~6.7 s: ${gone.peak.toExponential(1)}`);
+          // the next scene
+          audio.startAmbience();
+          audio.setHeartbeat(100, 1);
+          await sleep(2.5);
+          const again = { world: A.read('world', 1), self: A.read('self', 1) };
+          record(g, 'startAmbience() brings the world and the body back', !A.state().silenced && again.world.peak > 0.003 && again.self.peak > 0.01, `world ${fmt(again.world)}; self ${fmt(again.self)}`);
+          audio.setHeartbeat(60, 0);
+          audio.stopAmbience(0.2);
+          await sleep(2);
+        },
+
+        /** The night-street bed: present, quiet, mostly low, never silent, stereo. */
+        async ambience() {
+          const g = 'ambience';
+          await ready();
+          audio.startAmbience();
+          await sleep(6);
+          const m = A.read('world', 3.5);
+          record(g, 'bed level and colour', m.rmsDb > -40 && m.rmsDb < -22 && m.hfRatio < 0.35 && m.peak < 0.5, fmt(m));
+          const env = A.envelope('world', 3.5).rms;
+          const lo = Math.min(...env), hi = Math.max(...env);
+          record(g, 'continuous (no gaps or clicks at loop points)', lo > hi * 0.02, `quantum rms min ${db(lo).toFixed(1)} dB, max ${db(hi).toFixed(1)} dB`);
+          audio.stopAmbience(1);
+          await sleep(0.5);
+          const fading = A.read('world', 0.1);
+          await sleep(1.6);
+          const off = A.read('world', 0.3);
+          record(g, 'stopAmbience(1) fades out', fading.rms < m.rms && fading.rms > 1e-4 && off.peak < 2e-4, `mid-fade ${fading.rmsDb.toFixed(1)} dB, after ${off.peak.toExponential(1)}`);
+        },
+      };
+
+      async function runAll(names = Object.keys(checks)) {
+        await start();
+        A.muteOutput($('silentRun').checked);
+        for (const n of names) {
+          try {
+            await checks[n]();
+          } catch (err) {
+            record(n, 'threw', false, String(err && err.stack ? err.stack : err));
+          }
+        }
+        A.muteOutput(false);
+        return results;
+      }
+      let running = null;
+      const runAsync = (names) => {
+        running = runAll(names).finally(() => (running = null));
+        return 'started';
+      };
+
+      for (const n of ['all', ...Object.keys(checks)]) {
+        const b = document.createElement('button');
+        b.textContent = n === 'all' ? 'Run all checks' : n;
+        if (n === 'all') b.className = 'primary';
+        b.dataset.check = n;
+        b.onclick = () => runAsync(n === 'all' ? undefined : [n]);
+        $('checkButtons').append(b);
+      }
+
+      window.__harness = { audio, mic, checks, results, runAll, runAsync, isRunning: () => running !== null, sleep, VOICE_URL, STEADY_URL, MISSING_URL };
+    </script>
+  </body>
+</html>

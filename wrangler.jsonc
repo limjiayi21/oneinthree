@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "oneinthree",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    // no "directory": the Vite plugin points it at the client build
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Workers AI (Clef + the line model) always runs remotely, also in `vite dev`, and bills the account.
+  "ai": { "binding": "AI", "remote": true },
+  "durable_objects": {
+    "bindings": [{ "name": "SESSION", "class_name": "SessionDO" }]
+  },
+  // One SQLite-backed Durable Object per session (worker/session.ts).
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SessionDO"] }],
+  // Production secret (voice): `npx wrangler secret put ELEVENLABS_API_KEY`. Without it the Worker still runs, with voice off.
+  "observability": { "enabled": true }
+}

@@ -1,0 +1,314 @@
+[
+  {
+    "name": "ambience_city_night",
+    "file": "audio/sfx/ambience_city_night.mp3",
+    "prompt": "Continuous night-time ambience of a quiet residential side street in New York City at midnight, heard from the sidewalk. A low, steady wash of distant traffic from an avenue several blocks away, the faint drone of rooftop air-conditioning units, light air moving between brick buildings. Even and uneventful: no close cars, no horns, no sirens, no voices, no footsteps, no birds, no insects, no music. Seamless loop.",
+    "durationSeconds": 22,
+    "loop": true,
+    "promptInfluence": 0.45
+  },
+  {
+    "name": "ambience_shop_hum",
+    "file": "audio/sfx/ambience_shop_hum.mp3",
+    "prompt": "Steady electrical hum of a glass-door drinks refrigerator inside a small convenience store, close perspective: a constant 60-cycle compressor drone with a soft condenser-fan whirr and a faint fluorescent tube buzz. Perfectly continuous, no compressor clicks, no door, no beeps, no voices, no music. Seamless loop.",
+    "durationSeconds": 10,
+    "loop": true,
+    "promptInfluence": 0.6
+  },
+  {
+    "name": "subway_rumble",
+    "file": "audio/sfx/subway_rumble.mp3",
+    "prompt": "A subway train passing underground, heard from the street above through a steel sidewalk ventilation grate. A deep sub-bass rumble swells slowly from silence, wheels thud rhythmically over rail joints, the grate bars rattle faintly at the loudest point, then the rumble fades away down the tunnel to silence. Muffled, from below. No brake squeal close-up, no station announcement, no voices, no street traffic.",
+    "durationSeconds": 10,
+    "loop": false,
+    "promptInfluence": 0.5
+  },
+  {
+    "name": "distant_siren",
+    "file": "audio/sfx/distant_siren.mp3",
+    "prompt": "A single emergency-vehicle wail siren very far away across a city at night, many blocks off, echoing between tall buildings. It swells slightly, passes in the distance and recedes, the pitch drifting a little lower as it goes. Muffled by distance with a long soft echo. No close traffic, no horn, no voices, no music.",
+    "durationSeconds": 12,
+    "loop": false,
+    "promptInfluence": 0.5
+  },
+  {
+    "name": "car_pass",
+    "file": "audio/sfx/car_pass.mp3",
+    "prompt": "One sedan driving past on a dry city street at about thirty miles per hour, heard from the sidewalk a few metres away: tyre hiss and low engine hum approaching, a soft whoosh of air as it passes, then receding into the distance. One car only, steady speed, no horn, no braking, no gear change, no radio, no voices.",
+    "durationSeconds": 5.5,
+    "loop": false,
+    "promptInfluence": 0.5
+  },
+  {
+    "name": "trash_can_crash",
+    "file": "audio/sfx/trash_can_crash.mp3",
+    "prompt": "A galvanised steel trash can knocked over in a narrow brick alley at night: one sudden loud metallic crash as it hits the concrete, the lid clattering off and wobbling to a stop, the can rolling a short way. Sharp, startling, with a short hard alley echo. No voices, no animals, no glass, no music.",
+    "durationSeconds": 3.5,
+    "loop": false,
+    "promptInfluence": 0.6
+  },
+  {
+    "name": "cat_yowl",
+    "file": "audio/sfx/cat_yowl.mp3",
+    "prompt": "A startled alley cat gives one sharp, raspy yowl-screech with a spit of hiss as it bolts away. Sudden, short, angry, slightly echoing off brick walls. A single cat and a single cry: no other animals, no purring, no crash, no voices, no music.",
+    "durationSeconds": 1.5,
+    "loop": false,
+    "promptInfluence": 0.6
+  },
+  {
+    "name": "door_buzz_open",
+    "file": "audio/sfx/door_buzz_open.mp3",
+    "prompt": "An apartment-building front door being buzzed open, heard from the doorstep: a harsh electric door-strike buzzer sounds for about one second, then the metal latch clacks free as the door is pushed. Close and dry. No intercom speech, no keys, no footsteps, no voices, no music.",
+    "durationSeconds": 2.5,
+    "loop": false,
+    "promptInfluence": 0.6
+  },
+  {
+    "name": "door_close_heavy",
+    "file": "audio/sfx/door_close_heavy.mp3",
+    "prompt": "A heavy steel-framed apartment-building front door swinging shut behind someone and latching, heard from just inside a small tiled vestibule: one deep solid thud, the lock bolt clicking home, a short dull interior reverb. One close only. No keys, no footsteps, no voices, no music.",
+    "durationSeconds": 2,
+    "loop": false,
+    "promptInfluence": 0.6
+  },
+  {
+    "name": "keys_jingle",
+    "file": "audio/sfx/keys_jingle.mp3",
+    "prompt": "A small bunch of house keys on a steel ring pulled out of a coat pocket and gripped tight in a fist, extreme close-up: two or three brief bright metallic jingles and clinks, then stillness. Dry, no lock, no door, no footsteps, no voices, no music.",
+    "durationSeconds": 1.5,
+    "loop": false,
+    "promptInfluence": 0.6
+  },
+  {
+    "name": "gasp",
+    "file": "audio/sfx/gasp.mp3",
+    "prompt": "A young woman's sudden sharp gasp of fright: one quick involuntary intake of breath through the open mouth, cut off short as she holds it. Close microphone, dry, intimate. Female. No scream, no words, no exhale afterwards, no music.",
+    "durationSeconds": 0.8,
+    "loop": false,
+    "promptInfluence": 0.7
+  },
+  {
+    "name": "breath_shaky",
+    "file": "audio/sfx/breath_shaky.mp3",
+    "prompt": "A frightened young woman breathing fast and shakily through her mouth, very close microphone: trembling, uneven inhales and exhales at about forty breaths a minute, as if trying to stay quiet and not show it. Female, dry, intimate. No words, no whimpering, no crying, no sobbing, no swallowing, no music. Seamless loop.",
+    "durationSeconds": 8,
+    "loop": true,
+    "promptInfluence": 0.6
+  },
+  {
+    "name": "exhale_relief",
+    "file": "audio/sfx/exhale_relief.mp3",
+    "prompt": "A young woman lets out one long, slow, slightly shaky exhale of relief through her mouth, as if she had been holding her breath, trailing off to silence. Very close microphone, dry, intimate. Female. No words, no laugh, no sob, no inhale before it, no music.",
+    "durationSeconds": 2.5,
+    "loop": false,
+    "promptInfluence": 0.7
+  },
+  {
+    "name": "cloth_rustle",
+    "file": "audio/sfx/cloth_rustle.mp3",
+    "prompt": "A brief soft rustle of a cotton jacket sleeve and a canvas tote-bag strap shifting on a shoulder as someone tightens their grip. Close-up, dry, subtle, under a second. No zipper, no velcro, no paper, no footsteps, no voices.",
+    "durationSeconds": 0.8,
+    "loop": false,
+    "promptInfluence": 0.6
+  },
+  {
+    "name": "phone_camera_start",
+    "file": "audio/sfx/phone_camera_start.mp3",
+    "prompt": "A smartphone video-recording start tone: one clean, short, soft two-note electronic blip, the second note higher. Dry, isolated interface sound. No shutter click, no vibration buzz, no voice, no music.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.7
+  },
+  {
+    "name": "shop_bell",
+    "file": "audio/sfx/shop_bell.mp3",
+    "prompt": "A small brass bell on a coiled spring above a corner-shop door, set jingling as the door is pushed open: a bright ding-a-ling of four or five quick rings that settle to silence. Close, dry. No door creak, no electronic chime, no footsteps, no voices, no music.",
+    "durationSeconds": 2.2,
+    "loop": false,
+    "promptInfluence": 0.6
+  },
+  {
+    "name": "tinnitus",
+    "file": "audio/sfx/tinnitus.mp3",
+    "prompt": "A single thin, pure, high-pitched ringing tone like ears ringing after a shock (tinnitus), around four kilohertz. It rises quickly out of silence, holds for a moment, then fades slowly and smoothly to complete silence. A clean sine-like tone only: no noise, no rumble, no impact, no heartbeat, no music.",
+    "durationSeconds": 5.5,
+    "loop": false,
+    "promptInfluence": 0.8
+  },
+  {
+    "name": "impact_thud",
+    "file": "audio/sfx/impact_thud.mp3",
+    "prompt": "One dull, heavy, muffled body-impact thud, like a shoulder driven into a padded wall: low, short and dead, with no ring, no crack and no debris. Close and dry. No grunt, no voice, no cloth, no music.",
+    "durationSeconds": 0.6,
+    "loop": false,
+    "promptInfluence": 0.7
+  },
+  {
+    "name": "wind_gust",
+    "file": "audio/sfx/wind_gust.mp3",
+    "prompt": "A single gust of cold night wind funnelling down a city street between tall buildings: it rises out of near silence, blows hard for about two seconds with a faint low whistle, then dies away. Wind only: no leaves, no rain, no flapping, no chimes, no traffic, no voices.",
+    "durationSeconds": 4.5,
+    "loop": false,
+    "promptInfluence": 0.5
+  },
+  {
+    "name": "footstep_concrete_1",
+    "file": "audio/sfx/footstep_concrete_1.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a dry concrete city sidewalk. A normal, even step: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_concrete_2",
+    "file": "audio/sfx/footstep_concrete_2.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a dry concrete city sidewalk. A slightly quicker, lighter step: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_concrete_3",
+    "file": "audio/sfx/footstep_concrete_3.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a dry concrete city sidewalk. A firmer step with a faint scuff of the sole as the toe comes down: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_concrete_4",
+    "file": "audio/sfx/footstep_concrete_4.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a dry concrete city sidewalk. A hurried step, the heel landing a little harder: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_asphalt_1",
+    "file": "audio/sfx/footstep_asphalt_1.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on rough, slightly gritty asphalt road surface. A normal, even step: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_asphalt_2",
+    "file": "audio/sfx/footstep_asphalt_2.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on rough, slightly gritty asphalt road surface. A slightly quicker, lighter step: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_asphalt_3",
+    "file": "audio/sfx/footstep_asphalt_3.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on rough, slightly gritty asphalt road surface. A firmer step with a faint scuff of the sole as the toe comes down: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_asphalt_4",
+    "file": "audio/sfx/footstep_asphalt_4.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on rough, slightly gritty asphalt road surface. A hurried step, the heel landing a little harder: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_metal_1",
+    "file": "audio/sfx/footstep_metal_1.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a steel subway ventilation grate set into the sidewalk, with a short hollow metallic ring from the bars and the void below. A normal, even step: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_metal_2",
+    "file": "audio/sfx/footstep_metal_2.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a steel subway ventilation grate set into the sidewalk, with a short hollow metallic ring from the bars and the void below. A slightly quicker, lighter step: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_metal_3",
+    "file": "audio/sfx/footstep_metal_3.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a steel subway ventilation grate set into the sidewalk, with a short hollow metallic ring from the bars and the void below. A firmer step with a faint scuff of the sole as the toe comes down: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_metal_4",
+    "file": "audio/sfx/footstep_metal_4.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a steel subway ventilation grate set into the sidewalk, with a short hollow metallic ring from the bars and the void below. A hurried step, the heel landing a little harder: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_tile_1",
+    "file": "audio/sfx/footstep_tile_1.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a hard ceramic tile floor inside a small shop, with a very short close room reflection. A normal, even step: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb beyond the room. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_tile_2",
+    "file": "audio/sfx/footstep_tile_2.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a hard ceramic tile floor inside a small shop, with a very short close room reflection. A slightly quicker, lighter step: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb beyond the room. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_tile_3",
+    "file": "audio/sfx/footstep_tile_3.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a hard ceramic tile floor inside a small shop, with a very short close room reflection. A firmer step with a faint scuff of the sole as the toe comes down: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb beyond the room. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_tile_4",
+    "file": "audio/sfx/footstep_tile_4.mp3",
+    "prompt": "A single isolated footstep: a woman's flat, soft-soled shoe taking one step on a hard ceramic tile floor inside a small shop, with a very short close room reflection. A hurried step, the heel landing a little harder: the heel touches, then the sole rolls down. Microphone close to the ground, dry, outdoors at night with no reverb beyond the room. Exactly one footstep, not a walking sequence. No high heels, no cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.5,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_heavy_1",
+    "file": "audio/sfx/footstep_heavy_1.mp3",
+    "prompt": "A single isolated footstep: a heavy man in thick-soled work boots taking one step on a dry concrete city sidewalk. A slow, deliberate step: a low, solid heel strike, then the sole coming down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.6,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_heavy_2",
+    "file": "audio/sfx/footstep_heavy_2.mp3",
+    "prompt": "A single isolated footstep: a heavy man in thick-soled work boots taking one step on a dry concrete city sidewalk. An unhurried step with a slight crunch of grit under the sole: a low, solid heel strike, then the sole coming down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.6,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_heavy_3",
+    "file": "audio/sfx/footstep_heavy_3.mp3",
+    "prompt": "A single isolated footstep: a heavy man in thick-soled work boots taking one step on a dry concrete city sidewalk. A weighty step, the heel landing hard: a low, solid heel strike, then the sole coming down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.6,
+    "loop": false,
+    "promptInfluence": 0.75
+  },
+  {
+    "name": "footstep_heavy_4",
+    "file": "audio/sfx/footstep_heavy_4.mp3",
+    "prompt": "A single isolated footstep: a heavy man in thick-soled work boots taking one step on a dry concrete city sidewalk. A slow step with a faint drag of the boot sole: a low, solid heel strike, then the sole coming down. Microphone close to the ground, dry, outdoors at night with no reverb. Exactly one footstep, not a walking sequence. No cloth, no keys, no voices, no other sound.",
+    "durationSeconds": 0.6,
+    "loop": false,
+    "promptInfluence": 0.75
+  }
+]
