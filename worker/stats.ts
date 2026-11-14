@@ -9,6 +9,10 @@
  *
  * Schema: migrations/0001_playthroughs.sql, then 0003_teaching_replay.sql. Logging is best effort: if the
  * DB binding is missing or a write fails, the simulation carries on.
+ *
+ * Separately, the Part 1 film asks "Out of 100 women in the US, how many have
+ * been followed?" and logs each locked-in guess as a bare number in
+ * film_guesses (migrations/0004_part1_film.sql), not linked to any session.
  */
 import guidedJson from '../content/guided.json';
 import type { GuidedData } from '../shared/content';
@@ -130,6 +134,64 @@ export interface StatsResponse {
   guidedFirstRating: Record<string, Record<string, number>>;
   /** Playthroughs that reached the end of the teaching replay (a first choice at all five moments). */
   guidedCompleted: number;
+  /** Guesses from the Part 1 film question; null if the film_guesses table is not there yet (migration 0004 not applied). */
+  filmGuesses: FilmGuessStats | null;
+}
+
+/* ---------------------------------------------------------- Part 1 film guess */
+
+/** The answer shown in the film: ssh2018_followed_34 in content/evidence.json (34% have been physically followed). */
+export const FILM_ANSWER = 34;
+
+/** A guess is a whole number from 0 to 100; anything else is dropped. */
+export function cleanFilmGuess(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw <= 100 ? raw : null;
+}
+
+export async function recordFilmGuess(db: D1Database | undefined, guess: number): Promise<void> {
+  if (!db) return;
+  try {
+    await db.prepare('INSERT INTO film_guesses (created_at, guess) VALUES (?1, ?2)').bind(new Date().toISOString(), guess).run();
+  } catch (err) {
+    console.warn('[stats] film guess write failed', err instanceof Error ? err.message : err);
+  }
+}
+
+export interface FilmGuessStats {
+  count: number;
+  /** Rounded to one decimal place; null with no guesses. */
+  mean: number | null;
+  median: number | null;
+  answer: number;
+  /** Guesses below the answer, equal to it, and above it. */
+  below: number;
+  exact: number;
+  above: number;
+  /** Counts per band of ten: "0-9", "10-19", ... "90-100". */
+  byTen: Record<string, number>;
+}
+
+/** Aggregate film guesses. Pure, so it is tested without a database. Out-of-range values are ignored. */
+export function aggregateFilmGuesses(raw: unknown[]): FilmGuessStats {
+  const guesses = raw.map(cleanFilmGuess).filter((g): g is number => g !== null).sort((a, b) => a - b);
+  const byTen: Record<string, number> = {};
+  for (let lo = 0; lo <= 90; lo += 10) byTen[lo === 90 ? '90-100' : `${lo}-${lo + 9}`] = 0;
+  for (const g of guesses) {
+    const lo = Math.min(90, Math.floor(g / 10) * 10);
+    bump(byTen, lo === 90 ? '90-100' : `${lo}-${lo + 9}`);
+  }
+  const n = guesses.length;
+  const mid = n >> 1;
+  return {
+    count: n,
+    mean: n ? Math.round((guesses.reduce((a, b) => a + b, 0) / n) * 10) / 10 : null,
+    median: n ? (n % 2 ? guesses[mid]! : (guesses[mid - 1]! + guesses[mid]!) / 2) : null,
+    answer: FILM_ANSWER,
+    below: guesses.filter((g) => g < FILM_ANSWER).length,
+    exact: guesses.filter((g) => g === FILM_ANSWER).length,
+    above: guesses.filter((g) => g > FILM_ANSWER).length,
+    byTen,
+  };
 }
 
 interface Row {
@@ -157,6 +219,7 @@ export function aggregate(rows: Row[]): StatsResponse {
     guidedFirstChoice: Object.fromEntries(GUIDED_MOMENT_IDS.map((id) => [id, {}])),
     guidedFirstRating: Object.fromEntries(GUIDED_MOMENT_IDS.map((id) => [id, {}])),
     guidedCompleted: 0,
+    filmGuesses: null,
   };
   for (const r of rows) {
     if (r.outcome) {
@@ -189,7 +252,15 @@ export function aggregate(rows: Row[]): StatsResponse {
 
 export async function readStats(db: D1Database): Promise<StatsResponse> {
   const { results } = await db.prepare('SELECT tactics, outcome, guided_m1, guided_m2, guided_m3, guided_m4, guided_m5 FROM playthroughs').all<Row>();
-  return aggregate(results ?? []);
+  const out = aggregate(results ?? []);
+  try {
+    const film = await db.prepare('SELECT guess FROM film_guesses').all<{ guess: number }>();
+    out.filmGuesses = aggregateFilmGuesses((film.results ?? []).map((r) => r.guess));
+  } catch (err) {
+    // Most likely migration 0004 has not been applied yet; the rest of the stats still answer.
+    console.warn('[stats] film guesses unavailable', err instanceof Error ? err.message : err);
+  }
+  return out;
 }
 
 /** Compare the stats code without leaking how much of it matched through timing. */

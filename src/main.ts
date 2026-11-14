@@ -4,7 +4,8 @@ import { createAudio } from './audio/engine';
 import { createMic } from './audio/mic';
 import { createHud } from './ui/hud';
 import { createScreens } from './ui/screens';
-import { getHealth, getSummary, postGuided } from './net/api';
+import { getHealth, getSummary, postFilmGuess, postGuided } from './net/api';
+import { FILM } from './ui/film';
 import { createPhoneLink } from './net/phoneLink';
 import { runWomanWalkHome } from './scenarios/womanWalkHome';
 import { runBystanderWalkHome } from './scenarios/bystanderWalkHome';
@@ -58,7 +59,7 @@ async function debrief(result: SceneResult, pov: Pov): Promise<SummaryData> {
 
 async function main(): Promise<void> {
   const params = new URLSearchParams(location.search);
-  // Dev shortcuts: ?skip=intro,part1,part2 (skipping part2 goes straight to the guided replay)
+  // Dev shortcuts: ?skip=intro,part1,film,part2 (skipping part1 still plays the film; skipping part2 goes straight to the guided replay)
   const skip = new Set((params.get('skip') ?? '').split(',').filter(Boolean));
   const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
   const phone = createPhoneLink();
@@ -131,32 +132,42 @@ async function main(): Promise<void> {
   screens.loading(null);
   idle(); // the scenes drive world.update from here on
 
-  for (;;) {
+  run: for (;;) {
     let exited = false;
     /** The Part 2 run the guided replay's choices are logged against (the last one, after any "Walk it again"). */
     let part2: SceneResult | null = null;
+    /** Part 1's debrief, fetched while the film plays and offered from the Part 2 brief ("See full details"). */
+    let part1Details: Promise<SummaryData> | null = null;
 
     if (!skip.has('part1')) {
-      for (;;) {
-        await screens.briefing('woman');
-        await audio.resume();
-        world.setDoorOpen('home', false);
-        const result = await runWomanWalkHome(deps);
-        hud.setVisible(false);
-        if (result.outcome === 'exited') {
-          exited = true;
-          break;
-        }
-        screens.loading('…');
-        const summary = await debrief(result, 'woman');
-        screens.loading(null);
-        if ((await screens.summary(summary)) === 'continue') break;
-      }
+      await screens.briefing('woman');
+      await audio.resume();
+      world.setDoorOpen('home', false);
+      const result = await runWomanWalkHome(deps);
+      hud.setVisible(false);
+      if (result.outcome === 'exited') exited = true;
+      else part1Details = debrief(result, 'woman'); // never rejects: falls back to a local outcome
+    }
+
+    // The film replaces Part 1's debrief in the main flow (?skip=film leaves it out).
+    if (!exited && !skip.has('film')) {
+      audio.stopAmbience(0.6);
+      await screens.film({ src: FILM.src, track: FILM.track, onGuess: (guess) => void postFilmGuess(guess) });
     }
 
     if (!exited && !skip.has('part2')) {
+      let offerDetails = part1Details !== null;
       for (;;) {
-        await screens.briefing('bystander');
+        const choice = await screens.briefing('bystander', { details: offerDetails });
+        if (choice === 'details' && part1Details) {
+          screens.loading('…');
+          const summary = await part1Details;
+          screens.loading(null);
+          // "Walk it again" from the old debrief replays Part 1 (and its film); "Continue" returns to this brief.
+          if ((await screens.summary(summary)) === 'retry') continue run;
+          continue;
+        }
+        offerDetails = false;
         await audio.resume();
         world.setDoorOpen('home', false);
         const result = await runBystanderWalkHome(deps);

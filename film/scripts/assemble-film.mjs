@@ -279,9 +279,42 @@ function buildFilm(mixWav) {
   return { master, layers };
 }
 
+// ---------------------------------------------------------------- text track
+
+/**
+ * public/film/part1-film.vtt: the same words as the burned-in text (plus a
+ * description of the montage), so the game can read them to screen readers.
+ * The captions repeat the narration word for word, so they double as the
+ * transcript of what is said.
+ */
+function writeVtt() {
+  const ts = (s) => {
+    const ms = Math.round(s * 1000);
+    const hh = String(Math.floor(ms / 3600000)).padStart(2, '0');
+    const mm = String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0');
+    const ss = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0');
+    return `${hh}:${mm}:${ss}.${String(ms % 1000).padStart(3, '0')}`;
+  };
+  const cues = [{ at: 0, until: 4.8, text: '[A man calls out at a woman, again and again, over a heartbeat. Then silence.]' }];
+  for (const c of CARDS) {
+    if (c.kind === 'stat') {
+      const s = stat(c.id);
+      cues.push({ at: c.at, until: c.until, text: `${s.headline} ${s.text} (Source: ${s.source})` });
+    } else cues.push({ at: c.at, until: c.until, text: c.text });
+  }
+  cues.sort((a, b) => a.at - b.at);
+  const body = cues.map((c, i) => `${i + 1}\n${ts(c.at)} --> ${ts(c.until)}\n${c.text}\n`).join('\n');
+  const out = resolve(root, 'public/film/part1-film.vtt');
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, `WEBVTT\n\n${body}`);
+  return out;
+}
+
 // ---------------------------------------------------------------- run
 
 mkdirSync(build, { recursive: true });
+console.log(`text track -> ${writeVtt()}`);
+if (process.argv.includes('--vtt-only')) process.exit(0);
 if (!existsSync(A('montage-5s.wav'))) {
   console.log('building montage-5s.wav');
   sh('node', [resolve(root, 'film/scripts/build-montage.mjs'), '--profile', 'short'], { stdio: 'inherit' });

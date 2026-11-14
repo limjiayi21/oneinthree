@@ -17,6 +17,7 @@
 
 import type * as THREE from 'three';
 import type { Emotion, SummaryData, Pov } from '../shared/types';
+import type { FilmOptions, FilmResult } from './ui/film';
 
 /* ------------------------------------------------------------------ engine */
 
@@ -396,8 +397,14 @@ export interface Hud {
 export interface Screens {
   /** Landing + content note + how it works + headphone/mic check. Resolves when the user starts. */
   intro(opts: { voiceAvailable: boolean; requestMic: () => Promise<boolean> }): Promise<void>;
-  /** Short brief before a part. */
-  briefing(pov: Pov): Promise<void>;
+  /**
+   * Short brief before a part. With `details`, the brief also offers a small
+   * "See full details" link to the previous part's debrief and resolves
+   * 'details' when it is chosen; otherwise it resolves 'begin'.
+   */
+  briefing(pov: Pov, opts?: { details?: boolean }): Promise<'begin' | 'details'>;
+  /** The 30 s film after Part 1, with its content note and one question. See src/ui/film.ts. */
+  film(opts: FilmOptions): Promise<FilmResult>;
   /** Debrief for a part. */
   summary(data: SummaryData): Promise<'continue' | 'retry'>;
   /** After the teaching replay: the 5 Ds (ticked where they were the player's first pick), the two steps before helping, the closing line. */

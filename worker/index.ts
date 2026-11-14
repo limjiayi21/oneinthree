@@ -9,17 +9,18 @@
  *   POST /api/phone/pair                 -> PhonePairResponse
  *   GET  /api/phone/:code/ws?role=       -> WebSocket relay (worker/phoneRelay.ts)
  *   POST /api/session/:id/guided         -> records the guided replay's first choices (worker/stats.ts)
+ *   POST /api/film/guess                 -> records one Part 1 film guess, a number 0-100 (worker/stats.ts)
  *   GET  /api/stats                      -> aggregate playthrough counts; needs STATS_CODE
  *
  * Everything under /api/session/:id is handled by that session's Durable
  * Object (worker/session.ts). Static assets and the SPA are served by the
  * assets binding; only /api/* reaches this Worker first.
  */
-import type { CreateSessionRequest, HealthResponse } from '../shared/types';
+import { API, type CreateSessionRequest, type HealthResponse } from '../shared/types';
 import { PHONE_CODE_ALPHABET, PHONE_CODE_LENGTH, isPhoneCode, phonePairPath, type PhonePairResponse } from '../shared/phone';
 import { PhoneRelayDO } from './phoneRelay';
 import { SessionDO, type Env } from './session';
-import { codeMatches, readStats } from './stats';
+import { cleanFilmGuess, codeMatches, readStats, recordFilmGuess } from './stats';
 
 export { PhoneRelayDO, SessionDO };
 export type { Env };
@@ -64,6 +65,16 @@ export default {
         console.error('[stats] read failed', err);
         return json({ error: 'Stats are unavailable' }, 500);
       }
+    }
+
+    if (path === API.filmGuess) {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+      // { guess: 0..100 }. Only the number is stored; it is not linked to a session.
+      const body = (await request.json().catch(() => null)) as { guess?: unknown } | null;
+      const guess = cleanFilmGuess(body?.guess);
+      if (guess === null) return json({ error: 'guess must be a whole number from 0 to 100' }, 400);
+      await recordFilmGuess(env.DB, guess);
+      return json({ ok: true });
     }
 
     if (path === '/api/session') {
