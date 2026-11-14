@@ -523,7 +523,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   player.inputEnabled = true;
   hud.objective(null);
   woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.35 });
-  kit.after(2.5, () => hud.hint('SPACE speak  ·  F film  ·  E interact  ·  or keep walking', 9000));
+  kit.after(2.5, () => hud.hint(kit.deps.agent ? 'SPACE speak  ·  F film  ·  E interact  ·  Press L for live voice' : 'SPACE speak  ·  F film  ·  E interact  ·  or keep walking', 9000));
 
   kit.after(26, () => {
     if (kit.ended) return;

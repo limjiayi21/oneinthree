@@ -349,6 +349,8 @@ export interface Hud {
   /** Top-left one-line objective ("Get home."). null clears. */
   objective(text: string | null): void;
   setMic(state: MicState, level?: number): void;
+  /** Show "Press L for live voice" on the idle mic when the server has an agent id. */
+  setLiveVoice(on: boolean): void;
   /** Words heard so far while the mic is open. null clears them. */
   setPartial(text: string | null): void;
   /** 0..1: DOM-side fear cues (pulsing edge darkness). */
@@ -372,7 +374,7 @@ export interface Screens {
   /** Landing + content note + how it works + headphone/mic check. Resolves when the user starts. */
   intro(opts: { voiceAvailable: boolean; requestMic: () => Promise<boolean> }): Promise<void>;
   /** Short brief before a part. */
-  briefing(pov: Pov): Promise<void>;
+  briefing(pov: Pov, opts?: { liveVoice?: boolean }): Promise<void>;
   /** Debrief for a part. */
   summary(data: SummaryData): Promise<'continue' | 'retry'>;
   /** Closing screen: resources and sources. */

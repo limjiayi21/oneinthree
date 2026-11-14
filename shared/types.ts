@@ -238,8 +238,10 @@ export interface HealthResponse {
   ok: boolean;
   voice: boolean;
   ai: boolean;
-  /** True when the Worker can mint an ElevenLabs Agent signed URL. */
+  /** True when the Worker can mint an ElevenLabs Agent signed URL (key and agent id). */
   agent?: boolean;
+  /** True when ELEVENLABS_AGENT_ID is set. The id itself is never sent. */
+  agentId?: boolean;
 }
 
 export interface TimelineEntry {

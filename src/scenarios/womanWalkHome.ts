@@ -341,7 +341,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     // ambient beats on the way
     if (first('start') ) {
       kit.after(1.6, () => kit.think('w_start_1', { intensity: 0.1 }));
-      kit.after(2.2, () => hud.hint('W A S D to walk  ·  mouse to look  ·  Shift to hurry', 7000));
+      kit.after(2.2, () => hud.hint(kit.deps.agent ? 'W A S D to walk  ·  mouse to look  ·  Shift to hurry  ·  Press L for live voice' : 'W A S D to walk  ·  mouse to look  ·  Shift to hurry', 7000));
     }
     if (pos.z < P.subwayExit.z - 7 && first('keys')) {
       audio.play('keys_jingle', { volume: 0.5 });
@@ -380,7 +380,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         kit.refreshMic();
         hud.objective('Get home.');
         kit.event('begin');
-        kit.after(3.5, () => hud.hint(kit.agentLive ? 'Live voice. Speak normally. L switches back.' : 'Hold SPACE to speak.  L for a live voice.  Or say nothing.', 8000));
+        kit.after(3.5, () => hud.hint(kit.agentLive ? 'Live voice. Speak normally. L switches back.' : kit.deps.agent ? 'Hold SPACE to speak.  Press L for live voice.  Or say nothing.' : 'Hold SPACE to speak.  Or say nothing.', 8000));
       }
     }
 

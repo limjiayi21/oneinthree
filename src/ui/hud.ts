@@ -129,7 +129,8 @@ export function createHud(root: HTMLElement): Hud {
     h('div', { class: 'oit-mic-face', 'data-face': 'unavailable' }, h('span', { class: 'oit-mic-l' }, 'Press'), keycap('T'), h('span', { class: 'oit-mic-r' }, 'to type instead')),
   );
   const partialEl = h('p', { class: 'oit-mic-partial' });
-  micEl.append(partialEl);
+  const liveOfferEl = h('p', { class: 'oit-mic-offer' }, 'Press L for live voice');
+  micEl.append(partialEl, liveOfferEl);
   const micStatus = h('div', { class: 'oit-sr', role: 'status' });
 
   const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, reticleEl, promptEl, hintEl, micEl, micStatus);
@@ -326,6 +327,10 @@ export function createHud(root: HTMLElement): Hud {
     } else if (state === 'hidden') {
       micStatus.textContent = '';
     }
+  }
+
+  function setLiveVoice(on: boolean): void {
+    micEl.dataset.offer = on ? '1' : '0';
   }
 
   function setPartial(text: string | null): void {
@@ -595,6 +600,7 @@ export function createHud(root: HTMLElement): Hud {
     hint,
     objective,
     setMic,
+    setLiveVoice,
     setPartial,
     setFear,
     fade,

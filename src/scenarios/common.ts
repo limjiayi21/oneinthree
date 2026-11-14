@@ -503,8 +503,12 @@ export class SceneKit {
         if (!this.speechEnabled || e.repeat) return;
         e.preventDefault();
         void this.typeInstead();
-      } else if (e.code === 'KeyL' && !e.repeat && this.speechEnabled) {
+      } else if (e.code === 'KeyL' && !e.repeat) {
         e.preventDefault();
+        if (!this.speechEnabled) {
+          hud.hint(this.deps.agent ? 'Live voice starts once he approaches.' : 'Live voice needs ELEVENLABS_AGENT_ID on the server.', 4200);
+          return;
+        }
         void this.toggleLive();
       } else if (e.code === 'KeyH' && !e.repeat && this.speechEnabled && !this.agentLive) {
         e.preventDefault();
