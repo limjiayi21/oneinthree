@@ -23,7 +23,7 @@ import type {
   WorldContext,
 } from '../../shared/types';
 import type { Address } from './address';
-import { decideExpression } from './expression';
+import { decideExpression } from '../../shared/expression';
 import { PARAMS, param, val, weakestBasis, type Param, type Params } from './params';
 import { Rng, clamp01, normalise, round3 } from './rng';
 

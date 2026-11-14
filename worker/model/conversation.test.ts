@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ManStance, WomanStrategy, WorldContext } from '../../shared/types';
 import { addressOf, addressOfBystander, contentWord, groundedLine } from './address';
-import { STANCE_EMOTIONS } from './expression';
+import { STANCE_EMOTIONS } from '../../shared/expression';
 import { Rng } from './rng';
 import { decideWoman, initialWomanState } from './woman';
 import { cleanLine } from '../write';
