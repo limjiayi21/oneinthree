@@ -403,7 +403,7 @@ export interface Screens {
    * 'details' when it is chosen; otherwise it resolves 'begin'.
    */
   briefing(pov: Pov, opts?: { details?: boolean }): Promise<'begin' | 'details'>;
-  /** The 30 s film after Part 1, with its content note. See src/ui/film.ts. */
+  /** The narrated film after Part 1 (about 36 s), with its content note. See src/ui/film.ts. */
   film(opts: FilmOptions): Promise<FilmResult>;
   /** Debrief for a part. */
   summary(data: SummaryData): Promise<'continue' | 'retry'>;

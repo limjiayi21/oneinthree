@@ -1,5 +1,5 @@
 /**
- * The 30 s film after Part 1 (public/film/part1-film.mp4).
+ * The narrated film after Part 1 (public/film/part1-film.mp4), about 36 s.
  *
  * Flow: a content note for 3 s, then "start" (Enter or click). The film plays
  * full screen on black with no browser controls. Space or Esc pauses and
@@ -55,7 +55,7 @@ export function createFilmPlayer(opts: FilmOptions, onDone: (result: FilmResult)
 
   /* ----------------------------------------------------------- the player */
 
-  const video = h('video', { class: 'oit-reel-video', src: opts.src, preload: 'auto', playsinline: true, 'aria-label': 'Film, 30 seconds, narrated.' }) as HTMLVideoElement;
+  const video = h('video', { class: 'oit-reel-video', src: opts.src, preload: 'auto', playsinline: true, 'aria-label': 'Narrated film, about 35 seconds.' }) as HTMLVideoElement;
   video.controls = false;
   video.disablePictureInPicture = true;
   const spoken = h('div', { class: 'oit-sr', 'aria-live': 'polite', 'aria-atomic': 'true' });

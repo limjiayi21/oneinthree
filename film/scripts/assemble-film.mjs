@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Assembles the 30 s Part 1 film from the prepared assets. No API calls.
+ * Assembles the Part 1 film (about 36 s) from the prepared assets. No API calls.
  * Needs ffmpeg and Google Chrome (headless, to render the text cards).
  *
  *   node film/scripts/assemble-film.mjs              build everything
@@ -38,50 +38,50 @@ const A = (p) => resolve(root, 'film/assets', p);
 const build = A('build');
 const fontsDir = A('fonts');
 const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const W = 1280, H = 720, FPS = 24, LENGTH = 30, XF = 0.3, FADE_OUT = 1.5;
+const W = 1280, H = 720, FPS = 24, XF = 0.3, FADE_OUT = 1.5;
+/** Film length in seconds: set by plan() from the narration (about 36 s). */
+let LENGTH = 30;
 
 // ---------------------------------------------------------------- the script
 
 /**
- * The film in four parts:
+ * The film:
  *   1. the walk:   black + montage, then clip A under "For you, that was a simulation…"
- *   2. pile-up:    66%, 44% and "1 in 3" spoken over each other STAGGER s apart,
- *                  fast cuts D -> B -> C, the numbers stacking up on screen, heartbeat
- *                  and follower rising, then a hard cut to black and silence
- *   3. the quiet:  on black, alone: "Only twenty-five percent… say someone helped."
- *   4. the turn:   clip E (the push-in across the road): "But sometimes, someone is
- *                  there.", then "This time, you're the one. What would you do?"
- * Every time is worked out from the narration lengths in plan().
+ *   2. the stats:  66%, 44%, "1 in 3" and 25%, back to back with no gap, a hard cut
+ *                  to a new shot on each, the numbers stacking up on screen (older
+ *                  ones dimmed), heartbeat and follower rising underneath
+ *   3. a beat of silence, then clip E (the push-in across the road): "But sometimes,
+ *                  someone is there.", then "This time, you're the one. What would you do?"
+ * Every time, including the film's length, is worked out from the narration in plan().
  */
-const TEMPO = 1.04; // narration speed-up (pitch kept)
-const STAGGER = 2.05; // seconds between the overlapping stat lines
+const TEMPO = 1.03; // narration speed-up (pitch kept): close to natural
+const STAT_GAP = 0.02; // between stats: none to speak of
 const NARRATION_START = 5.1;
-const NARRATION_END_BY = 29.6;
 
 const SHOTS = {
-  A: { file: 'video/A-veo.mp4', from: 0, maxSource: 6 }, // the walk, original speed (it brightens after 6 s)
+  A: { file: 'video/A-veo.mp4', from: 0 }, // the walk, original speed
   D: { file: 'edit/D.mp4', from: 0 }, // the empty street, rain
   B: { file: 'edit/B.mp4', from: 0 }, // keys (the calm 4 s of the clip, slowed)
   C: { file: 'video/C-veo.mp4', from: 0, maxSource: 3 }, // the shadow; after 3 s the light cuts out and strobes
   E: { file: 'edit/E.mp4', from: 0 }, // the push-in from across the road (road visible throughout)
 };
+/** Clip A is 8 s long: the opening uses it at normal speed, the 66% shot the rest of it, slowed. */
+const A_LENGTH = 8;
 
 const OPENING = { file: 'narration-1-female.mp3', text: 'For you, that was a simulation. For many women, it’s an ordinary walk home.' };
-/** The pile-up, in order. short: the on-screen phrase (the words she says); the full wording is in the text track. */
-const PILEUP = [
-  { file: 'narration-stat-66-female.mp3', shot: 'D', id: 'ssh2018_public_66', short: 'of women in the US have been sexually harassed in public.', pan: -0.45 },
-  { file: 'narration-stat-44-female.mp3', shot: 'B', id: 'yougov_keys_44', short: 'of women in the UK hold their keys ready to defend themselves.', pan: 0.45 },
-  { file: 'narration-stat-34-female.mp3', shot: 'C', id: 'ssh2018_followed_34', short: 'women in the US have been followed.', pan: 0 },
+/** The stats, in order. short: the on-screen phrase (the words she says); the full wording is in the text track. */
+const STATS = [
+  { file: 'narration-stat-66-female.mp3', shot: 'A2', id: 'ssh2018_public_66', short: 'of women in the US have been sexually harassed in public.' },
+  { file: 'narration-stat-44-female.mp3', shot: 'B', id: 'yougov_keys_44', short: 'of women in the UK hold their keys ready to defend themselves.' },
+  { file: 'narration-stat-34-female.mp3', shot: 'C', id: 'ssh2018_followed_34', short: 'women in the US have been followed.' },
+  { file: 'narration-stat-25-female.mp3', shot: 'D', id: 'loreal_helped_25', short: 'of people harassed in public say someone helped.' },
 ];
-const QUIET = { file: 'narration-stat-25-female.mp3', id: 'loreal_helped_25' };
 const SOMEONE = { file: 'narration-3-female.mp3', text: 'But sometimes, someone is there.' };
 const HOOK = { file: 'narration-hook-female.mp3', text: 'This time, you’re the one. What would you do?' };
 
 /** Target loudness (LUFS) of each source before mixing, as measured with ebur128. */
 const NARRATION_LUFS = -16;
 const MUSIC_BELOW = 20; // dB under the narration
-/** An older pile-up voice drops this far (linear) when the next one comes in. */
-const DUCK = 0.42;
 
 /** Filled in by plan(). */
 let SCENES = [];
@@ -91,7 +91,7 @@ let CUES = [];
 let TIMES = {};
 
 /** Layout in pixels of the 1280x720 frame. */
-export const LAYOUT = { side: 96, statTop: 448, statMaxWidth: 700, captionBottom: 46, stackTop: 318, stackRow: 92 };
+export const LAYOUT = { side: 96, statTop: 448, statMaxWidth: 700, captionBottom: 46, stackTop: 300, stackRow: 92 };
 
 /** Trim a narration line's leading and trailing silence and speed it up; returns the new file and its length. */
 function prepareLine(file) {
@@ -110,86 +110,83 @@ function plan() {
     return { ...spec, ...p, at, until: at + p.dur };
   };
   const opening = line(OPENING, NARRATION_START);
-  const p0 = frame(opening.until + 0.3);
-  const pile = PILEUP.map((spec, i) => line(spec, p0 + i * STAGGER));
-  const cut = frame(Math.max(...pile.map((l) => l.until)) + 0.08); // hard cut to black and silence
-  const quiet = line(QUIET, cut + 0.55);
-  const eAt = frame(quiet.until + 0.35);
-  const someone = line(SOMEONE, eAt + 0.45);
-  const hook = line(HOOK, someone.until + 0.45);
-  if (hook.until > NARRATION_END_BY) throw new Error(`narration ends at ${hook.until.toFixed(2)} s, after ${NARRATION_END_BY} s: raise TEMPO or tighten STAGGER`);
-  TIMES = { opening, pile, cut, quiet, eAt, someone, hook };
+  const stats = [];
+  let t = frame(opening.until + 0.3);
+  for (const spec of STATS) {
+    const l = line(spec, t);
+    stats.push(l);
+    t = l.until + STAT_GAP;
+  }
+  const cut = frame(stats[stats.length - 1].until + 0.06); // the bed stops dead; a beat of silence
+  const eAt = cut;
+  const someone = line(SOMEONE, cut + 0.75);
+  const hook = line(HOOK, someone.until + 0.5);
+  LENGTH = frame(hook.until + 1.4);
+  TIMES = { opening, stats, cut, eAt, someone, hook };
 
   // ---- picture. xf: the crossfade into that scene (1 frame = a hard cut).
   const hard = 1 / FPS;
+  const aEnd = frame(stats[0].at - 0.05);
+  const aUsed = aEnd - 5; // seconds of clip A the opening plays at normal speed
   SCENES = [
     { name: 'black', at: 0 },
-    { name: 'A', at: 5, xf: XF, ...SHOTS.A },
-    ...pile.map((l, i) => ({ name: l.shot, at: frame(l.at - 0.05), xf: i === 0 ? XF : 0.12, ...SHOTS[l.shot] })),
-    { name: 'black', at: cut, xf: hard },
-    { name: 'E', at: eAt, xf: 0.6, ...SHOTS.E },
+    { name: 'A', at: 5, xf: XF, ...SHOTS.A, maxSource: aUsed },
+    ...stats.map((l) => {
+      const shot = l.shot === 'A2' ? { file: SHOTS.A.file, from: aUsed, maxSource: A_LENGTH - aUsed } : SHOTS[l.shot];
+      return { name: l.shot, at: frame(l.at - 0.05), xf: hard, ...shot };
+    }),
+    { name: 'E', at: eAt, xf: 0.7, ...SHOTS.E },
   ];
   SCENES.forEach((s, i) => (s.slot = (i + 1 < SCENES.length ? SCENES[i + 1].at : LENGTH) - s.at));
 
   // ---- text layers (drawn in this order)
   LAYERS = [];
   const layer = (name, card, at, until, fadeIn = XF, fadeOut = XF) => LAYERS.push({ name, card, at, until, fadeIn, fadeOut });
-  layer('band-opening', { kind: 'band' }, opening.at + 0.2, p0 - 0.05);
-  layer('caption-opening', { kind: 'caption', text: OPENING.text }, opening.at + 0.2, p0 - 0.05);
-  // The pile-up: one card per stage, each showing every stat so far; the newest bright, the rest dimmed.
-  layer('band-pileup', { kind: 'band', tall: true }, pile[0].at - 0.1, cut, 0.2, hard);
-  pile.forEach((l, i) => {
-    const until = i + 1 < pile.length ? pile[i + 1].at + 0.12 : cut;
-    layer(`stack-${i + 1}`, { kind: 'stack', rows: pile.slice(0, i + 1).map((r) => ({ id: r.id, short: r.short })) }, l.at - 0.08, until, i === 0 ? 0.2 : 0.12, i + 1 < pile.length ? 0.05 : hard);
+  layer('band-opening', { kind: 'band' }, opening.at + 0.2, stats[0].at - 0.05);
+  layer('caption-opening', { kind: 'caption', text: OPENING.text }, opening.at + 0.2, stats[0].at - 0.05);
+  // The stats: one card per stat, each showing every stat so far; the newest bright, the rest dimmed.
+  layer('band-stats', { kind: 'band', tall: true }, stats[0].at - 0.1, cut, 0.2, 0.25);
+  stats.forEach((l, i) => {
+    const last = i + 1 === stats.length;
+    const until = last ? cut : stats[i + 1].at - 0.05 + 0.1;
+    layer(`stack-${i + 1}`, { kind: 'stack', rows: stats.slice(0, i + 1).map((r) => ({ id: r.id, short: r.short })) }, l.at - 0.08, until, i === 0 ? 0.2 : 0.08, last ? 0.25 : 0.05);
   });
-  layer('solo-25', { kind: 'solo', id: QUIET.id }, quiet.at - 0.15, eAt + 0.5, 0.35, 0.5);
   layer('band-someone', { kind: 'band' }, someone.at - 0.1, hook.at - 0.1);
   layer('caption-someone', { kind: 'caption', text: SOMEONE.text }, someone.at - 0.1, hook.at - 0.1);
   layer('closing', { kind: 'closing', text: HOOK.text }, hook.at - 0.2, LENGTH, XF, 0.2);
 
   // ---- text track: what is on screen, with the full stat wording and source
   const full = (id) => {
-    const s = stat(id);
-    return `${s.headline} ${s.text} (Source: ${s.source})`;
+    const st = stat(id);
+    return `${st.headline} ${st.text} (Source: ${st.source})`;
   };
   CUES = [
     { at: 0, until: 4.8, text: '[A man calls out at a woman, again and again, over a heartbeat. Then silence.]' },
-    { at: opening.at, until: p0, text: OPENING.text },
-    ...pile.map((l, i) => ({ at: l.at, until: i + 1 < pile.length ? pile[i + 1].at : cut, text: full(l.id) })),
-    { at: quiet.at, until: eAt, text: full(QUIET.id) },
+    { at: opening.at, until: stats[0].at, text: OPENING.text },
+    ...stats.map((l) => ({ at: l.at, until: l.until, text: full(l.id) })),
     { at: someone.at, until: hook.at, text: SOMEONE.text },
     { at: hook.at, until: LENGTH, text: HOOK.text },
   ];
 
   // ---- sound
-  const pileEnd = cut;
+  const s0 = stats[0].at;
   const bAt = SCENES.find((x) => x.name === 'B').at;
   const cAt = SCENES.find((x) => x.name === 'C').at;
-  const stop = 0.03; // the hard cut
+  const stop = 0.03; // the hard stop before the push-in
   AUDIO = [
     { file: 'montage-5s.wav', at: 0, until: 5, keep: true }, // already mixed and cut at 4.8 s
-    // Part 1-2 bed, cut dead at the cut.
-    { file: 'sfx-ambience.mp3', at: 5, until: pileEnd, loop: true, lufs: -34, fadeIn: XF, fadeOut: stop },
-    { file: 'sfx-footsteps.mp3', at: 5, until: pileEnd, loop: true, lufs: -30, fadeIn: XF, fadeOut: stop },
-    { file: 'music.mp3', at: 5, until: pileEnd, lufs: NARRATION_LUFS - MUSIC_BELOW, fadeIn: 0.5, fadeOut: stop },
-    { file: 'sfx-keys.mp3', at: bAt, until: Math.min(cAt + 0.4, bAt + 6), lufs: -28, fadeIn: 0.1, fadeOut: 0.3 },
-    { file: 'sfx-follower.mp3', at: p0, until: pileEnd, from: Math.max(0, 10 - (pileEnd - p0)), lufs: -27, ramp: [0.3, 1.1], fadeIn: 0.5, fadeOut: stop },
-    { file: 'sfx-heartbeat.mp3', at: p0, until: pileEnd, from: Math.max(0, 15 - (pileEnd - p0)), lufs: -23, ramp: [0.35, 1.15], fadeIn: 0.5, fadeOut: stop },
-    // Part 4 bed: the street comes back quietly with the push-in, music rising a little.
-    { file: 'sfx-ambience.mp3', at: eAt, until: LENGTH, loop: true, lufs: -36, fadeIn: 1 },
-    { file: 'music.mp3', at: eAt, until: LENGTH, from: Math.max(0, pileEnd - 5), lufs: NARRATION_LUFS - MUSIC_BELOW, rise: { from: eAt + 1, to: eAt + 3, db: 4 }, fadeIn: 1.2 },
-    // Narration. Pile-up voices are panned apart and drop back when the next one starts.
+    { file: 'sfx-ambience.mp3', at: 5, until: cut, loop: true, lufs: -34, fadeIn: XF, fadeOut: stop },
+    { file: 'sfx-footsteps.mp3', at: 5, until: cut, loop: true, lufs: -30, fadeIn: XF, fadeOut: stop },
+    { file: 'music.mp3', at: 5, until: cut, lufs: NARRATION_LUFS - MUSIC_BELOW, fadeIn: 0.5, fadeOut: stop },
+    { file: 'sfx-keys.mp3', at: bAt, until: Math.min(cAt + 0.3, bAt + 6), lufs: -28, fadeIn: 0.1, fadeOut: 0.3 },
+    // Building under the stats: the follower closing in and her heartbeat speeding up (loop if the stats run long).
+    { file: 'sfx-follower.mp3', at: s0, until: cut, loop: true, from: 0, lufs: -28, ramp: [0.3, 1.1], fadeIn: 0.6, fadeOut: stop },
+    { file: 'sfx-heartbeat.mp3', at: s0, until: cut, loop: true, from: 0, lufs: -24, ramp: [0.3, 1.15], fadeIn: 0.6, fadeOut: stop },
+    // After the beat: the street comes back quietly with the push-in, music rising a little.
+    { file: 'sfx-ambience.mp3', at: eAt + 0.5, until: LENGTH, loop: true, lufs: -36, fadeIn: 1 },
+    { file: 'music.mp3', at: eAt + 0.5, until: LENGTH, from: Math.max(0, cut - 5), lufs: NARRATION_LUFS - MUSIC_BELOW, rise: { from: eAt + 1.5, to: eAt + 3.5, db: 4 }, fadeIn: 1.2 },
     { wav: opening.wav, at: opening.at, lufs: NARRATION_LUFS },
-    ...pile.map((l, i) => ({
-      wav: l.wav,
-      at: l.at,
-      lufs: NARRATION_LUFS,
-      pan: l.pan,
-      duckAt: i + 1 < pile.length ? pile[i + 1].at - l.at : null,
-      until: Math.min(l.until, pileEnd),
-      fadeOut: l.until > pileEnd ? stop : 0,
-    })),
-    { wav: quiet.wav, at: quiet.at, lufs: NARRATION_LUFS },
+    ...stats.map((l) => ({ wav: l.wav, at: l.at, lufs: NARRATION_LUFS })),
     { wav: someone.wav, at: someone.at, lufs: NARRATION_LUFS },
     { wav: hook.wav, at: hook.at, lufs: NARRATION_LUFS },
   ];
@@ -440,8 +437,8 @@ mkdirSync(build, { recursive: true });
 plan();
 console.log('narration:');
 const T = TIMES;
-for (const l of [T.opening, ...T.pile, T.quiet, T.someone, T.hook]) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
-console.log(`hard cut to black and silence at ${T.cut.toFixed(2)} s; push-in from ${T.eAt.toFixed(2)} s`);
+for (const l of [T.opening, ...T.stats, T.someone, T.hook]) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
+console.log(`silence at ${T.cut.toFixed(2)} s; push-in from ${T.eAt.toFixed(2)} s; film length ${LENGTH.toFixed(2)} s`);
 console.log(`shots: ${SCENES.map((s) => `${s.name} ${s.at.toFixed(2)}-${(s.at + s.slot).toFixed(2)}`).join(', ')}`);
 console.log(`text track -> ${writeVtt()}`);
 if (process.argv.includes('--vtt-only')) process.exit(0);
@@ -463,7 +460,7 @@ ff(['-i', master, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-profile:
 
 const check = A('check');
 mkdirSync(check, { recursive: true });
-const stills = [...SCENES.slice(1).filter((s) => s.name !== 'black').map((s) => ({ name: s.name, t: s.at + s.slot / 2 })), { name: 'black-25', t: T.quiet.at + 1.5 }, { name: 'E-someone', t: T.someone.at + 1 }, { name: 'E-hook', t: LENGTH - 1.6 }];
+const stills = [...SCENES.slice(1, -1).map((s) => ({ name: s.name, t: s.at + s.slot / 2 })), { name: 'E-someone', t: T.someone.at + 1 }, { name: 'E-hook', t: LENGTH - 1.6 }];
 for (const { name, t } of stills) ff(['-ss', t.toFixed(2), '-i', master, '-frames:v', '1', resolve(check, `still-${name}-${t.toFixed(1)}s.png`)]);
 console.log(`shot stretch: ${SCENES.slice(1).map((s) => `${s.name} x${(s.stretch ?? 1).toFixed(2)}`).join(', ')}`);
 

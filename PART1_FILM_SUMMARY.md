@@ -5,33 +5,31 @@ Branch `part1-film` (local only, not pushed or deployed), rebased onto `main` at
 
 ## What was built
 
-**A 30-second narrated film that plays when Part 1 ends**, in place of Part 1's
-debrief. It is a plain film: no question, no slider, nothing to answer.
+**A narrated film of about 36 seconds that plays when Part 1 ends**, in place
+of Part 1's debrief. It is a plain film: no question, no slider, nothing to answer.
 
 | Time | Picture | Sound and on-screen text |
 |---|---|---|
 | 0:00–0:05 | Black | Catcall montage (7 of the man's lines, panned, building up, heartbeat under it), cut to silence at 4.8 s |
-| 0:05–0:10.6 | Clip A: her walk | "For you, that was a simulation. For many women, it's an ordinary walk home." (also as a caption) |
-| 0:10.6–0:18.2 | **Pile-up**: fast cuts, D (empty street) → B (keys) → C (shadow) | Three stats spoken over each other, 2 s apart: 66% (US, harassed in public), 44% (UK, keys), "more than one in three" (US, followed). Each newer voice on top, older ones drop back and sit left/right. The numbers stack on screen, older ones dimmed. Heartbeat and the follower's footsteps rise underneath. |
-| 0:18.2 | **Hard cut to black and silence** | |
-| 0:18.8–0:22.9 | Black | Alone: "Only twenty-five percent of people harassed in public say someone helped." (full stat wording on screen) |
-| 0:23.2–0:30 | Clip E: the push-in past the figure across the road | "But sometimes, someone is there." (caption), then "This time, you're the one. What would you do?" spoken and shown large in the centre as the picture fades to black |
+| 0:05–0:10.7 | Clip A: her walk | "For you, that was a simulation. For many women, it's an ordinary walk home." (also as a caption) |
+| 0:10.7–0:28.2 | **The stats, back to back with no gap**, a hard cut to a new shot on each: the rest of her walk (66%), keys (44%), the shadow (1 in 3), the empty street (25%) | Each stat spoken in full, one straight after another. The numbers stack up on screen in the lower-third style, older ones dimmed. Heartbeat and the follower's footsteps rise underneath. |
+| 0:28.2 | A beat of silence; clip E fades in | |
+| 0:29–0:36.2 | Clip E: the push-in past the figure across the road | "But sometimes, someone is there." (caption), then "This time, you're the one. What would you do?" spoken and shown large in the centre as the picture fades to black |
 
 - **Sound:** her footsteps, keys, ambience and a quiet music bed (20 dB under the
-  narration) until the hard cut; after it only the voice, then the street and
-  music return quietly with the push-in. Mixed to -16 LUFS.
-- **On screen:** stats use the numbers and sources from `content/evidence.json`.
-  In the pile-up each shows its number and the short phrase she says (the full
-  sentences cannot be read in 2 seconds); the 25% stat shows its full wording.
-  The full wording of every stat is in the screen-reader text.
+  narration) until the beat of silence; then the street and the music return
+  quietly with the push-in. Mixed to -16 LUFS.
+- **On screen:** stats use the numbers and sources from `content/evidence.json`,
+  each with its number, the short phrase she says, and a source line. The full
+  wording of every stat is in the screen-reader text.
 - **Spoken stats are short forms.** The 44% figure is from a UK YouGov survey,
   so the spoken line says "In the UK".
 - **The figure across the road** is the bystander (warm grey), as designed: it
   is the "someone" who is there, and "you're the one" makes it the player.
 - **No flashes.** Clip C's light cuts out at about 3 s and then strobes; the film
-  uses only its calm first 3 seconds (slowed 1.18×).
-- **Narration speed:** 4% faster than recorded (pitch kept). The overlap in the
-  pile-up is what makes room for every line.
+  uses only its calm first 3 seconds (slowed 1.15×). The only brightness jumps
+  are the deliberate hard cuts between stats.
+- **Narration speed:** 3% faster than recorded (pitch kept), i.e. natural.
 
 **In the game**
 - The film opens with "Contains harassing language. Headphones recommended."
@@ -62,9 +60,9 @@ were downloaded from Google Fonts into `film/assets/fonts/`.
 
 | File | Size | In git |
 |---|---|---|
-| `public/film/part1-film.mp4` (H.264 crf 26, AAC 128k, faststart, 1280×720, 24 fps, 30.0 s) | 4.0 MB | yes |
+| `public/film/part1-film.mp4` (H.264 crf 26, AAC 128k, faststart, 1280×720, 24 fps, 36.2 s) | 5.4 MB | yes |
 | `public/film/part1-film.vtt` | 1 KB | yes |
-| `film/assets/part1-film-master.mp4` (crf 14) | 23 MB | no |
+| `film/assets/part1-film-master.mp4` (crf 14) | 30 MB | no |
 | `film/assets/` (all raw media) | 290 MB | no; backed up to `~/oneinthree-film-assets-backup/` |
 
 Scripts (in git): `film/scripts/assemble-film.mjs` (builds the film),
@@ -97,8 +95,8 @@ npm run build && npm test              # both pass (81 tests)
    presses do not count as a user gesture.) Press Esc in full screen: the
    browser leaves full screen and the film should pause; Space resumes.
 2. **Sound.** Headphones on: the montage builds and cuts to silence; the
-   pile-up should feel like too much at once, then the hard cut to silence and
-   the 25% line alone; the hook is not cut off at the end.
+   stats should come one straight after another, every word clear; then the
+   beat of silence; the hook is not cut off at the end.
 3. **The full flow.** Play Part 1 to the end (not `skip=part1`): the film should
    appear with no debrief first, and the Part 2 intro should show
    "See full details", which opens the Part 1 debrief and returns.
