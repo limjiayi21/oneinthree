@@ -9,6 +9,10 @@ with ElevenLabs. Prompts are in [PROMPTS.md](PROMPTS.md). The raw per-item log
 account (ByteDance models need approval from ElevenLabs support), so there is no
 second-model comparison.
 
+**Backup:** a full copy of `film/assets/` (raw clips, stills, audio, edits) is at
+`~/oneinthree-film-assets-backup/`, outside the repo. It is not in git, so keep
+that copy (or another one) before deleting this worktree.
+
 ## Chosen assets
 
 | Use | File |
