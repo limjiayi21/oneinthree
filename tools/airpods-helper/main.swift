@@ -82,11 +82,14 @@ final class Helper: NSObject, CMHeadphoneMotionManagerDelegate {
 
     // MARK: WebSocket server (loopback only)
 
-    /// The game, served locally (any port) or from its Cloudflare Workers address.
+    /// The game, served locally (any port), from oneinthree.nyc, or from its Cloudflare Workers address.
     static func allowedOrigin(_ origin: String) -> Bool {
         guard let url = URL(string: origin), let host = url.host?.lowercased() else { return false }
         if host == "localhost" || host == "127.0.0.1" || host == "::1" { return true }
-        return url.scheme == "https" && host.hasPrefix("oneinthree.") && host.hasSuffix(".workers.dev")
+        guard url.scheme == "https" else { return false }
+        // The game's own domain (and www), or its Cloudflare Workers address.
+        if host == "oneinthree.nyc" || host == "www.oneinthree.nyc" { return true }
+        return host.hasPrefix("oneinthree.") && host.hasSuffix(".workers.dev")
     }
 
     private func startServer() {

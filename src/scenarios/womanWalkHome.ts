@@ -141,33 +141,37 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     man.human.setEmotion(d.emotion, d.emotionIntensity);
     const posture = POSTURE_FOR[d.stance];
     if (posture) man.human.setPosture(posture);
-    const gap = Math.max(0.65, d.proximity);
+    // demo: in her face. Every distance he keeps is a quarter tighter (never under 0.65 m), and he closes faster.
+    const tight = deps.demo ? 0.75 : 1;
+    const near = (floor: number) => Math.max(0.65, floor * tight);
+    const quick = deps.demo ? 1.2 : 1;
+    const gap = Math.max(0.65, d.proximity * tight);
 
     switch (d.action) {
       case 'stay':
         man.setBehaviour({ type: 'idle', face: toward });
         break;
       case 'approach':
-        man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(1.2, gap), speed: 1.7 });
+        man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(near(1.2), gap), speed: 1.7 * quick });
         break;
       case 'walk_alongside':
-        man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, gap), gap: Math.max(0.9, gap) });
+        man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, gap), gap: Math.max(near(0.9), gap) });
         break;
       case 'follow_behind':
         // He follows where she was a beat ago: he reacts late, like someone matching her.
-        man.setBehaviour({ type: 'followBehind', target: towardLagged, gap: Math.max(2.2, gap), speed: 2.4 });
+        man.setBehaviour({ type: 'followBehind', target: towardLagged, gap: Math.max(near(2.2), gap), speed: 2.4 * quick });
         break;
       case 'step_closer':
-        man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(0.75, gap), speed: 1.3 });
+        man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(near(0.75), gap), speed: 1.3 * quick });
         kit.after(0.5, () => involuntaryStepBack(0.55));
         break;
       case 'lean_in':
-        man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(0.75, gap), speed: 1.4 });
+        man.setBehaviour({ type: 'closeIn', target: toward, gap: Math.max(near(0.75), gap), speed: 1.4 * quick });
         man.human.playGesture('lean_in');
         kit.after(0.45, () => involuntaryStepBack(0.5));
         break;
       case 'block_path':
-        man.setBehaviour({ type: 'block', target: toward, targetForward: towardFwd, gap: Math.max(1.0, gap) });
+        man.setBehaviour({ type: 'block', target: toward, targetForward: towardFwd, gap: Math.max(near(1.0), gap) });
         kit.after(1.4, () => {
           if (stance === 'block' && !kit.ended && man.distanceTo(player.position) < 2.2) {
             player.freeze(0.5);
@@ -532,7 +536,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       // 'closeIn' holds once it arrives, so a woman who walks off during it is left behind as well.
       if (engaged && (man.behaviour === 'idle' || man.behaviour === 'closeIn') && !finishing) {
         const lvl = decision?.level ?? 1;
-        const keep = (lvl >= 4 ? 3.2 : 2.4) + (man.behaviour === 'closeIn' ? 0.8 : 0);
+        const keep = ((lvl >= 4 ? 3.2 : 2.4) + (man.behaviour === 'closeIn' ? 0.8 : 0)) * (deps.demo ? 0.75 : 1); // demo: he lets her get less far
         if (d > keep && (player.speed > 0.4 || d > 4.5)) {
           if (lvl >= 4 || stance === 'follow') man.setBehaviour({ type: 'followBehind', target: towardLagged, gap: 2.4, speed: 2.4 });
           else man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, 1.3), gap: 1.3 });

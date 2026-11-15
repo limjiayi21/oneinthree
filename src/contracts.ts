@@ -439,7 +439,8 @@ export interface Screens {
    * "See full details" link to the previous part's debrief and resolves
    * 'details' when it is chosen; otherwise it resolves 'begin'.
    */
-  briefing(pov: Pov, opts?: { details?: boolean }): Promise<'begin' | 'details'>;
+  /** `mode`: list the controls for how they chose to play (keyboard keys or body gestures). */
+  briefing(pov: Pov, opts?: { details?: boolean; mode?: PlayMode }): Promise<'begin' | 'details'>;
   /** The narrated film after Part 1 (about 36 s), with its content note. See src/ui/film.ts. */
   film(opts: FilmOptions): Promise<FilmResult>;
   /** Debrief for a part. */

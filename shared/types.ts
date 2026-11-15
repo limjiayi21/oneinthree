@@ -233,6 +233,8 @@ export interface CreateSessionRequest {
   seed?: number;
   /** 'golden': the reference playthrough (docs/golden-run.md), his levels held to the script. Woman POV only. */
   run?: 'golden';
+  /** Demo (?demo=1): he gets aggressive faster and blocks her sooner (worker/model/woman.ts). Woman POV only. */
+  demo?: boolean;
 }
 
 export interface CreateSessionResponse {

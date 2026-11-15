@@ -16,11 +16,13 @@ import type { PlayMode, Screens } from '../contracts';
 import type { PhoneLink } from '../net/phoneLink';
 import type { FiveDResult, Insight, Pov, Rationale, SummaryData, TimelineEntry } from '../../shared/types';
 import type { CaseStudy, Evidence, EvidenceSource, EvidenceStat, SupportResource } from '../../shared/evidence';
-import { add, clamp01, ensureFonts, focusables, h, keycap, nextId, reflow, type Child } from './dom';
+import { add, clamp01, ensureFonts, focusables, h, keycap, nextId, reflow, withKeycaps, type Child } from './dom';
 import { bundledEvidence, headlineStat, hostOf, normaliseEvidence, resolveSources, resolveStats, safeUrl } from './evidence';
 import { createFilmPlayer, type FilmOptions, type FilmResult } from './film';
 import { phonePairUrl, qrSvg } from './qr';
 import { createCoachScreen, type CoachOptions } from './coach';
+import { briefingControls } from './briefingControls';
+import { createFiveCards, createGuessStat, createPledge } from './debriefCards';
 import { icon, type IconName } from './icons';
 
 export interface ScreensOptions {
@@ -454,7 +456,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
 
   /* --------------------------------------------------------------- briefing */
 
-  function briefing(pov: Pov, opts: { details?: boolean } = {}): Promise<'begin' | 'details'> {
+  function briefing(pov: Pov, opts: { details?: boolean; mode?: PlayMode } = {}): Promise<'begin' | 'details'> {
     return new Promise<'begin' | 'details'>((resolve) => {
       const bystander = pov === 'bystander';
       const titleId = nextId('oit-brief');
@@ -494,8 +496,29 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           )
         : null;
 
-      const affordance = (key: string | null, label: string): HTMLElement =>
-        h('li', { class: 'oit-afford' }, h('span', { class: 'oit-afford-key' }, key ? keycap(key) : null), h('span', null, label));
+      // The controls for how they chose to play: keys with the keyboard, gestures with the body.
+      const controls = (): HTMLElement =>
+        h(
+          'div',
+          { class: 'oit-brief-what oit-rise' },
+          h('p', { class: 'oit-label' }, 'What you can do'),
+          h(
+            'ul',
+            { class: 'oit-affords' },
+            briefingControls(pov, opts.mode ?? 'analog').map((c) =>
+              h(
+                'li',
+                { class: 'oit-afford' },
+                h(
+                  'span',
+                  { class: 'oit-afford-key' },
+                  c.key ? (c.key === 'W A S D' ? withKeycaps(c.key) : keycap(c.key)) : c.icon ? icon(c.icon, 'oit-icon oit-afford-icon') : null,
+                ),
+                h('span', null, c.label),
+              ),
+            ),
+          ),
+        );
 
       const body = bystander
         ? [
@@ -506,19 +529,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               h('span', null, 'Same street. Same night.'),
               h('span', null, 'This time you are a few steps behind her.'),
             ),
-            h(
-              'div',
-              { class: 'oit-brief-what oit-rise' },
-              h('p', { class: 'oit-label' }, 'What you can do'),
-              h(
-                'ul',
-                { class: 'oit-affords' },
-                affordance('Space', 'Hold to speak, to either of them'),
-                affordance('F', 'Film what is happening'),
-                affordance('E', 'Ask the shopkeeper for help'),
-                affordance(null, 'When options appear, pick one, or let it pass'),
-              ),
-            ),
+            controls(),
           ]
         : [
             h('p', { class: 'oit-eyebrow oit-rise' }, mark(), 'Part 1'),
@@ -530,6 +541,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               h('span', null, 'You are four blocks away.'),
             ),
             h('div', { class: 'oit-brief-what oit-rise' }, h('p', { class: 'oit-brief-task' }, 'Get home.')),
+            controls(),
           ];
 
       add(
@@ -842,6 +854,16 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
 
       // Part 2: the outcome, then straight on to the teaching replay. The full debrief is kept, unchanged, behind a disclosure.
       if (pov === 'bystander') {
+        // Do, not read: your 5 Ds as cards, then one number to guess before it is shown.
+        const hand = createFiveCards(Array.isArray(data.fiveDs) ? data.fiveDs : []);
+        const guess = createGuessStat(
+          Array.isArray(data.statIds) ? data.statIds : [],
+          (id) => resolveStats(evidence, [id])[0] ?? null,
+          (sourceId) => {
+            const src = resolveSources(evidence, [sourceId])[0];
+            return src ? `Source: ${src.publisher || src.title}${src.year ? `, ${src.year}` : ''}` : '';
+          },
+        );
         const learnBtn = h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => finish('continue') }, 'Learn how to help');
         // The debrief coach (src/ui/coach.ts), only when the server can run it.
         const coachBtn = sumOpts.coach ? h('button', { class: 'oit-btn oit-btn--ghost oit-coach-open', type: 'button', onclick: () => finish('coach') }, 'Talk it through with a coach') : null;
@@ -856,6 +878,8 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               'article',
               { class: 'oit-article' },
               header,
+              hand ? section('Your five cards', 'oit-sec--cards', hand) : null,
+              guess ? section('Guess, then see', 'oit-sec--guess', guess) : null,
               h(
                 'section',
                 { class: 'oit-sec oit-sec--plain oit-sec--next', 'aria-label': 'What next' },
@@ -981,7 +1005,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               'section',
               { class: 'oit-sec oit-sec--plain oit-sec--end' },
               h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }),
-              h('div', { class: 'oit-sec-body' }, h('p', { class: 'oit-recap-closing' }, opts.closing), h('div', { class: 'oit-actions' }, next)),
+              h('div', { class: 'oit-sec-body' }, createPledge(opts.fiveDs), h('p', { class: 'oit-recap-closing' }, opts.closing), h('div', { class: 'oit-actions' }, next)),
             ),
           ),
         ),

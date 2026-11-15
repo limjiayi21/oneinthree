@@ -245,7 +245,7 @@ export class SessionDO extends DurableObject<Env> {
     if (pov === 'woman') {
       const disposition = drawDisposition(rng);
       meta.disposition = disposition;
-      s.woman = initialWomanState(disposition, { golden: body.run === 'golden' });
+      s.woman = initialWomanState(disposition, { golden: body.run === 'golden', demo: body.demo === true });
       if (body.run === 'golden') meta.run = 'golden';
     } else {
       s.bystander = initialBystanderState();

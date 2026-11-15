@@ -15,6 +15,7 @@ import type { OutcomeKind, Pov, SummaryData } from '../shared/types';
 import { createEyeTracker } from './player/eyes';
 import { createHandTracker } from './player/hands';
 import { createAirPodsLook, detectAirPods } from './player/airpods';
+import { createHeadLookArbiter } from './player/headLookArbiter';
 import type { EyeLookSource } from './player/eyes';
 import { firstPickTactics } from '../shared/content';
 
@@ -98,6 +99,8 @@ async function main(): Promise<void> {
   // AirPods head tracking (via the macOS helper, `npm run airpods`) takes over head look when available.
   const airpods = createAirPodsLook({ flipX: params.get('airpodsx') === '-1', flipY: params.get('airpodsy') === '-1' });
   const headLook: EyeLookSource = { read: () => airpods.read() ?? eyes.read() };
+  // While the AirPods track, the camera head look is off (it comes back if they stop).
+  const cameraLook = createHeadLookArbiter(eyes, airpods);
   const lookForAirPods = () => void detectAirPods().then((found) => (found || params.get('airpods') === '1') && airpods.start());
   lookForAirPods();
   // "Straight ahead" for the AirPods is wherever the head is at the next reading. Taken at page load it can be
@@ -115,7 +118,7 @@ async function main(): Promise<void> {
       eyes.recalibrate();
       airpods.recalibrate();
     }
-    else eyes.toggle();
+    else cameraLook.toggleCamera();
   });
 
   const health = await getHealth();
@@ -146,7 +149,7 @@ async function main(): Promise<void> {
     void mic.init().finally(lookForAirPods);
     deps.mode = params.get('mode') === 'immersive' ? 'immersive' : 'analog';
   }
-  if (params.get('eyes') === '1' || deps.mode === 'immersive') void eyes.enable();
+  if (params.get('eyes') === '1' || deps.mode === 'immersive') cameraLook.enableCamera();
   if (params.get('hands') === '1' || deps.mode === 'immersive') void hands.enable();
   await audio.resume();
   await audio.load((f) => screens.loading('Preparing the street…', f));
@@ -163,7 +166,7 @@ async function main(): Promise<void> {
     let part1Session: string | null = null;
 
     if (!skip.has('part1')) {
-      await screens.briefing('woman');
+      await screens.briefing('woman', { mode: deps.mode });
       await audio.resume();
       world.setDoorOpen('home', false);
       recentreAirPods();
@@ -185,7 +188,7 @@ async function main(): Promise<void> {
     if (!exited && !skip.has('part2')) {
       let offerDetails = part1Details !== null;
       for (;;) {
-        const choice = await screens.briefing('bystander', { details: offerDetails });
+        const choice = await screens.briefing('bystander', { details: offerDetails, mode: deps.mode });
         if (choice === 'details' && part1Details) {
           screens.loading('…');
           const summary = await part1Details;
