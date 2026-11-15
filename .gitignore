@@ -13,3 +13,6 @@ dist/
 coverage/
 .vite/
 *.tsbuildinfo
+
+# Raw film media (source material, not shipped or committed)
+film/assets/

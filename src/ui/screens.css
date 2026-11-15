@@ -439,6 +439,30 @@
 .oit-brief-esc .oit-key {
   margin-right: 4px;
 }
+/* After the Part 1 film: a quiet link back to the Part 1 debrief. */
+.oit-brief-details {
+  margin: 20px 0 0;
+}
+.oit-textbtn {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--oit-ink-3);
+  font: 400 13px/1.4 var(--oit-sans);
+  text-decoration: underline;
+  text-decoration-color: var(--oit-line-2);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.oit-textbtn:hover,
+.oit-textbtn:focus-visible {
+  color: var(--oit-ink);
+  text-decoration-color: currentColor;
+}
+.oit-textbtn:focus-visible {
+  outline: 2px solid var(--oit-accent);
+  outline-offset: 3px;
+}
 .oit-error-msg {
   margin: -12px 0 0;
   max-width: 34rem;

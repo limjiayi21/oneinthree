@@ -1,0 +1,142 @@
+/*
+ * The Part 1 film: content note and full-screen player on black.
+ * Uses the shared tokens in base.css.
+ */
+
+.oit-reel {
+  background: #000;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------ content note */
+
+.oit-reel-note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding: 24px;
+  text-align: center;
+  cursor: default;
+}
+.oit-reel[data-ready='true'] .oit-reel-note {
+  cursor: pointer;
+}
+.oit-reel-note-text {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--oit-ink);
+  font: 300 clamp(28px, 3.2vw, 44px)/1.2 var(--oit-serif);
+  outline: none;
+}
+.oit-reel-note-text span + span {
+  color: var(--oit-ink-2);
+}
+.oit-reel-note-go {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  transition: opacity 0.6s var(--oit-ease);
+}
+.oit-reel[data-ready='true'] .oit-reel-note-go {
+  opacity: 1;
+}
+.oit-reel-hint {
+  margin: 0;
+  color: var(--oit-ink-3);
+  font: 400 13px/1.4 var(--oit-sans);
+}
+
+/* ------------------------------------------------------------------ player */
+
+.oit-reel-player {
+  position: absolute;
+  inset: 0;
+  outline: none;
+}
+.oit-reel-player[hidden] {
+  display: none;
+}
+.oit-reel-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
+.oit-reel-video::-webkit-media-controls {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------ skip, pause */
+
+.oit-reel-skip {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 3;
+  padding: 7px 14px;
+  border: 1px solid var(--oit-line);
+  border-radius: 999px;
+  background: rgba(7, 8, 11, 0.4);
+  color: var(--oit-ink-3);
+  font: 500 12px/1 var(--oit-sans);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.oit-reel-skip:hover,
+.oit-reel-skip:focus-visible {
+  opacity: 1;
+  color: var(--oit-ink);
+  border-color: var(--oit-line-2);
+}
+.oit-reel-skip:focus-visible {
+  outline: 2px solid var(--oit-accent);
+  outline-offset: 3px;
+}
+
+.oit-reel-paused {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(0, 0, 0, 0.55);
+}
+.oit-reel-paused[hidden] {
+  display: none;
+}
+.oit-reel-paused-title {
+  margin: 0;
+  color: var(--oit-ink);
+  font: 300 36px/1 var(--oit-serif);
+}
+
+/* ---------------------------------------------------------- reduced motion */
+
+.oit-reel.is-calm,
+.oit-reel.is-calm * {
+  transition: none !important;
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .oit-reel,
+  .oit-reel * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
