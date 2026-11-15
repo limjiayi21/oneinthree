@@ -24,6 +24,7 @@ import { codeMatches, readStats } from './stats';
 import { handleCoach, type CoachEnv } from './coach';
 import { pickProvider } from './coach/models';
 import { COACH_PATH } from '../shared/coach';
+import { mongoOn, pingMongo, type MongoEnv } from './mongo';
 
 export { PhoneRelayDO, SessionDO };
 export type { Env };
@@ -52,7 +53,9 @@ export default {
     const path = url.pathname;
 
     if (path === '/api/health') {
-      const body: HealthResponse = { ok: true, voice: Boolean(env.ELEVENLABS_API_KEY), ai: Boolean(env.AI), coach: pickProvider(env as CoachEnv) !== null };
+      const body: HealthResponse = { ok: true, voice: Boolean(env.ELEVENLABS_API_KEY), ai: Boolean(env.AI), coach: pickProvider(env as CoachEnv) !== null, mongo: mongoOn(env as MongoEnv) };
+      // ?deep=1 also does a round trip to MongoDB (slower; for checking a deploy, not for the game).
+      if (body.mongo && url.searchParams.get('deep') === '1') body.mongoPing = await pingMongo(env as MongoEnv);
       return json(body);
     }
 
