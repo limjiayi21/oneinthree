@@ -161,7 +161,7 @@ async function main(): Promise<void> {
     let part1Details: Promise<SummaryData> | null = null;
 
     if (!skip.has('part1')) {
-      await screens.briefing('woman');
+      await screens.briefing('woman', { mode: deps.mode });
       await audio.resume();
       world.setDoorOpen('home', false);
       recentreAirPods();
@@ -180,7 +180,7 @@ async function main(): Promise<void> {
     if (!exited && !skip.has('part2')) {
       let offerDetails = part1Details !== null;
       for (;;) {
-        const choice = await screens.briefing('bystander', { details: offerDetails });
+        const choice = await screens.briefing('bystander', { details: offerDetails, mode: deps.mode });
         if (choice === 'details' && part1Details) {
           screens.loading('…');
           const summary = await part1Details;
