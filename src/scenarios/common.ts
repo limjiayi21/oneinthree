@@ -144,7 +144,13 @@ export class SceneKit {
   /* ------------------------------------------------------------ lifecycle */
 
   async openSession(): Promise<void> {
-    const res = await createSession({ pov: this.pov, scenario: 'walk-home', seed: this.deps.seed, ...(this.deps.run && this.pov === 'woman' ? { run: this.deps.run } : {}) });
+    const res = await createSession({
+      pov: this.pov,
+      scenario: 'walk-home',
+      seed: this.deps.seed,
+      ...(this.deps.run && this.pov === 'woman' ? { run: this.deps.run } : {}),
+      ...(this.deps.demo && this.pov === 'woman' ? { demo: true } : {}),
+    });
     this.sessionId = res.sessionId;
   }
 
