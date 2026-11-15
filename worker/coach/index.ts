@@ -17,6 +17,7 @@ import { citation, type SearchMode } from './knowledge';
 import { createModels, pickProvider, type ModelEnv } from './models';
 import { atlasSearch } from './atlas';
 import { openDb, type MongoEnv } from '../mongo';
+import { saveCoachRun, type CoachRunDoc } from '../runlog';
 import { toRunPart, type RunPart } from './run';
 
 export type CoachEnv = Env & ModelEnv & MongoEnv;
@@ -119,18 +120,22 @@ export async function handleCoach(request: Request, env: CoachEnv, ctx: Executio
     void writer.write(enc.encode(`${JSON.stringify(ev)}\n`)).catch(() => (closed = true));
   };
 
-  const { model, embed, embedName, middleware } = createModels(env, provider);
+  const { model, embed, embedName, name: modelName, middleware } = createModels(env, provider);
 
   const work = (async () => {
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), RUN_TIMEOUT_MS);
     // MongoDB, when configured: one connection for the whole run (the research search and saving the result).
     const mongo = await openDb(env, 'coach');
+    const started = Date.now();
+    const searches: Record<string, number> = {};
+    let outcome: Pick<CoachRunDoc, 'ok' | 'cited' | 'checked'> = { ok: false, cited: [] };
     try {
       const vector = mongo ? atlasSearch(mongo.db, embed, embedName, (text) => send({ type: 'step', who: 'evidence-researcher', text })) : undefined;
       // Say so (once) if Atlas could not answer and the in-memory search stood in, e.g. while the index is still building.
       let toldFallback = false;
       const onSearch = (mode: SearchMode): void => {
+        searches[mode] = (searches[mode] ?? 0) + 1;
         if (!vector || mode === 'atlas' || toldFallback) return;
         toldFallback = true;
         send({ type: 'step', who: 'evidence-researcher', text: 'Atlas is not ready yet (its index is still building), so this search ran in memory' });
@@ -164,13 +169,19 @@ export async function handleCoach(request: Request, env: CoachEnv, ctx: Executio
       if (Array.isArray(state.todos) && state.todos.length && revisions + removed > 0) send({ type: 'plan', todos: (state.todos as CoachTodo[]).map((t) => ({ content: String(t.content), status: t.status })) });
       const checked: CheckSummary = { claims: final.claims, revisions, removed };
       send({ type: 'result', kind: kind === 'question' ? 'answer' : 'debrief', markdown: text, citations: final.cited.map((id) => citation(id)).filter((c) => c !== null), checked });
+      outcome = { ok: true, cited: final.cited, checked };
       send({ type: 'done', files: fromFileMap(state.files), questionsLeft });
     } catch (err) {
       console.error('[coach] failed', err);
       send({ type: 'error', message: abort.signal.aborted ? 'The coach took too long.' : 'The coach could not finish.' });
     } finally {
       clearTimeout(timer);
-      await mongo?.close();
+      if (mongo) {
+        // What the coach did, never what it wrote (worker/runlog.ts).
+        const doc: CoachRunDoc = { session: req.bystander, kind: kind === 'question' ? 'answer' : 'debrief', model: modelName, embedModel: embedName, searches, ...outcome, ms: Date.now() - started, at: new Date() };
+        await saveCoachRun(mongo.db, doc).catch((err) => console.warn('[coach] could not log the run', err instanceof Error ? err.message : err));
+        await mongo.close();
+      }
       closed = true;
       await writer.close().catch(() => {});
     }

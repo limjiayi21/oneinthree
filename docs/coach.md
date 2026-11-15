@@ -36,7 +36,7 @@ POST /api/coach  ──►  coach (deep agent, Gemini or OpenAI)
 ```
 
 - **The run:** the coach reads the summaries the game already builds for each session (`worker/summary.ts`): the timeline of who said what, how each move was read, why he reacted that way, the 5 Ds and the outcome. It doesn't record anything new and doesn't change how the game plays.
-- **The research:** the coach can cite about 100 passages: statistics, findings about harassers and bystanders, and the 5 Ds. Search uses OpenAI embeddings blended with keyword search (BM25), and falls back to keyword search alone if embeddings fail.
+- **The research:** the coach can cite about 100 passages: statistics, findings about harassers and bystanders, and the 5 Ds. When MongoDB is configured, search runs on **MongoDB Atlas Vector Search** (see [mongodb.md](mongodb.md)). Without it, search uses in-memory embeddings. Either way the vector results are blended with keyword search (BM25), and keyword search alone is the last fallback.
 - **The grounding check** (`worker/coach/check.ts`): every citation must exist, and every figure must appear in a passage cited in the same sentence. The coach runs it on its own draft. The server runs it again on the result and sends the coach back to fix anything that still fails, up to twice. If problems remain after that, the failing sentences are removed. The player sees a line such as "Checked: 5 claims traced to the research".
 - **Follow-up questions:** the client sends the coach's working files (its notes and the debrief) back with each question. The server keeps no conversation state, and the coach can still build on its own notes.
 - **Safety rules** in every prompt: the player's safety comes first; no physical intervention; Direct is described as the riskiest option; no blaming; and gentle signposting to support if the player seems upset.
@@ -59,6 +59,7 @@ POST /api/coach  ──►  coach (deep agent, Gemini or OpenAI)
 | `worker/coach/index.ts` | `POST /api/coach`: validation, per-session limits, the streaming, and the final check-and-revise loop |
 | `worker/coach/models.ts` | Picks Gemini or OpenAI, with the Gemini fallback, timeout and schema rewrite |
 | `worker/coach/knowledge.ts` | The citable passages and the search |
+| `worker/coach/atlas.ts` | The research in MongoDB Atlas and the `$vectorSearch` query |
 | `worker/coach/check.ts` | The grounding check |
 | `worker/coach/run.ts` | Turns a session summary into numbered moments |
 | `worker/coach/coach.test.ts` | Tests for the check, the search, the run and the validation |
