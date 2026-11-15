@@ -1,9 +1,9 @@
 /**
- * Part 3: the debrief coach screen, opened from the recap after Part 2.
+ * The debrief coach screen, opened from a button on the Part 2 debrief.
  *
  * While the coach works, the player sees its plan tick off and what it and its
  * helpers are doing. Then the debrief, with its research cited, and a box for
- * follow-up questions. "Back to your reflection" returns to the recap; if the
+ * follow-up questions. "Back to your debrief" returns to the debrief; if the
  * coach fails the screen says so and the button still works.
  */
 import './coach.css';
@@ -177,7 +177,7 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
     left,
   );
 
-  const continueBtn = h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => finish() }, 'Back to your reflection');
+  const continueBtn = h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => finish() }, 'Back to your debrief');
   const skipBtn = h('button', { class: 'oit-coach-skip', type: 'button', onclick: () => finish() }, 'Back');
 
   const title = h('h1', { class: 'oit-sum-title', id: titleId, tabindex: -1, 'data-focus': true }, 'Your debrief');
@@ -194,7 +194,7 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
         h(
           'article',
           { class: 'oit-coach-main' },
-          h('header', { class: 'oit-sum-head' }, h('p', { class: 'oit-eyebrow' }, 'Part 3 · Your coach'), title),
+          h('header', { class: 'oit-sum-head' }, h('p', { class: 'oit-eyebrow' }, 'Part 2 · Your coach'), title),
           status,
           debrief,
           checkedLine,
@@ -209,7 +209,7 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
     ),
   );
 
-  /** Back to the recap. The screen is kept (src/ui/screens.ts), so work in progress carries on and is there on return. */
+  /** Back to the debrief. The screen is kept (src/ui/screens.ts), so work in progress carries on and is there on return. */
   function finish(): void {
     onDone();
   }
@@ -271,7 +271,7 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
       const message = err instanceof Error && err.message ? err.message : 'The coach is not available right now.';
       if (question && block) block.lastElementChild?.replaceWith(h('p', { class: 'oit-coach-error' }, message));
       else {
-        status.replaceChildren(h('span', { class: 'oit-coach-error' }, `${message} You can go back to your reflection.`));
+        status.replaceChildren(h('span', { class: 'oit-coach-error' }, `${message} You can go back to your debrief.`));
         work.hidden = true;
       }
       live.textContent = message;

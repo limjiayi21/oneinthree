@@ -443,7 +443,7 @@ export interface Screens {
   /** The narrated film after Part 1 (about 36 s), with its content note. See src/ui/film.ts. */
   film(opts: FilmOptions): Promise<FilmResult>;
   /** Debrief for a part. */
-  summary(data: SummaryData): Promise<'continue' | 'retry'>;
+  summary(data: SummaryData, opts?: { coach?: boolean }): Promise<'continue' | 'retry' | 'coach'>;
   /** After the teaching replay: the 5 Ds (ticked where they were the player's first pick), the two steps before helping, the closing line. */
   recap(opts: {
     title: string;
@@ -451,10 +451,8 @@ export interface Screens {
     stepsTitle: string;
     steps: Array<{ name: string; line: string }>;
     closing: string;
-    /** Offer Part 3 (the debrief coach). It then resolves 'coach' when chosen. */
-    coach?: boolean;
-  }): Promise<'continue' | 'coach'>;
-  /** Part 3, the debrief coach, opened from the recap: its plan, the debrief, follow-up questions. Resolves when the player goes back. See src/ui/coach.ts. */
+  }): Promise<void>;
+  /** The debrief coach, opened from the Part 2 debrief: its plan, the debrief, follow-up questions. Resolves when the player goes back. See src/ui/coach.ts. */
   coach(opts: CoachOptions): Promise<void>;
   /** Closing screen: resources and sources. */
   closing(): Promise<'restart'>;

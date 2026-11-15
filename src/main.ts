@@ -159,7 +159,7 @@ async function main(): Promise<void> {
     let part2: SceneResult | null = null;
     /** Part 1's debrief, fetched while the film plays and offered from the Part 2 brief ("See full details"). */
     let part1Details: Promise<SummaryData> | null = null;
-    /** Part 1's session, for the coach (Part 3). */
+    /** Part 1's session, for the coach. */
     let part1Session: string | null = null;
 
     if (!skip.has('part1')) {
@@ -208,7 +208,15 @@ async function main(): Promise<void> {
         screens.loading('…');
         const summary = await debrief(result, 'bystander');
         screens.loading(null);
-        if ((await screens.summary(summary)) === 'continue') break;
+        // The debrief coach (worker/coach/) is one button on this debrief when the server can run it
+        // and Part 2 was recorded (?coach=0 hides it). It opens the coach and comes back here.
+        const offerCoach = Boolean(health.coach) && Boolean(result.sessionId) && params.get('coach') !== '0';
+        let next = await screens.summary(summary, { coach: offerCoach });
+        while (next === 'coach') {
+          await screens.coach({ bystander: result.sessionId, woman: part1Session ?? undefined });
+          next = await screens.summary(summary, { coach: offerCoach });
+        }
+        if (next === 'continue') break;
       }
     }
 
@@ -226,12 +234,7 @@ async function main(): Promise<void> {
         picks = guided.firstChoices;
       }
       if (part2.sessionId && Object.keys(picks).length) void postGuided(part2.sessionId, picks, part2.outcome);
-      // Part 3, the debrief coach (worker/coach/), is offered on the recap when the server has a model key
-      // and Part 2 was recorded. It is optional: "Finish" goes on exactly as before. ?coach=0 hides it.
-      const offerCoach = Boolean(health.coach) && Boolean(part2.sessionId) && params.get('coach') !== '0';
-      while (!exited && (await screens.recap({ ...recapFor(picks), coach: offerCoach })) === 'coach') {
-        await screens.coach({ bystander: part2.sessionId, woman: part1Session ?? undefined });
-      }
+      if (!exited) await screens.recap(recapFor(picks));
     }
 
     audio.stopAmbience(1);

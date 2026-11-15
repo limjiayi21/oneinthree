@@ -787,13 +787,13 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     );
   }
 
-  function summary(data: SummaryData): Promise<'continue' | 'retry'> {
-    return new Promise<'continue' | 'retry'>((resolve) => {
+  function summary(data: SummaryData, sumOpts: { coach?: boolean } = {}): Promise<'continue' | 'retry' | 'coach'> {
+    return new Promise<'continue' | 'retry' | 'coach'>((resolve) => {
       const pov: Pov = data.pov === 'bystander' ? 'bystander' : 'woman';
       const titleId = nextId('oit-sum');
       const el = h('section', { class: 'oit-screen oit-summary', 'aria-labelledby': titleId, 'data-pov': pov, 'data-outcome': data.outcome?.kind ?? '' });
 
-      const finish = (choice: 'continue' | 'retry'): void => {
+      const finish = (choice: 'continue' | 'retry' | 'coach'): void => {
         close(el);
         resolve(choice);
       };
@@ -843,6 +843,8 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
       // Part 2: the outcome, then straight on to the teaching replay. The full debrief is kept, unchanged, behind a disclosure.
       if (pov === 'bystander') {
         const learnBtn = h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => finish('continue') }, 'Learn how to help');
+        // The debrief coach (src/ui/coach.ts), only when the server can run it.
+        const coachBtn = sumOpts.coach ? h('button', { class: 'oit-btn oit-btn--ghost oit-coach-open', type: 'button', onclick: () => finish('coach') }, 'Talk it through with a coach') : null;
         const fullId = nextId('oit-full');
         add(
           el,
@@ -862,7 +864,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
                   'div',
                   { class: 'oit-sec-body' },
                   h('p', { class: 'oit-next-note' }, 'Next: the same street once more. It will stop at five moments and show what helps.'),
-                  h('div', { class: 'oit-actions' }, learnBtn, retryBtn),
+                  h('div', { class: 'oit-actions' }, learnBtn, coachBtn, retryBtn),
                 ),
               ),
               h(
@@ -907,9 +909,8 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     stepsTitle: string;
     steps: Array<{ name: string; line: string }>;
     closing: string;
-    coach?: boolean;
-  }): Promise<'continue' | 'coach'> {
-    return new Promise<'continue' | 'coach'>((resolve) => {
+  }): Promise<void> {
+    return new Promise<void>((resolve) => {
       const titleId = nextId('oit-recap');
       const el = h('section', { class: 'oit-screen oit-summary oit-recap', 'aria-labelledby': titleId });
       const next = h(
@@ -919,7 +920,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           type: 'button',
           onclick: () => {
             close(el);
-            resolve('continue');
+            resolve();
           },
         },
         'Continue',
@@ -980,39 +981,8 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               'section',
               { class: 'oit-sec oit-sec--plain oit-sec--end' },
               h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }),
-              h('div', { class: 'oit-sec-body' }, h('p', { class: 'oit-recap-closing' }, opts.closing), opts.coach ? null : h('div', { class: 'oit-actions' }, next)),
+              h('div', { class: 'oit-sec-body' }, h('p', { class: 'oit-recap-closing' }, opts.closing), h('div', { class: 'oit-actions' }, next)),
             ),
-            opts.coach
-              ? h(
-                  'section',
-                  { class: 'oit-sec oit-sec--plain oit-part3', 'aria-labelledby': `${titleId}-p3` },
-                  h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }),
-                  h(
-                    'div',
-                    { class: 'oit-sec-body' },
-                    h('p', { class: 'oit-eyebrow' }, 'Part 3 · Optional'),
-                    h('h2', { class: 'oit-part3-title', id: `${titleId}-p3` }, 'Talk it through with your coach'),
-                    h('p', { class: 'oit-part3-line' }, 'A coach goes through what you did in Part 2, suggests what to try next time, and answers your questions, with the research behind every point.'),
-                    h(
-                      'div',
-                      { class: 'oit-actions' },
-                      h(
-                        'button',
-                        {
-                          class: 'oit-btn oit-btn--primary',
-                          type: 'button',
-                          onclick: () => {
-                            close(el);
-                            resolve('coach');
-                          },
-                        },
-                        'Start Part 3',
-                      ),
-                      h('button', { class: 'oit-btn oit-btn--ghost', type: 'button', onclick: () => next.click() }, 'Finish'),
-                    ),
-                  ),
-                )
-              : null,
           ),
         ),
       );
@@ -1256,7 +1226,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
 
   /* ------------------------------------------------------------------- coach */
 
-  /** One coach screen per Part 2 session: going back to the recap and into Part 3 again returns to the same debrief. */
+  /** One coach screen per Part 2 session: going back to the debrief and opening the coach again returns to the same work. */
   const coaches = new Map<string, { el: HTMLElement; done: (() => void) | null }>();
 
   function coach(opts: CoachOptions): Promise<void> {

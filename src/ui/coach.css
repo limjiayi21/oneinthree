@@ -330,25 +330,3 @@
     animation: none;
   }
 }
-
-/* ------------------------------------------------------------ Part 3 on the recap */
-
-.oit-recap .oit-sec.oit-part3 {
-  margin-top: 48px;
-  padding-top: 40px;
-  border-top: 1px solid var(--oit-line);
-}
-.oit-recap .oit-part3 .oit-part3-title {
-  margin: 14px 0 10px;
-  color: var(--oit-ink);
-  font: 400 clamp(26px, 3vw, 34px)/1.15 var(--oit-serif);
-}
-.oit-recap .oit-part3 .oit-part3-line {
-  max-width: 36rem;
-  margin: 0;
-  color: var(--oit-ink-2);
-  font: 400 17px/1.55 var(--oit-sans);
-}
-.oit-recap .oit-part3 .oit-actions {
-  margin-top: 26px;
-}
