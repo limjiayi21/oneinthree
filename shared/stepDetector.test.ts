@@ -14,7 +14,7 @@ function noise(i: number): number {
 }
 
 /** Feeds `seconds` of samples with a z bump centred on each time in `bumpsMs`; returns how many steps were reported. */
-function countSteps(bumpsMs: number[], seconds: number): number {
+function countSteps(bumpsMs: number[], seconds: number, amp = BUMP_AMP): number {
   const det = createStepDetector();
   let steps = 0;
   const n = Math.round(seconds * RATE_HZ);
@@ -23,7 +23,7 @@ function countSteps(bumpsMs: number[], seconds: number): number {
     let bump = 0;
     for (const c of bumpsMs) {
       if (Math.abs(t - c) < BUMP_WIDTH_MS / 2) {
-        bump += BUMP_AMP * 0.5 * (1 + Math.cos((2 * Math.PI * (t - c)) / BUMP_WIDTH_MS));
+        bump += amp * 0.5 * (1 + Math.cos((2 * Math.PI * (t - c)) / BUMP_WIDTH_MS));
       }
     }
     const z = GRAVITY + bump + noise(i);
@@ -49,6 +49,13 @@ describe('step detector', () => {
     expect(countSteps([1000, 1000 + close], 3)).toBe(1);
     // Control: the same pattern with a gap above the minimum really is two steps.
     expect(countSteps([1000, 1000 + STEP_MIN_GAP_MS + 50], 3)).toBe(2);
+  });
+
+  it('ignores a small jiggle in the pocket, but still counts a light step', () => {
+    // A bump this size smooths to about 1.1 m/s^2: a shift of the phone or a sway, not a step.
+    expect(countSteps([1000, 2000, 3000], 4, 2.2)).toBe(0);
+    // About 1.5 m/s^2: a soft step in place, which must still walk her.
+    expect(countSteps([1000, 2000, 3000], 4, 3)).toBe(3);
   });
 
   it('returns false and does not throw on non-finite input', () => {

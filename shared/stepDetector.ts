@@ -11,7 +11,7 @@
 /** Standard gravity, m/s^2. */
 export const GRAVITY = 9.81;
 /** Smoothed (magnitude - gravity) must rise through this to count as a step, m/s^2. */
-export const STEP_THRESHOLD = 1.0; // lowered from 1.5: a pocket picks up a weaker bounce than a hand
+export const STEP_THRESHOLD = 1.2; // 1.5 missed soft pocket steps; 1.0 also counted the phone shifting in the pocket
 /** After a step the smoothed signal must fall below this before the next can fire, m/s^2. */
 export const STEP_REARM_LEVEL = 0.35;
 /** Minimum time between two steps, ms. */
