@@ -1,9 +1,11 @@
 /**
  * The narrated film after Part 1 (public/film/part1-film.mp4), about 36 s.
  *
- * Flow: a content note for 3 s, then "start" (Enter or click). The film plays
- * full screen on black with no browser controls. Space or Esc pauses and
- * resumes; a quiet Skip button is always there. It resolves when the film
+ * Flow: a content note for 3 s, then the film starts by itself and fades in
+ * from black (no start button; Enter or a click on the note starts it sooner).
+ * It plays full screen on black with no browser controls. Space or Esc pauses
+ * and resumes; a quiet Skip button is always there. If the browser will not
+ * autoplay it, the paused panel's Resume starts it. It resolves when the film
  * ends or is skipped.
  *
  * Accessibility: everything works from the keyboard; focus moves to whatever
@@ -44,13 +46,11 @@ export function createFilmPlayer(opts: FilmOptions, onDone: (result: FilmResult)
 
   /* ------------------------------------------------------------ the note */
 
-  const startBtn = h('button', { class: 'oit-btn oit-btn--primary oit-reel-start', type: 'button', disabled: true }, 'Start the film');
   const note = h(
     'div',
     { class: 'oit-reel-note' },
     h('h1', { class: 'oit-sr', id: titleId }, 'Part 1 film'),
     h('p', { class: 'oit-reel-note-text', tabindex: -1, 'data-focus': true }, h('span', null, 'Contains harassing language.'), h('span', null, 'Headphones recommended.')),
-    h('div', { class: 'oit-reel-note-go' }, startBtn, h('p', { class: 'oit-reel-hint', 'aria-hidden': 'true' }, 'Press Enter or click to start.')),
   );
 
   /* ----------------------------------------------------------- the player */
@@ -132,7 +132,7 @@ export function createFilmPlayer(opts: FilmOptions, onDone: (result: FilmResult)
   }
 
   function start(): void {
-    if (started || startBtn.disabled) return;
+    if (started || finished) return;
     started = true;
     note.hidden = true;
     player.hidden = false;
@@ -154,21 +154,20 @@ export function createFilmPlayer(opts: FilmOptions, onDone: (result: FilmResult)
   /* -------------------------------------------------------------- events */
 
   video.addEventListener('ended', () => finish(true));
+  // Fade in from black once the first frame is actually playing (not while it buffers).
+  video.addEventListener('playing', () => player.classList.add('is-playing'));
   video.addEventListener('error', () => {
     console.warn('[film] video failed to load', video.error);
     finish(false);
   });
-  startBtn.addEventListener('click', start);
-  note.addEventListener('click', (e) => {
-    if (e.target !== startBtn) start();
-  });
+  note.addEventListener('click', () => start());
   // A click on the picture pauses or resumes, like Space.
   video.addEventListener('click', () => (video.paused ? resume() : pause()));
 
   function onKey(e: KeyboardEvent): void {
     if (finished || !el.isConnected) return;
     if (!started) {
-      if (e.key === 'Enter' && !startBtn.disabled) {
+      if (e.key === 'Enter') {
         e.preventDefault();
         start();
       }
@@ -190,12 +189,11 @@ export function createFilmPlayer(opts: FilmOptions, onDone: (result: FilmResult)
   }
   document.addEventListener('fullscreenchange', onFullscreenChange);
 
-  // The note stays up for at least noteMs before the film can start.
+  // The content note stays up for noteMs, then the film starts on its own.
   window.setTimeout(() => {
     if (finished) return;
-    startBtn.disabled = false;
     el.dataset.ready = 'true';
-    if (note.contains(document.activeElement) || document.activeElement === document.body) startBtn.focus({ preventScroll: true });
+    start();
   }, FILM.noteMs);
 
   return { el };
