@@ -34,7 +34,7 @@ const SLOW = 2.4 / TIP_SECONDS;
 const ZOOM_DEG = 7;
 
 /** What an option does. Analog: pressing its number does it. Immersive: the player has to do it for real. */
-type Act = { kind: 'say'; line: string; to: 'man' | 'woman' } | { kind: 'film' } | { kind: 'help' } | { kind: 'look' } | { kind: 'walk' };
+type Act = { kind: 'say'; line: string; to: 'man' | 'woman' } | { kind: 'film' } | { kind: 'help' } | { kind: 'walk' };
 type Option = MomentOption & { act: Act };
 type MomentId = 'm1' | 'm2' | 'm3' | 'm4' | 'm5';
 
@@ -55,7 +55,7 @@ const MOMENTS: Record<MomentId, { tip: string; options: Option[] }> = {
   // After "I'm talking to you. What, you can't say hi?" He walks beside her.
   m1: {
     tip: 'Do they know each other?',
-    options: [say('Hey, you alright?', 'woman', 'Check in'), { icon: 'look', text: 'Catch her eye', tag: 'Notice', how: 'Look at her', act: { kind: 'look' } }, excuse('Hang back and watch')],
+    options: [say('Hey, you alright?', 'woman', 'Check in'), excuse('Hang back and watch')],
   },
   // After "Come on, slow down. Let me walk you home." She speeds up.
   m2: { tip: "She's trying to get away from him.", options: [say("Hey! Sorry I'm late, you ready?", 'woman', 'Distract'), HELP, FILM, excuse("It's probably nothing")] },
@@ -352,7 +352,6 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   const mode = deps.mode ?? 'analog';
   let open: { options: Option[] } | null = null;
   let cancelMoment: (() => void) | null = null;
-  let lookFor = 0;
   /** Scene time the open moment runs out (letting it pass is the walk option). */
   let momentEnds = 0;
   /** Immersive: she spoke at the open moment and we are waiting to hear what she said; the timer is held. */
@@ -411,7 +410,6 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     endTip();
     const m = MOMENTS[id];
     open = { options: m.options };
-    lookFor = 0;
     kit.timeScale = SLOW;
     if (!reducedMotion()) player.setZoom(ZOOM_DEG);
     hud.moment({ tip: m.tip, options: m.options, mode, seconds: TIP_SECONDS });
@@ -454,8 +452,6 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     } else if (a.kind === 'help') {
       hud.subtitle('you', HELP_LINE, 3200);
       callShopkeeper();
-    } else if (a.kind === 'look') {
-      catchHerEye();
     }
   }
 
@@ -465,12 +461,6 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     once.add('clerkAsked');
     hud.prompt(null);
     kit.event('asked_clerk');
-  }
-
-  /** You look at her; she looks back at you for a moment. */
-  function catchHerEye(): void {
-    player.glanceAt(woman.human.getHeadPosition(womanHead), 2, 0.8);
-    womanLooksUntil = kit.time + 2;
   }
 
   const onDigit = (e: KeyboardEvent): void => {
@@ -814,12 +804,6 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
       } else if (awaitingWords) {
         // The server never answered with what it heard: let the moment carry on.
         if (performance.now() - awaitingSince > 10000) releaseWords();
-      } else if (offers('look') && player.isLookingAt(woman.human.getHeadPosition(womanHead), 15)) {
-        lookFor += dt;
-        if (lookFor > 0.5) {
-          did('look');
-          catchHerEye();
-        }
       }
     }
 
