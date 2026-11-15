@@ -907,8 +907,9 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     stepsTitle: string;
     steps: Array<{ name: string; line: string }>;
     closing: string;
-  }): Promise<void> {
-    return new Promise<void>((resolve) => {
+    coach?: boolean;
+  }): Promise<'continue' | 'coach'> {
+    return new Promise<'continue' | 'coach'>((resolve) => {
       const titleId = nextId('oit-recap');
       const el = h('section', { class: 'oit-screen oit-summary oit-recap', 'aria-labelledby': titleId });
       const next = h(
@@ -918,7 +919,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           type: 'button',
           onclick: () => {
             close(el);
-            resolve();
+            resolve('continue');
           },
         },
         'Continue',
@@ -979,8 +980,39 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               'section',
               { class: 'oit-sec oit-sec--plain oit-sec--end' },
               h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }),
-              h('div', { class: 'oit-sec-body' }, h('p', { class: 'oit-recap-closing' }, opts.closing), h('div', { class: 'oit-actions' }, next)),
+              h('div', { class: 'oit-sec-body' }, h('p', { class: 'oit-recap-closing' }, opts.closing), opts.coach ? null : h('div', { class: 'oit-actions' }, next)),
             ),
+            opts.coach
+              ? h(
+                  'section',
+                  { class: 'oit-sec oit-sec--plain oit-part3', 'aria-labelledby': `${titleId}-p3` },
+                  h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }),
+                  h(
+                    'div',
+                    { class: 'oit-sec-body' },
+                    h('p', { class: 'oit-eyebrow' }, 'Part 3 · Optional'),
+                    h('h2', { class: 'oit-part3-title', id: `${titleId}-p3` }, 'Talk it through with your coach'),
+                    h('p', { class: 'oit-part3-line' }, 'A coach goes through what you did in Part 2, suggests what to try next time, and answers your questions, with the research behind every point.'),
+                    h(
+                      'div',
+                      { class: 'oit-actions' },
+                      h(
+                        'button',
+                        {
+                          class: 'oit-btn oit-btn--primary',
+                          type: 'button',
+                          onclick: () => {
+                            close(el);
+                            resolve('coach');
+                          },
+                        },
+                        'Start Part 3',
+                      ),
+                      h('button', { class: 'oit-btn oit-btn--ghost', type: 'button', onclick: () => next.click() }, 'Finish'),
+                    ),
+                  ),
+                )
+              : null,
           ),
         ),
       );
@@ -1224,13 +1256,27 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
 
   /* ------------------------------------------------------------------- coach */
 
+  /** One coach screen per Part 2 session: going back to the recap and into Part 3 again returns to the same debrief. */
+  const coaches = new Map<string, { el: HTMLElement; done: (() => void) | null }>();
+
   function coach(opts: CoachOptions): Promise<void> {
     return new Promise<void>((resolve) => {
-      const { el } = createCoachScreen(opts, wordmark(), () => {
-        close(el);
-        resolve();
-      });
-      show(el);
+      let entry = coaches.get(opts.bystander);
+      if (!entry) {
+        const fresh: { el: HTMLElement; done: (() => void) | null } = { el: document.createElement('section'), done: null };
+        fresh.el = createCoachScreen(opts, wordmark(), () => {
+          close(fresh.el);
+          fresh.done?.();
+        }).el;
+        coaches.set(opts.bystander, fresh);
+        entry = fresh;
+      } else {
+        entry.el.classList.remove('is-out');
+        entry.el.removeAttribute('inert');
+        entry.el.removeAttribute('aria-hidden');
+      }
+      entry.done = resolve;
+      show(entry.el);
     });
   }
 

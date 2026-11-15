@@ -22,6 +22,7 @@ import { PhoneRelayDO } from './phoneRelay';
 import { SessionDO, type Env } from './session';
 import { codeMatches, readStats } from './stats';
 import { handleCoach, type CoachEnv } from './coach';
+import { pickProvider } from './coach/models';
 import { COACH_PATH } from '../shared/coach';
 
 export { PhoneRelayDO, SessionDO };
@@ -51,7 +52,7 @@ export default {
     const path = url.pathname;
 
     if (path === '/api/health') {
-      const body: HealthResponse = { ok: true, voice: Boolean(env.ELEVENLABS_API_KEY), ai: Boolean(env.AI) };
+      const body: HealthResponse = { ok: true, voice: Boolean(env.ELEVENLABS_API_KEY), ai: Boolean(env.AI), coach: pickProvider(env as CoachEnv) !== null };
       return json(body);
     }
 

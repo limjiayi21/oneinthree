@@ -226,9 +226,12 @@ async function main(): Promise<void> {
         picks = guided.firstChoices;
       }
       if (part2.sessionId && Object.keys(picks).length) void postGuided(part2.sessionId, picks, part2.outcome);
-      if (!exited) await screens.recap(recapFor(picks));
-      // The debrief coach (worker/coach/), only with ?coach=1 and a recorded Part 2 session.
-      if (!exited && params.get('coach') === '1' && part2.sessionId) await screens.coach({ bystander: part2.sessionId, woman: part1Session ?? undefined });
+      // Part 3, the debrief coach (worker/coach/), is offered on the recap when the server has a model key
+      // and Part 2 was recorded. It is optional: "Finish" goes on exactly as before. ?coach=0 hides it.
+      const offerCoach = Boolean(health.coach) && Boolean(part2.sessionId) && params.get('coach') !== '0';
+      while (!exited && (await screens.recap({ ...recapFor(picks), coach: offerCoach })) === 'coach') {
+        await screens.coach({ bystander: part2.sessionId, woman: part1Session ?? undefined });
+      }
     }
 
     audio.stopAmbience(1);

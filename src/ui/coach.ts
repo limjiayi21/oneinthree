@@ -1,10 +1,10 @@
 /**
- * The debrief coach screen (after the 5 Ds recap, with ?coach=1).
+ * Part 3: the debrief coach screen, opened from the recap after Part 2.
  *
  * While the coach works, the player sees its plan tick off and what it and its
  * helpers are doing. Then the debrief, with its research cited, and a box for
- * follow-up questions. Continue (or Skip) always moves on; if the coach fails
- * the screen says so and Continue still works.
+ * follow-up questions. "Back to your reflection" returns to the recap; if the
+ * coach fails the screen says so and the button still works.
  */
 import './coach.css';
 import { h, nextId, type Child } from './dom';
@@ -84,7 +84,6 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
   let files: CoachFile[] = [];
   let questionsLeft: number = COACH_LIMITS.questionsPerRun;
   let busy = false;
-  let finished = false;
 
   /** Citations are numbered across the whole screen, in the order they first appear. */
   const citeNumbers = new Map<string, number>();
@@ -144,7 +143,7 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
   function addStep(who: CoachWho, text: string): void {
     feed.appendChild(h('li', { class: `oit-coach-step is-${who}` }, h('span', { class: 'oit-coach-who' }, WHO[who]), h('span', null, text)));
     while (feed.children.length > 40) feed.firstElementChild?.remove();
-    work.scrollTop = work.scrollHeight;
+    feed.scrollTop = feed.scrollHeight;
   }
 
   /* the debrief and answers */
@@ -178,8 +177,8 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
     left,
   );
 
-  const continueBtn = h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => finish() }, 'Continue');
-  const skipBtn = h('button', { class: 'oit-coach-skip', type: 'button', onclick: () => finish() }, 'Skip');
+  const continueBtn = h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => finish() }, 'Back to your reflection');
+  const skipBtn = h('button', { class: 'oit-coach-skip', type: 'button', onclick: () => finish() }, 'Back');
 
   const title = h('h1', { class: 'oit-sum-title', id: titleId, tabindex: -1, 'data-focus': true }, 'Your debrief');
   const el = h(
@@ -195,7 +194,7 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
         h(
           'article',
           { class: 'oit-coach-main' },
-          h('header', { class: 'oit-sum-head' }, h('p', { class: 'oit-eyebrow' }, 'Part 2 · Your coach'), title),
+          h('header', { class: 'oit-sum-head' }, h('p', { class: 'oit-eyebrow' }, 'Part 3 · Your coach'), title),
           status,
           debrief,
           checkedLine,
@@ -210,10 +209,8 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
     ),
   );
 
+  /** Back to the recap. The screen is kept (src/ui/screens.ts), so work in progress carries on and is there on return. */
   function finish(): void {
-    if (finished) return;
-    finished = true;
-    abort.abort();
     onDone();
   }
 
@@ -244,7 +241,6 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
     }
     try {
       for await (const ev of streamCoach({ ...opts, question, files: question ? files : undefined }, abort.signal) as AsyncGenerator<CoachEvent>) {
-        if (finished) return;
         if (ev.type === 'plan') showPlan(ev.todos);
         else if (ev.type === 'step') addStep(ev.who, ev.text);
         else if (ev.type === 'result') {
@@ -271,11 +267,11 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
         }
       }
     } catch (err) {
-      if (finished || abort.signal.aborted) return;
+      if (abort.signal.aborted) return;
       const message = err instanceof Error && err.message ? err.message : 'The coach is not available right now.';
       if (question && block) block.lastElementChild?.replaceWith(h('p', { class: 'oit-coach-error' }, message));
       else {
-        status.replaceChildren(h('span', { class: 'oit-coach-error' }, `${message} You can continue.`));
+        status.replaceChildren(h('span', { class: 'oit-coach-error' }, `${message} You can go back to your reflection.`));
         work.hidden = true;
       }
       live.textContent = message;

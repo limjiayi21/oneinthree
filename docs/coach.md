@@ -1,4 +1,4 @@
-# The debrief coach
+# Part 3: the debrief coach
 
 A LangChain **deep agent** (the [`deepagents`](https://github.com/langchain-ai/deepagents) library) that writes each player a personal debrief once they finish Part 2. The player can then ask it follow-up questions about their run.
 
@@ -6,13 +6,18 @@ The rest of the game's debrief is built from fixed rules, so every player sees t
 
 ## What the player sees
 
-The coach appears after the 5 Ds recap, but only when the URL has `?coach=1`.
+Part 3 is optional and replaces nothing. On the final reflection page after Part 2 (the 5 Ds recap), below the closing line, a **Part 3 · Optional** block offers **Talk it through with your coach** with two buttons:
+- **Start Part 3** opens the coach.
+- **Finish** goes on to the closing screen, exactly as the recap's Continue did before.
 
-1. **While the coach works** (about 30 s), a panel shows its plan ticking off and what it and its helpers are doing.
+The block only appears when the server has a model key (`/api/health` reports `coach: true`) and Part 2 was recorded. `?coach=0` hides it. Without it, the recap is unchanged.
+
+In Part 3:
+1. **While the coach works** (about 25–30 s), a panel shows its plan ticking off and what it and its helpers are doing. The panel never runs past the bottom of the screen; only its activity list scrolls.
 2. **The debrief** has three sections: *What you did*, *What to try next time* and *What the research says*. Each claim has a numbered citation that links to the source.
 3. **Follow-up questions:** the player can pick a suggested question or type their own, up to six per run. Each answer takes about 10–15 s.
 
-**Continue** or **Skip** always moves on. If the coach is switched off or fails, the screen says so and the game carries on.
+**Back to your reflection** (or **Back** at the top) returns to the recap. Opening Part 3 again shows the same debrief without starting a new one, and work in progress carries on in the meantime. If the coach is switched off or fails, the screen says so and the button still goes back.
 
 ## How it works
 
@@ -63,8 +68,10 @@ POST /api/coach  ──►  coach (deep agent, Gemini or OpenAI)
 It hooks into the existing code in five places, all additions:
 - the `/api/coach` route in `worker/index.ts`;
 - an internal use counter in `worker/session.ts`;
-- `coach()` in `src/ui/screens.ts` and `src/contracts.ts`;
-- one step in `src/main.ts`, behind `?coach=1`.
+- `coach()` in `src/ui/screens.ts` and `src/contracts.ts`, keeping one coach screen per session;
+- the Part 3 block on the recap in `src/ui/screens.ts`, which now resolves `'continue'` or `'coach'`;
+- a `coach` flag in `/api/health`;
+- a small loop in `src/main.ts` between the recap and Part 3.
 
 ## Running it
 
@@ -74,7 +81,7 @@ GEMINI_API_KEY=...
 OPENAI_API_KEY=sk-...
 
 npm run dev:local        # or npm run dev
-# Play through Part 2 with ?coach=1, e.g. http://localhost:5173/?coach=1
+# Play through Part 2: on the final reflection page, choose Start Part 3
 ```
 
 To deploy, add the key as a secret on the Cloudflare account that hosts the game:
@@ -84,7 +91,7 @@ npx wrangler secret put GEMINI_API_KEY      # and/or OPENAI_API_KEY
 # optional: COACH_PROVIDER (gemini | openai), COACH_MODEL, OPENAI_BASE_URL
 ```
 
-Without either key, `/api/coach` returns 503 and the screen says the coach is unavailable.
+Without either key, the Part 3 block is not shown and `/api/coach` returns 503.
 
 ## Limits and cost
 

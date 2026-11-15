@@ -246,6 +246,8 @@ export interface HealthResponse {
   ok: boolean;
   voice: boolean;
   ai: boolean;
+  /** The debrief coach (Part 3) has a model key and can run. */
+  coach?: boolean;
 }
 
 export interface TimelineEntry {
