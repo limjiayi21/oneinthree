@@ -11,6 +11,17 @@ describe('look left and right before walking', () => {
     expect(g.update(-30 * DEG)).toEqual({ left: true, right: true, done: true });
   });
 
+  it('left first: a look right before the look left does not count', () => {
+    const g = new LookGate(0);
+    expect(g.next).toBe('left');
+    g.update(-30 * DEG); // right first
+    expect(g.next).toBe('left');
+    g.update(30 * DEG);
+    expect(g.next).toBe('right');
+    expect(g.update(-30 * DEG).done).toBe(true);
+    expect(g.next).toBe('walk');
+  });
+
   it('works whichever way she faces at the start, across the ±180° seam', () => {
     const g = new LookGate(175 * DEG);
     g.update(-155 * DEG); // 30° further left, through the seam

@@ -19,8 +19,13 @@ export class LookGate {
   update(viewYaw: number): { left: boolean; right: boolean; done: boolean } {
     const d = wrapAngle(viewYaw - this.startYaw);
     if (d >= LOOK_TURN) this.left = true;
-    if (d <= -LOOK_TURN) this.right = true;
+    if (this.left && d <= -LOOK_TURN) this.right = true; // left first, then right
     return { left: this.left, right: this.right, done: this.left && this.right };
+  }
+
+  /** What to ask for next. */
+  get next(): 'left' | 'right' | 'walk' {
+    return !this.left ? 'left' : !this.right ? 'right' : 'walk';
   }
 }
 
