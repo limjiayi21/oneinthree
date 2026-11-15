@@ -46,6 +46,11 @@ export interface PlayerOptions {
   eyes?: EyeLookSource;
   /** Extra movement source (the paired phone), added to the keys. */
   extraMove?: () => { forward: number; hurry: boolean } | null;
+  /**
+   * The direction her feet walk (yaw), when it is not where she looks: a set path. Null = where she looks.
+   * Read every frame she moves; the head stays free.
+   */
+  moveYaw?: () => number | null;
 }
 
 /** Additive reaction layers, for tests and the dev harness. Everything is 0 at rest. */
@@ -529,8 +534,9 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
       lf *= scale;
       ls *= scale;
     }
-    const cy = Math.cos(yaw);
-    const sy = Math.sin(yaw);
+    const feetYaw = lf !== 0 || ls !== 0 ? (opts.moveYaw?.() ?? yaw) : yaw;
+    const cy = Math.cos(feetYaw);
+    const sy = Math.sin(feetYaw);
     const wantX = -sy * lf + cy * ls;
     const wantZ = -cy * lf - sy * ls;
 

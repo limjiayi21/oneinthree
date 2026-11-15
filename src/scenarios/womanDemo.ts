@@ -33,6 +33,21 @@ export const DEMO = {
     new THREE.Vector3(4.0, -0.08, -61.0),
     new THREE.Vector3(3.4, -0.08, -61.7),
   ],
+  /**
+   * The set path her feet follow while she walks (the head stays free): down the clear lane past the cat
+   * and past him, then over to the shop's light and in through the middle of the door.
+   */
+  path: [
+    { x: 6.6, z: -51 },
+    { x: 6.6, z: -59 }, // the cat
+    { x: 6.6, z: -66 }, // level with him
+    { x: 6.8, z: -74 },
+    { x: 7.0, z: -78 }, // the shop's light, turning square to the door
+    { x: 8.7, z: -78 }, // the doorway
+    { x: 9.9, z: -78 }, // inside
+  ],
+  /** How far across the sidewalk she may step to get round him. */
+  pathXRange: [6.1, 8.1] as [number, number], // clear of the curbside trees and trash, and the wall
   /** A calm start: seconds after she can move before her keys thought, and before the crash. */
   keysDelay: 1,
   crashDelay: 4,
