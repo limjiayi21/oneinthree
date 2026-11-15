@@ -115,6 +115,7 @@ async function main(): Promise<void> {
     eyes,
     hands,
     phone,
+    demo: params.get('demo') === '1',
   };
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__oit = deps;
 

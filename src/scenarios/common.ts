@@ -50,6 +50,8 @@ export interface SceneDeps {
   hands?: HandGestureSource;
   /** Optional paired phone; adds walking to the keyboard. */
   phone?: PhoneLink;
+  /** ?demo=1: the short, guided Part 1 (see womanDemo.ts). */
+  demo?: boolean;
 }
 
 export interface SceneResult {
