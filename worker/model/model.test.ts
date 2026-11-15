@@ -222,13 +222,13 @@ describe('determinism and bounds', () => {
     }
   });
 
-  it('only a man who is already hostile can become physical, and never from across the street at full odds', () => {
+  it('only a man already at level 4 or higher can become physical, and never from across the street at full odds', () => {
     const rng = new Rng(5);
     for (let i = 0; i < 500; i++) {
-      const calm: WomanState = { ...initialWomanState('volatile'), stance: 'persist', turn: 9, exchanges: 8, insults: 3, frustration: 1, startedAt: 0 };
+      const calm: WomanState = { ...initialWomanState('volatile'), stance: 'guilt', level: 3, turn: 9, exchanges: 8, insults: 3, frustration: 1, startedAt: 0 };
       expect(decideWoman(calm, { event: 'speech', ctx: ctx(), strategyProbs: { hostile: 1 } }, rng).stanceProbs.escalate ?? 0).toBe(0);
     }
-    const hot: WomanState = { ...initialWomanState('volatile'), stance: 'intimidate', turn: 9, exchanges: 8, insults: 3, frustration: 1, startedAt: 0 };
+    const hot: WomanState = { ...initialWomanState('volatile'), stance: 'intimidate', level: 5, turn: 9, exchanges: 8, insults: 3, frustration: 1, startedAt: 0 };
     const near = decideWoman(hot, { event: 'speech', ctx: ctx({ distanceToMan: 0.8 }), strategyProbs: { hostile: 1 } }, new Rng(1)).priorProbs.escalate ?? 0;
     const far = decideWoman(hot, { event: 'speech', ctx: ctx({ distanceToMan: 12, oppositeSidewalk: true }), strategyProbs: { hostile: 1 } }, new Rng(1)).priorProbs.escalate ?? 0;
     expect(near).toBeGreaterThan(0);
@@ -241,7 +241,8 @@ describe('determinism and bounds', () => {
     for (const policy of ['stand_still', 'engage', 'mixed', 'hostile'] as WomanPolicy[]) {
       const t = tallyWoman(policy, 2000, 31337);
       expect(t.outcomes.exited ?? 0, policy).toBe(0);
-      expect(t.maxSeconds, policy).toBeLessThanOrEqual(limit + 15);
+      // at the limit he says a parting line, and is gone on the beat after: up to two exchanges (~10 s each) past it
+      expect(t.maxSeconds, policy).toBeLessThanOrEqual(limit + 21);
     }
     for (const policy of ['distract', 'direct', 'aggressive', 'delegate', 'film_close', 'stand_between', 'nothing'] as BystanderPolicy[]) {
       const t = tallyBystander(policy, 2000, 31337);
@@ -322,14 +323,19 @@ describe('Monte Carlo: outcome rates stay inside the calibrated ranges', () => {
   it('no response reliably works, and none reliably fails', () => {
     for (const p of ['ignore', 'polite_deflect', 'firm_boundary', 'hostile', 'excuse', 'threaten_attention', 'engage', 'plead'] as WomanPolicy[]) {
       expect(woman[p].heLeft, p).toBeLessThan(0.97);
-      expect(woman[p].heLeft, p).toBeGreaterThan(0.5);
-      expect(woman[p].everHostile, p).toBeGreaterThan(0.1);
+      expect(woman[p].heLeft, p).toBeGreaterThan(0.25);
+      if (p !== 'engage') expect(woman[p].everHostile, p).toBeGreaterThan(0.1);
     }
+    // a friendly answer keeps it calmest, but it is not a magic word: he still gets pushy in some runs
+    const pushy = woman.engage.peakLevels.slice(2).reduce((a, b) => a + b, 0);
+    expect(pushy).toBeGreaterThan(0.1);
   });
 
-  it('giving up with a parting remark is the commonest ending; friendly answers prolong it; the shop ends it', () => {
-    expect(woman.mixed.outcomes.reached_home_alone ?? 0).toBeGreaterThan(0.6);
-    expect(woman.mixed.heLeft).toBeGreaterThan(0.6);
+  it('he keeps at it more often than not, leaving is common but not the rule; friendly answers prolong it; the shop ends it', () => {
+    // much harassment happens in passing (rtb_5ds), but he does not walk off after one exchange
+    expect(woman.mixed.heLeft).toBeGreaterThan(0.35);
+    expect(woman.mixed.heLeft).toBeLessThan(0.75);
+    expect(woman.mixed.meanExchanges).toBeGreaterThan(4);
     for (const p of policies) if (p !== 'engage' && p !== 'stand_still') expect(woman.engage.meanExchanges, p).toBeGreaterThan(woman[p].meanExchanges);
     expect(woman.shop.outcomes.took_refuge ?? 0).toBeGreaterThan(0.6);
     expect(woman.shop.escalated).toBe(0);

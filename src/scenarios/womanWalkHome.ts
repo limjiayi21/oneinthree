@@ -4,6 +4,7 @@
  * and turns the decision model's answers into his body, face and voice, and
  * into her involuntary reactions and inner thoughts.
  */
+import { LEVELS } from '../../shared/levels';
 import * as THREE from 'three';
 import type { Gesture, Npc, Posture } from '../contracts';
 import type { ManDecision, ManStance, OutcomeKind, TurnEvent } from '../../shared/types';
@@ -13,6 +14,7 @@ import { createNpc } from '../characters/npc';
 import { SceneKit, clamp01, inRect, pick, pickSide, type SceneDeps, type SceneResult } from './common';
 import { bindEchoSteps, laggedTarget } from './echoSteps';
 import { walkCorridor } from '../world/layout';
+import { DEMO, demoCorridor } from './womanDemo';
 
 const GESTURE_FOR: Partial<Record<ManStance, Gesture[]>> = {
   opening: ['beckon', 'wave'],
@@ -46,9 +48,12 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     eyes: deps.eyes,
     extraMove: () => deps.phone?.move(performance.now()) ?? null,
     // Only the walk home: this street, her building at the end, the shop if she needs it.
-    corridor: walkCorridor(P.subwayExit.z),
-    onCorridorEdge: (edge) =>
-      hud.hint(edge === 'back' ? 'Home is the other way.' : edge === 'ahead' ? 'This is your building.' : 'Home is down this street.', 3000),
+    // demo: only her sidewalk up to the shop, and the edges say nothing.
+    corridor: deps.demo ? demoCorridor() : walkCorridor(P.subwayExit.z),
+    onCorridorEdge: deps.demo
+      ? undefined
+      : (edge) =>
+          hud.hint(edge === 'back' ? 'Home is the other way.' : edge === 'ahead' ? 'This is your building.' : 'Home is down this street.', 3000),
   });
   const kit = new SceneKit(deps, player, 'woman');
 
@@ -61,7 +66,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   kit.addNpc(man, true);
   man.addAvoid({ getPosition: () => player.position, radius: 0.34 });
   // He starts leaning on the wall under the scaffolding, facing the street.
-  man.setPose(P.harasserSpot, Math.PI / 2);
+  man.setPose(deps.demo ? DEMO.manSpot : P.harasserSpot, Math.PI / 2); // demo: closer to the shop
   man.human.setPosture('lean_wall');
   man.human.setEmotion('neutral', 0.4);
   man.human.playGesture('check_phone');
@@ -104,7 +109,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const eye = new THREE.Vector3();
   const manHead = new THREE.Vector3();
 
-  const progress = () => clamp01((P.subwayExit.z - player.position.z) / (P.subwayExit.z - P.homeStoop.z));
+  const startZ = deps.demo ? DEMO.start.z : P.subwayExit.z; // demo: she starts mid-block
+  const progress = () => clamp01((startZ - player.position.z) / (startZ - P.homeStoop.z));
 
   kit.context = () => ({
     elapsed: kit.time,
@@ -197,7 +203,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     kit.after(2.2, () => !kit.ended && kit.think('w_left_1'));
     kit.after(7, () => !kit.ended && kit.think('w_left_2'));
     kit.after(4, () => (kit.serverFear = Math.min(kit.serverFear, 0.3)));
-    hud.objective('Get home.');
+    hud.objective(deps.demo ? 'Get to the shop.' : 'Get home.'); // demo: the shop is the end of her street
   }
 
   function involuntaryStepBack(distance: number): void {
@@ -228,6 +234,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       man.human.setEmotion(emotion, decision?.emotionIntensity ?? 0.7);
       const g = GESTURE_FOR[stance];
       if (g && Math.random() < 0.8) man.human.playGesture(pick(g));
+      // demo: she thinks of the shop early, once her reaction to his first line has landed (it comes at +0.9 s).
+      if (deps.demo && first('shopThought')) kit.after(4, () => !kit.ended && !finishing && kit.think('w_shop'));
       manSpeaking = kit.say(man, 'man', text, url).then(() => {
         if (seq === speechSeq) armSilenceTimer();
       });
@@ -241,6 +249,11 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       case 'decision':
         applyDecision(ev.man);
         kit.serverFear = ev.fear;
+        if (typeof ev.man.level === 'number') {
+          // He has walked off: the meter goes away with him.
+          if (ev.man.stance === 'gone') kit.deps.hud.setLevel(null);
+          else kit.deps.hud.setLevel(ev.man.level, LEVELS[ev.man.level]?.name ?? '');
+        }
         break;
       case 'line':
         onLine(ev.text, ev.audioUrl, ev.speaker, ev.emotion);
@@ -262,6 +275,14 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         break;
     }
   };
+
+  /** Where he waits, on the sidewalk just outside the shop door. */
+  const SHOP_WAIT = new THREE.Vector3(P.shopDoor.x - 2.0, 0, P.shopDoor.z + 1.2);
+
+  /** One answer to "is he still around?" for every scripted beat that mentions him. */
+  function heIsHere(): boolean {
+    return encounter && !manGone && stance !== 'gone' && man.distanceTo(player.position) < 25;
+  }
 
   /* ------------------------------------------------------------ endings */
 
@@ -292,13 +313,39 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       audio.play('shop_bell', { position: P.shopDoor, volume: 0.9 });
       player.inputEnabled = false;
       kit.serverFear = Math.min(kit.serverFear, 0.5);
+      // Only talk about him if he is actually out there: he may have walked off long before she came in.
+      const present = heIsHere();
+      if (present) {
+        // He does not just vanish: he comes up to the door and waits outside for a moment, watching
+        // (women describe men waiting outside a shop), before he gives up and walks off.
+        man.setBehaviour({ type: 'goTo', target: SHOP_WAIT, speed: 1.6, faceOnArrive: () => P.shopDoor });
+        man.human.setEmotion('annoyed', 0.75);
+        man.human.setGaze(P.shopDoor.clone().setY(1.6));
+      }
       clerk.human.setGaze(player.getEyePosition(eye));
-      clerk.human.setEmotion('worried', 0.7);
+      clerk.human.setEmotion(present ? 'worried' : 'neutral', present ? 0.7 : 0.4);
       await kit.wait(0.8);
-      await kit.say(clerk, 'clerk', 'You okay, miss? That guy bothering you? Stay as long as you need.', '/audio/vo/c_refuge.mp3');
-      kit.think('w_refuge_1');
+      if (present) await kit.say(clerk, 'clerk', 'You okay, miss? That guy bothering you? Stay as long as you need.', '/audio/vo/c_refuge.mp3');
+      else await kit.say(clerk, 'clerk', 'Evening. You alright, miss? Cold one tonight.', '/audio/vo/c_refuge_alone.mp3');
+      kit.think(present ? 'w_refuge_1' : 'w_refuge_alone_1');
+      if (deps.demo) {
+        // demo: one thought, then out (no second thought, no parting shot from him).
+        await kit.wait(2.2);
+        await hud.fade(true, 1200);
+        audio.stopAmbience(1.2);
+        await kit.wait(0.6);
+        kit.end(outcome);
+        return;
+      }
       await kit.wait(3.6);
-      kit.think('w_refuge_2');
+      kit.think(present ? 'w_refuge_2' : 'w_refuge_alone_2');
+      if (present) {
+        // ... then a sour parting shot through the door, and he goes.
+        await kit.wait(2.4);
+        await kit.say(man, 'man', 'Whatever. Not worth it.', '/audio/vo/m_shop_sour.mp3');
+        leave();
+        await kit.wait(2.6);
+      }
       await kit.wait(3.2);
       await hud.fade(true, 2200);
       audio.stopAmbience(2);
@@ -345,6 +392,45 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     kit.end(outcome);
   }
 
+  /* ------------------------------------------------ street beats */
+
+  /** The crash and the cat: she startles before she knows what it was. */
+  /** `reactAfter`: seconds between the crash and her startle (so she reacts to the cat, not before it). */
+  function alleyScare(crashAt: THREE.Vector3, catAt: THREE.Vector3, reactAfter = 0): void {
+    audio.play('trash_can_crash', { position: crashAt, volume: 1 });
+    kit.after(0.25, () => audio.play('cat_yowl', { position: catAt, volume: 0.9 }));
+    const react = () => {
+      if (kit.ended) return;
+      player.startle(0.9);
+      audio.play('gasp', { volume: 0.9 });
+      kit.scare(0.75);
+    };
+    if (reactAfter > 0) kit.after(reactAfter, react);
+    else react();
+    kit.after(0.35 + reactAfter, () => kit.think('w_alley_1', { intensity: 0.95 }));
+  }
+
+  /** He looks up from his phone. That is all. It is enough. */
+  function notice(thought: 'w_notice_1' | null): void {
+    man.human.setGaze(player.getEyePosition(eye));
+    man.human.setEmotion('smirk', 0.35);
+    kit.serverFear = Math.max(kit.serverFear, 0.28);
+    if (thought) kit.think(thought, { intensity: 0.35 });
+  }
+
+  /** demo: the crash, then he looks up. Once, from the timer or from how far she has walked. */
+  function demoCrash(): void {
+    if (kit.ended || finishing || !first('alley')) return;
+    world.triggerCatDash(DEMO.catDash); // the alley's own cat is ~40 m behind her start
+    alleyScare(DEMO.crashSource, DEMO.crashSource, DEMO.reactAfter);
+    kit.after(DEMO.noticeDelay, () => {
+      if (kit.ended || !first('notice')) return;
+      // demo: she is already close, so the encounter starts at once and her first
+      // thought comes from the model; a scripted one here would be cut off.
+      notice(null);
+    });
+  }
+
   /* ---------------------------------------------------- per-frame logic */
 
   kit.onFrame((dt) => {
@@ -354,33 +440,26 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
     // ambient beats on the way
     if (first('start') ) {
-      kit.after(1.6, () => kit.think('w_start_1', { intensity: 0.1 }));
+      // demo: no "Long day" line; the keys thought opens the scene instead (see the run section).
+      if (!deps.demo) kit.after(1.6, () => kit.think('w_start_1', { intensity: 0.1 }));
       kit.after(2.2, () => hud.hint('W A S D to walk  ·  mouse to look  ·  Shift to hurry', 7000));
     }
-    if (pos.z < P.subwayExit.z - 7 && first('keys')) {
+    if (!deps.demo && pos.z < P.subwayExit.z - 7 && first('keys')) {
       audio.play('keys_jingle', { volume: 0.5 });
       kit.think('w_keys', { intensity: 0.12 });
     }
-    if (pos.z < P.subwayExit.z - 13 && first('passer')) {
+    if (!deps.demo && pos.z < P.subwayExit.z - 13 && first('passer')) {
       passer.human.setVisible(true);
       passer.setBehaviour({ type: 'leave', to: P.passerbyA1, speed: 1.5 });
     }
-    if (inRect(pos, Z.alleyTrigger) && first('alley')) {
+    if (deps.demo && player.inputEnabled && pos.z < DEMO.crashByZ) demoCrash();
+    if (!deps.demo && inRect(pos, Z.alleyTrigger) && first('alley')) {
       world.triggerAlleyEvent();
-      audio.play('trash_can_crash', { position: P.alleySource, volume: 1 });
-      kit.after(0.25, () => audio.play('cat_yowl', { position: P.alleyMouth, volume: 0.9 }));
-      player.startle(0.9);
-      audio.play('gasp', { volume: 0.9 });
-      kit.scare(0.75);
-      kit.after(0.35, () => kit.think('w_alley_1', { intensity: 0.95 }));
+      alleyScare(P.alleySource, P.alleyMouth);
       kit.after(2.6, () => kit.think('w_alley_2', { intensity: 0.35 }));
     }
-    if (inRect(pos, Z.noticeTrigger) && first('notice')) {
-      // He looks up from his phone. That is all. It is enough.
-      man.human.setGaze(eye);
-      man.human.setEmotion('smirk', 0.35);
-      kit.serverFear = Math.max(kit.serverFear, 0.28);
-      kit.think('w_notice_1', { intensity: 0.35 });
+    if (!deps.demo && inRect(pos, Z.noticeTrigger) && first('notice')) {
+      notice('w_notice_1');
       kit.after(3.4, () => !encounter && kit.think('w_notice_2', { intensity: 0.4 }));
       kit.after(6.8, () => !encounter && pos.x > 4.5 && kit.think('w_notice_cross', { intensity: 0.4 }));
     }
@@ -392,15 +471,32 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         encounter = true;
         kit.speechEnabled = true;
         kit.refreshMic();
-        hud.objective('Get home.');
+        hud.objective(deps.demo ? 'Get to the shop.' : 'Get home.');
         kit.event('begin');
         kit.after(3.5, () => hud.hint('Hold SPACE to speak.  Or say nothing.', 8000));
+        // demo: if she stops to deal with him, point her at the way out once, so the demo cannot stall.
+        if (deps.demo) kit.after(DEMO.nudgeAfter, () => !kit.ended && !finishing && hud.hint('The shop is still open.', 5000));
       }
     }
 
     if (encounter && !manGone) {
       man.human.setGaze(eye);
       const d = man.distanceTo(pos);
+
+      // He keeps up with her. Decisions only arrive every few seconds; between them, a man who is still
+      // engaged does not stand there while she walks off and then wander over later. Beside her while he
+      // is talking (levels 0-3), trailing her once he is angry (4+). Leaving, backing off and the grab are
+      // the model's call alone.
+      const engaged = !['back_off', 'gone', 'escalate', 'idle'].includes(stance);
+      // 'closeIn' holds once it arrives, so a woman who walks off during it is left behind as well.
+      if (engaged && (man.behaviour === 'idle' || man.behaviour === 'closeIn') && !finishing) {
+        const lvl = decision?.level ?? 1;
+        const keep = (lvl >= 4 ? 3.2 : 2.4) + (man.behaviour === 'closeIn' ? 0.8 : 0);
+        if (d > keep && (player.speed > 0.4 || d > 4.5)) {
+          if (lvl >= 4 || stance === 'follow') man.setBehaviour({ type: 'followBehind', target: towardLagged, gap: 2.4, speed: 2.4 });
+          else man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, 1.3), gap: 1.3 });
+        }
+      }
 
       // Her body reacts before she does.
       if (d < 0.95 && man.speed > 0.2 && kit.time - lastFlinch > 3.5) {
@@ -440,7 +536,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       }
 
       // Nudges toward the choices a real woman would be weighing.
-      if (Math.abs(pos.z - P.shopDoor.z) < 9 && pos.x > 4.5 && first('shopThought') && kit.secondsSinceThought > 3) {
+      if (!deps.demo && Math.abs(pos.z - P.shopDoor.z) < 9 && pos.x > 4.5 && first('shopThought') && kit.secondsSinceThought > 3) {
         kit.think('w_shop');
       }
       if (pos.z < P.homeStoop.z + 14 && d < 12 && first('homeNear') && kit.secondsSinceThought > 2.5) {
@@ -474,7 +570,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   /* --------------------------------------------------------------- run */
 
-  player.setPose(P.subwayExit, 0);
+  player.setPose(deps.demo ? DEMO.start : P.subwayExit, deps.demo ? DEMO.startYaw : 0);
   player.inputEnabled = false;
   player.requestLock();
   hud.setVisible(true);
@@ -488,12 +584,28 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   audio.startAmbience();
   audio.play('subway_rumble', { volume: 0.8 });
-  await hud.card('11:42 PM', 'Four blocks from home.', 3800);
+  await hud.card('11:42 PM', 'Four blocks from home.', deps.demo ? 2500 : 3800); // demo: shorter
   world.spawnPassingCar(1);
   audio.play('car_pass', { position: new THREE.Vector3(0, 0.5, -20), volume: 0.7 });
-  await hud.fade(false, 2200);
+  if (deps.demo) {
+    // demo: the passer-by she would have seen further up the street, already on his way.
+    passer.setPose(new THREE.Vector3(-6.35, 0, DEMO.start.z - 12), Math.PI);
+    passer.human.setVisible(true);
+    passer.setBehaviour({ type: 'leave', to: P.passerbyA1, speed: 1.5 });
+    once.add('passer');
+  }
+  await hud.fade(false, deps.demo ? 1000 : 2200);
   player.inputEnabled = true;
   hud.objective('Walk home.');
+  if (deps.demo) {
+    // demo: a few calm seconds first. Keys, then the crash (sooner if she hurries: see onFrame).
+    kit.after(DEMO.keysDelay, () => {
+      if (kit.ended || !first('keys')) return;
+      audio.play('keys_jingle', { volume: 0.5 });
+      kit.think('w_keys', { intensity: 0.12 });
+    });
+    kit.after(DEMO.crashDelay, demoCrash);
+  }
 
   // Life on the street, unrelated to her: a car now and then, a siren far off.
   const traffic = () => {

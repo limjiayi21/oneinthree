@@ -1273,3 +1273,72 @@ a.oit-strip-src {
     transition: none;
   }
 }
+
+/* His escalation meter (woman POV): top right, seven segments, calm -> threatening. */
+.oit-level {
+  position: absolute;
+  top: 22px;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(233, 228, 218, 0.86);
+  font: 500 var(--hud-u) / 1.2 var(--oit-sans);
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.oit-level.is-on {
+  opacity: 1;
+}
+.oit-level-label {
+  opacity: 0.7;
+  text-transform: uppercase;
+  font-size: 0.82em;
+  letter-spacing: 0.12em;
+}
+.oit-level-bar {
+  display: inline-flex;
+  gap: 3px;
+}
+.oit-level-bar i {
+  width: 14px;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(233, 228, 218, 0.16);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  transition: background 0.4s ease;
+}
+.oit-level-bar i.is-lit[data-i='0'] { background: #8fb7a4; }
+.oit-level-bar i.is-lit[data-i='1'] { background: #b9c27f; }
+.oit-level-bar i.is-lit[data-i='2'] { background: #d9c06a; }
+.oit-level-bar i.is-lit[data-i='3'] { background: #e0a052; }
+.oit-level-bar i.is-lit[data-i='4'] { background: #de7a45; }
+.oit-level-bar i.is-lit[data-i='5'] { background: #d2503b; }
+.oit-level-bar i.is-lit[data-i='6'] { background: #b8282c; }
+.oit-level-name {
+  min-width: 9ch;
+}
+.oit-level.is-up .oit-level-bar {
+  animation: oit-level-up 0.9s ease;
+}
+.oit-level.is-down .oit-level-bar {
+  animation: oit-level-down 0.9s ease;
+}
+@keyframes oit-level-up {
+  0% { transform: scale(1); filter: brightness(1); }
+  30% { transform: scale(1.18); filter: brightness(1.6); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+@keyframes oit-level-down {
+  0% { opacity: 1; }
+  40% { opacity: 0.45; }
+  100% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .oit-level.is-up .oit-level-bar,
+  .oit-level.is-down .oit-level-bar {
+    animation: none;
+  }
+}

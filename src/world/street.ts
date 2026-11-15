@@ -561,16 +561,20 @@ export function createStreet(engine: Engine): StreetWorld {
       canLid.rotation.set(Math.sin(u * 19) * 0.6 * wob, u * 4 * wob, (Math.PI / 2) * wob + Math.cos(u * 19) * 0.6 * wob * (1 - wob));
     }
 
-    // cat
-    const CAT_START = 0.12, CAT_RUN = 1.06;
+    poseCat(t, catPath);
+  };
+
+  /** The cat on `path` at time t of a dash (it bolts at CAT_START and is gone after CAT_RUN). */
+  const CAT_START = 0.12, CAT_RUN = 1.06;
+  const poseCat = (t: number, path: THREE.Curve<THREE.Vector3>): void => {
     const ct = (t - CAT_START) / CAT_RUN;
     if (t < 0 || ct <= 0 || ct >= 1) {
       cat.visible = false;
     } else {
       cat.visible = true;
       const e = 1 - Math.pow(1 - ct, 1.5); // bolts, then eases under the car
-      catPath.getPoint(e, _v);
-      catPath.getTangent(e, _t);
+      path.getPoint(e, _v);
+      path.getTangent(e, _t);
       const phase = ct * CAT_RUN * 5.4 * Math.PI * 2;
       cat.position.copy(_v);
       cat.rotation.y = Math.atan2(_t.x, _t.z);
@@ -584,6 +588,8 @@ export function createStreet(engine: Engine): StreetWorld {
     }
   };
   poseAlley(-1);
+  /** A cat-only dash somewhere other than the alley (t < 0: not running). */
+  const dashState: { t: number; path: THREE.Curve<THREE.Vector3> | null } = { t: -1, path: null };
 
   /* ---- passing car ---- */
   const car = new THREE.Group();
@@ -757,6 +763,11 @@ export function createStreet(engine: Engine): StreetWorld {
         }
         if (alleyState.t > 6) alleyState.t = 6; // settled; keep the final pose
       }
+      if (dashState.t >= 0 && dashState.path) {
+        dashState.t += dt;
+        poseCat(dashState.t, dashState.path);
+        if (dashState.t > CAT_START + CAT_RUN) dashState.t = -1; // gone (poseCat has hidden it)
+      }
 
       // passing car
       if (carState.active) {
@@ -802,6 +813,12 @@ export function createStreet(engine: Engine): StreetWorld {
       alleyState.colliderMoved = false;
       alleyState.t = 0;
       poseAlley(0);
+    },
+
+    triggerCatDash(path: THREE.Vector3[]): void {
+      dashState.path = new THREE.CatmullRomCurve3(path, false, 'centripetal');
+      dashState.t = 0;
+      poseCat(0, dashState.path);
     },
 
     spawnPassingCar(direction: 1 | -1): void {

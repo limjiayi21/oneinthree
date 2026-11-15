@@ -91,6 +91,8 @@ export interface StreetWorld {
   setDoorOpen(which: 'home' | 'shop', open: boolean): void;
   /** Topples the trash can / sends the cat out of the alley for the startle beat. */
   triggerAlleyEvent(): void;
+  /** Sends the cat bolting along any ground path (points in metres), without the trash can. */
+  triggerCatDash(path: THREE.Vector3[]): void;
   /** A car drives down the road once (headlights sweep across the scene). */
   spawnPassingCar(direction: 1 | -1): void;
   /** Ground material under a point, for footstep sounds. */
@@ -359,6 +361,8 @@ export interface Hud {
   hint(text: string | null, ms?: number): void;
   /** Top-left one-line objective ("Get home."). null clears. */
   objective(text: string | null): void;
+  /** His escalation meter, 0 (calm) to 6 (threatening), with the level's name. null hides it. */
+  setLevel(level: number | null, name?: string): void;
   setMic(state: MicState, level?: number): void;
   /** 0..1: DOM-side fear cues (pulsing edge darkness). */
   setFear(level: number): void;
