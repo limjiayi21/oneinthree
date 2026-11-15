@@ -38,7 +38,7 @@ type Option = MomentOption & { act: Act };
 type MomentId = 'm1' | 'm2' | 'm3' | 'm4' | 'm5';
 
 const say = (text: string, to: 'man' | 'woman', tag: string): Option => ({ icon: 'speak', text: `"${text}"`, tag, how: 'Say it', act: { kind: 'say', line: text, to } });
-const FILM: Option = { icon: 'film', text: 'Film him', tag: 'Document', how: 'Look down, pinch', act: { kind: 'film' } };
+const FILM: Option = { icon: 'film', text: 'Film him', tag: 'Document', how: 'Pinch', act: { kind: 'film' } };
 /** Called out from where you stand: the shop is a few metres past them. */
 const HELP_LINE = "Hey! Can you come out here? He won't leave her alone.";
 const HELP: Option = { icon: 'help', text: 'Call the shopkeeper', tag: 'Delegate', how: 'Look at the shop, say it', act: { kind: 'help' } };
@@ -157,6 +157,29 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   let beat = 'before';
   const once = new Set<string>();
   const first = (key: string) => (once.has(key) ? false : (once.add(key), true));
+
+  /*
+   * Demo (?demo=1): until the third question ("She can't get past him"), speaking up goes unheard.
+   * Nothing reaches the AI, so nobody reacts and the scripted scene carries on to the next question;
+   * a thought says why. From the third question on, everything works as in the full version.
+   */
+  const UNHEARD = ["Maybe she didn't hear me.", "Maybe she doesn't need help."];
+  let unheardCount = 0;
+  const unheard = () => !!deps.demo && !once.has('moment_m3');
+  kit.gate = (req) => {
+    if (!unheard()) return true;
+    if (req.event === 'speech') brushOff(UNHEARD[Math.min(unheardCount++, UNHEARD.length - 1)]!);
+    else if (req.event === 'asked_clerk') {
+      once.delete('clerkAsked'); // so he can still be asked once it counts
+      brushOff("Maybe he didn't hear me.");
+    }
+    return false;
+  };
+  /** The open question counts as answered, then the thought, and the scene goes on. */
+  function brushOff(text: string): void {
+    if (open) endTip();
+    kit.after(0.9, () => !kit.ended && kit.thinkText(text, '', 0.4));
+  }
 
   const eye = new THREE.Vector3();
   const manHead = new THREE.Vector3();
@@ -789,7 +812,8 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
 
     // the shopkeeper can be asked for help
     const nearClerk = clerk.distanceTo(player.position) < 4.2 || player.position.distanceTo(P.shopDoor) < 3;
-    if (nearClerk && !once.has('clerkAsked')) hud.prompt('E   Ask the shopkeeper for help');
+    // The one alert for the shopkeeper; with hand tracking on it names the gesture too.
+    if (nearClerk && !once.has('clerkAsked')) hud.prompt(deps.hands?.active ? 'E   Ask the shopkeeper for help  ·  or raise an open hand' : 'E   Ask the shopkeeper for help');
     else hud.prompt(null);
 
     if (inRect(player.position, world.zones.homeEntrance) && first('leftScene')) kit.event('left_scene');
@@ -801,13 +825,12 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     prevOnKey(code);
   };
 
-  // Webcam hands: look down and pinch for the phone (F); raise an open palm to ask the shopkeeper (E).
+  // Webcam hands: pinch for the phone (F); raise an open palm to ask the shopkeeper (E). Wherever you look.
+  // The pinch hint only shows while filming: "take out your phone" up all scene would be in the way.
   const unbindHands = bindHandActions(deps, player, kit, {
-    lookDownPinch: { key: 'KeyF', hint: () => (filming ? 'Pinch to put your phone away' : 'Pinch to take out your phone') },
-    palm: {
-      key: 'KeyE',
-      hint: () => (!once.has('clerkAsked') && (clerk.distanceTo(player.position) < 4.2 || player.position.distanceTo(P.shopDoor) < 3) ? 'Raise an open hand to ask the shopkeeper for help' : null),
-    },
+    pinch: { key: 'KeyF', hint: () => (filming ? 'Pinch to put your phone away' : null) },
+    // No separate hint: the shopkeeper prompt above already says to raise an open hand.
+    palm: { key: 'KeyE', hint: () => null },
   });
 
   kit.exposeDebug({ man, woman, clerk, world, mode: () => ({ started, dynamic, beat, manFocus, manGone, womanGone }) });

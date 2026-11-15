@@ -379,9 +379,19 @@ export class SceneKit {
     void this.turn({ event, ctx: this.context(), data });
   }
 
+  /**
+   * Optional: decides whether a turn reaches the server at all. Returning false swallows it (nobody hears
+   * it, the script carries on). Unset: everything is sent, as always.
+   */
+  gate: ((req: TurnRequest) => boolean) | null = null;
+
   async turn(req: TurnRequest, audio?: Blob | null): Promise<void> {
     if (this.ended || !this.sessionId) return;
     const isSpeech = req.event === 'speech';
+    if (this.gate && !this.gate(req)) {
+      if (isSpeech) this.refreshMic();
+      return;
+    }
     const terminal = req.event === 'reached_home' || req.event === 'entered_shop' || req.event === 'scene_timeout';
     if (this.busy) {
       // Two utterances while he is answering: keep both sets of words, in order.

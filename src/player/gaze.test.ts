@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEG } from './mathx';
 import { GazeFilter, gazeFromFace, gazeToLook, GAZE_TUNING, type FacePoint } from './gaze';
-import { LOOK_DOWN_PITCH } from '../scenarios/handActions';
 
 /** A frontal face in normalized image coordinates (unmirrored camera image). */
 function face(opts: { noseDx?: number; noseDy?: number } = {}): FacePoint[] {
@@ -89,9 +88,8 @@ describe('gazeToLook', () => {
     expect(GAZE_TUNING.maxGlancePitchUp).toBeLessThan(45 * DEG);
   });
 
-  it('can look down far enough to see the phone with a moderate glance', () => {
-    // about half of full downward gaze must pass the hands' look-down angle
-    expect(gazeToLook({ x: 0, y: -0.6 }).pitchOffset).toBeLessThan(LOOK_DOWN_PITCH);
+  it('a full downward look reaches the furthest glance down', () => {
+    // (The phone no longer needs looking down: a pinch anywhere takes it out.)
     expect(gazeToLook({ x: 0, y: -1 }).pitchOffset).toBeCloseTo(-GAZE_TUNING.maxGlancePitchDown, 6);
   });
 });
