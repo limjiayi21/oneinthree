@@ -85,6 +85,10 @@ export interface PlayerController extends Player {
   readonly pitch: number;
   /** Pitch the camera actually shows, including head look and reactions. */
   readonly viewPitch: number;
+  /** Yaw the camera actually shows, including head look (webcam, AirPods) and reactions. */
+  readonly viewYaw: number;
+  /** While true she can look around but not walk (the "look left and right first" start). */
+  walkLocked: boolean;
   readonly radius: number;
   readonly body: BodyKind;
   /** Set the look direction directly (harness / cutscenes). */
@@ -200,6 +204,7 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
   let zoom = 0;
   const sag = new Spring(3.6, 0.85); // metres: knees stay soft for a second after a startle
   let inputFreeze = 0; // startle: seconds of ignored movement input
+  let walkLocked = false; // looking allowed, walking not (see PlayerController.walkLocked)
   let freezeTimer = 0; // freeze(): seconds remaining
   let legs = 1; // 0..1 scale on movement input
   let suppressTail = 0;
@@ -510,7 +515,7 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     /* --- wanted velocity */
     let lf = 0; // forward, m/s
     let ls = 0; // right, m/s
-    if (canMove) {
+    if (canMove && !walkLocked) {
       const f = intent.forward;
       const s = intent.strafe;
       const fwdSpeed = intent.hurry ? T.hurrySpeed : T.walkSpeed;
@@ -811,6 +816,15 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     },
     get viewPitch() {
       return viewPitch;
+    },
+    get viewYaw() {
+      return viewYaw;
+    },
+    get walkLocked() {
+      return walkLocked;
+    },
+    set walkLocked(v: boolean) {
+      walkLocked = v;
     },
 
     get inputEnabled() {

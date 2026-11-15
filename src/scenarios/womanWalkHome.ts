@@ -15,6 +15,7 @@ import { SceneKit, clamp01, inRect, pick, pickSide, type SceneDeps, type SceneRe
 import { bindEchoSteps, laggedTarget } from './echoSteps';
 import { LINE, walkCorridor } from '../world/layout';
 import { runKeyTutorial } from './keyTutorial';
+import { LOOK_GATE_TIMEOUT, LookGate, turnHint } from './lookGate';
 import { createWayfinder, wayfinderLevel } from '../ui/wayfinder';
 import { damp, wrapAngle, yawOf } from '../player/mathx';
 import { DEMO, demoCorridor } from './womanDemo';
@@ -484,7 +485,9 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     const urgent = !!deps.demo && encounter;
     const wanted = Math.max(wayfinderLevel(relYaw, wayApproach), urgent ? 0.8 : 0);
     wayLevel = damp(wayLevel, wanted, 3, dt);
-    way.update(relYaw, wayLevel, urgent ? 'Shop' : '');
+    // When the arrow is strong (she is facing or walking away), say which way: "Turn left" / "Turn right" / "Turn around".
+    const turn = wayLevel > 0.55 ? turnHint(relYaw) : '';
+    way.update(relYaw, wayLevel, urgent ? (turn ? `Shop · ${turn.toLowerCase()}` : 'Shop') : turn);
   }
 
   let tutorialEnds = 0; // scene time the controls tutorial finishes (set when she gains control)
@@ -678,7 +681,32 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   player.inputEnabled = true;
   hud.objective('Walk home.');
   tutorialEnds = runKeyTutorial(kit, hud, 'woman', { mode: deps.mode, phoneWalks: deps.phone?.status === 'connected' });
-  if (deps.demo) {
+
+  // Look left and right before walking: she can look around at once, and walks once she has looked both
+  // ways (or after LOOK_GATE_TIMEOUT, so it can never stall). The demo's beats start from then.
+  const gate = new LookGate(player.viewYaw);
+  const lookText = (l: boolean, r: boolean) => `Look left ${l ? '✓' : '○'}   ·   Look right ${r ? '✓' : '○'}`;
+  let gateShown = '';
+  player.walkLocked = true;
+  const unlockAt = kit.time + LOOK_GATE_TIMEOUT;
+  const offGate = kit.onFrame(() => {
+    if (!player.walkLocked || kit.ended) return;
+    const g = gate.update(player.viewYaw);
+    const text = lookText(g.left, g.right);
+    if (text !== gateShown) {
+      gateShown = text;
+      hud.hint(text);
+    }
+    if (g.done || kit.time >= unlockAt) {
+      player.walkLocked = false;
+      hud.hint('Now walk', 2200);
+      onWalkUnlocked();
+    }
+  });
+  void offGate;
+
+  function onWalkUnlocked(): void {
+    if (!deps.demo) return;
     // demo: a few calm seconds first. Keys, then the crash (sooner if she hurries: see onFrame).
     kit.after(DEMO.keysDelay, () => {
       if (kit.ended || !first('keys')) return;
