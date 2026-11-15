@@ -16,6 +16,7 @@ import { bindEchoSteps, laggedTarget } from './echoSteps';
 import { LINE, walkCorridor } from '../world/layout';
 import { runKeyTutorial } from './keyTutorial';
 import { LOOK_GATE_TIMEOUT, LookGate, turnHint } from './lookGate';
+import { createLookPrompt } from '../ui/lookPrompt';
 import { SAFE_LIGHT_TRIGGER, createSafeLight } from '../world/safeLight';
 import { createWayfinder, wayfinderLevel } from '../ui/wayfinder';
 import { damp, wrapAngle, yawOf } from '../player/mathx';
@@ -719,21 +720,22 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   // Look left and right before walking: she can look around at once, and walks once she has looked both
   // ways (or after LOOK_GATE_TIMEOUT, so it can never stall). The demo's beats start from then.
   const gate = new LookGate(player.viewYaw);
-  const lookText = (l: boolean, r: boolean) => `Look left ${l ? '✓' : '○'}   ·   Look right ${r ? '✓' : '○'}`;
+  // One instruction at a time, top middle: look left, then look right, then walk.
+  const lookPrompt = createLookPrompt();
   let gateShown = '';
   player.walkLocked = true;
   const unlockAt = kit.time + LOOK_GATE_TIMEOUT;
   const offGate = kit.onFrame(() => {
     if (!player.walkLocked || kit.ended) return;
     const g = gate.update(player.viewYaw);
-    const text = lookText(g.left, g.right);
-    if (text !== gateShown) {
-      gateShown = text;
-      hud.hint(text);
+    if (gate.next !== gateShown) {
+      gateShown = gate.next;
+      lookPrompt.show(gate.next);
     }
     if (g.done || kit.time >= unlockAt) {
       player.walkLocked = false;
-      hud.hint('Now walk', 2200);
+      lookPrompt.show('walk');
+      kit.after(2.2, () => lookPrompt.dispose());
       onWalkUnlocked();
     }
   });
@@ -767,6 +769,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   await hud.fade(true, 400);
   way.dispose();
   shopLight.dispose();
+  lookPrompt.dispose();
   homeLight?.dispose();
   kit.dispose();
   player.dispose();
