@@ -10,6 +10,7 @@
  *   GET  /api/phone/:code/ws?role=       -> WebSocket relay (worker/phoneRelay.ts)
  *   POST /api/session/:id/guided         -> records the guided replay's first choices (worker/stats.ts)
  *   GET  /api/stats                      -> aggregate playthrough counts; needs STATS_CODE
+ *   POST /api/coach                      -> NDJSON stream: the debrief coach (worker/coach/); needs OPENAI_API_KEY
  *
  * Everything under /api/session/:id is handled by that session's Durable
  * Object (worker/session.ts). Static assets and the SPA are served by the
@@ -20,6 +21,8 @@ import { PHONE_CODE_ALPHABET, PHONE_CODE_LENGTH, isPhoneCode, phonePairPath, typ
 import { PhoneRelayDO } from './phoneRelay';
 import { SessionDO, type Env } from './session';
 import { codeMatches, readStats } from './stats';
+import { handleCoach, type CoachEnv } from './coach';
+import { COACH_PATH } from '../shared/coach';
 
 export { PhoneRelayDO, SessionDO };
 export type { Env };
@@ -43,7 +46,7 @@ const json = (body: unknown, status = 200): Response =>
 const SESSION_ID = /^[a-z0-9-]{8,64}$/i;
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -65,6 +68,8 @@ export default {
         return json({ error: 'Stats are unavailable' }, 500);
       }
     }
+
+    if (path === COACH_PATH) return handleCoach(request, env as CoachEnv, ctx);
 
     if (path === '/api/session') {
       if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);

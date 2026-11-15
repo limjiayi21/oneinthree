@@ -221,7 +221,18 @@ export class SessionDO extends DurableObject<Env> {
     if (action === 'summary' && request.method === 'GET') return json(buildSummary(this.s.meta, this.readLog(), this.s.outcome));
     if (action === 'audio' && request.method === 'GET') return this.serveAudio(parts[4] ?? '');
     if (action === 'guided' && request.method === 'POST') return this.recordGuided(request);
+    // Internal only (the coach, worker/coach/): counts its uses per session. Not routed from outside.
+    if (action === 'coachuse' && request.method === 'POST') return this.countCoachUse(request);
     return json({ error: 'Not found' }, 404);
+  }
+
+  private async countCoachUse(request: Request): Promise<Response> {
+    const body = (await request.json().catch(() => ({}))) as { kind?: unknown };
+    const key = body.kind === 'question' ? 'coach_questions' : 'coach_debriefs';
+    const row = this.ctx.storage.sql.exec('SELECT v FROM state WHERE k = ?', key).toArray()[0];
+    const count = (row ? Number(row.v) || 0 : 0) + 1;
+    this.ctx.storage.sql.exec('INSERT INTO state (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v', key, String(count));
+    return json({ count });
   }
 
   private async init(request: Request, id: string): Promise<Response> {
