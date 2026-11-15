@@ -286,6 +286,111 @@
   border-color: var(--oit-accent);
   background: rgba(19, 22, 29, 0.8);
 }
+/* The picked way to play; the recommended one (the body) is gold. */
+.oit-mode-card.is-selected {
+  border-color: var(--oit-ink-2);
+  background: rgba(19, 22, 29, 0.85);
+  box-shadow: inset 0 0 0 1px var(--oit-ink-2);
+}
+.oit-mode-card.is-recommended.is-selected {
+  border-color: var(--oit-you);
+  background: linear-gradient(180deg, rgba(219, 180, 108, 0.14), rgba(19, 22, 29, 0.85));
+  box-shadow: inset 0 0 0 1px var(--oit-you), 0 0 32px rgba(219, 180, 108, 0.12);
+}
+.oit-mode-card .oit-part-title {
+  display: block;
+  margin: 0 0 4px;
+}
+.oit-mode-summary {
+  color: var(--oit-ink-2);
+}
+.oit-mode-badge {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--oit-you);
+  border-radius: 999px;
+  color: var(--oit-you);
+  font: 600 11px/1.3 var(--oit-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Intro: before you begin */
+.oit-title-about .oit-title-lede {
+  color: var(--oit-ink);
+  font-size: clamp(19px, 1.6vw, 23px);
+  line-height: 1.45;
+}
+.oit-before {
+  display: grid;
+  gap: 16px;
+  margin: 32px 0 48px;
+  padding: 0;
+  list-style: none;
+  color: var(--oit-ink);
+  font: 400 clamp(17px, 1.5vw, 21px)/1.45 var(--oit-sans);
+}
+.oit-before li {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+}
+.oit-before-icon {
+  flex: none;
+  width: 1.2em;
+  color: var(--oit-you);
+  text-align: center;
+}
+
+/* Intro: how to play */
+.oit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--oit-ink-2);
+  font: 400 16px/1.4 var(--oit-sans);
+}
+.oit-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.oit-chip-keys {
+  display: inline-flex;
+  gap: 4px;
+}
+.oit-glyph {
+  font-size: 1.15em;
+  line-height: 1;
+}
+.oit-setup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px 28px;
+  margin-top: 30px;
+  padding-top: 26px;
+  border-top: 1px solid var(--oit-line);
+}
+.oit-setup-line {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--oit-ink-2);
+  font: 400 16px/1.45 var(--oit-sans);
+}
+.oit-setup .oit-mic-check {
+  margin: 0;
+}
+.oit-setup-small {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--oit-ink-3);
+  font: 400 13px/1.5 var(--oit-sans);
+}
 .oit-mode-card ul {
   margin: 0;
   padding-left: 1.1em;
