@@ -20,7 +20,8 @@
 import * as THREE from 'three';
 import type { DynamicCollider, Engine, Player, PlayerEvents, StreetWorld } from '../contracts';
 import { createBody, type BodyFrame, type BodyKind } from './body';
-import { circlePenetration, clampToBounds, pushOutOfCircle, pushOutOfRect, type Vec2 } from './collision';
+import { circlePenetration, clampToBounds, clampToCorridor, pushOutOfCircle, pushOutOfRect, type CorridorEdge, type Vec2 } from './collision';
+import type { Rect } from '../contracts';
 import { createInput, type MoveIntent } from './input';
 import type { EyeLookSource } from './eyes';
 import { DEG, Spring, clamp, clamp01, createRng, damp, easeOutCubic, forwardX, forwardZ, lerp, smoothstep, wrapAngle, yawOf } from './mathx';
@@ -34,6 +35,13 @@ export interface PlayerOptions {
    * true and 'unlock' is never emitted.
    */
   requireLock?: boolean;
+  /**
+   * Optional walkable route (union of rects, first = main stretch): she cannot
+   * leave it. Without it she may go anywhere inside the world's bounds.
+   */
+  corridor?: Rect[];
+  /** Called (at most every couple of seconds) when she presses against the route's edge. */
+  onCorridorEdge?: (edge: CorridorEdge) => void;
   /** Optional webcam head look; read every frame while input is live. */
   eyes?: EyeLookSource;
   /** Extra movement source (the paired phone), added to the keys. */
@@ -265,6 +273,8 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     return worst;
   }
 
+  let corridorEdge: CorridorEdge | null = null;
+  let lastEdgeReport = -10;
   function resolve(): void {
     const statics = world.colliders;
     for (let iter = 0; iter < 6; iter++) {
@@ -290,6 +300,13 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
         if (pushOutOfRect(p, T.radius, statics[i]) > 1e-6) any = true;
       }
       if (clampToBounds(p, T.radius, world.bounds)) any = true;
+      if (opts.corridor) {
+        const edge = clampToCorridor(p, T.radius, opts.corridor);
+        if (edge) {
+          any = true;
+          corridorEdge = edge;
+        }
+      }
       if (!any) break;
       touchedAnything = true;
     }
@@ -460,6 +477,7 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
 
     input.read(intent);
     const canMove = inputEnabled && inputFreeze <= 0 && suppressTail <= 0;
+    corridorEdge = null;
 
     /* --- keyboard turning (no-lock mode only) */
     const wantTurn = inputEnabled ? intent.turn * T.keyTurnRate : 0;
@@ -549,6 +567,12 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
         phase += 1e-4; // make sure the last foot of the step lands
         pushes.splice(i, 1);
       }
+    }
+
+    /* --- the route's edge: tell the scene when she walks into it (not when pushed) */
+    if (corridorEdge && canMove && (intent.forward !== 0 || intent.strafe !== 0) && time - lastEdgeReport > 2.5) {
+      lastEdgeReport = time;
+      opts.onCorridorEdge?.(corridorEdge);
     }
 
     /* --- gait bookkeeping from what really moved */

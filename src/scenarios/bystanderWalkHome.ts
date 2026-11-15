@@ -12,6 +12,7 @@ import { createHuman } from '../characters/human';
 import { createNpc } from '../characters/npc';
 import { SCRIPT, SceneKit, clamp01, inRect, voUrl, type SceneDeps, type SceneResult } from './common';
 import { bindHandActions } from './handActions';
+import { walkCorridor } from '../world/layout';
 
 export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const { engine, world, audio, hud } = deps;
@@ -22,6 +23,9 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     requireLock: deps.requireLock,
     eyes: deps.eyes,
     extraMove: () => deps.phone?.move(performance.now()) ?? null,
+    // Only this street, where it happens: not back the way you came, not off down a side street.
+    corridor: walkCorridor(P.bystanderSpawn.z),
+    onCorridorEdge: (edge) => hud.hint(edge === 'back' ? 'She went the other way.' : edge === 'ahead' ? 'The street ends here.' : 'Stay on this street.', 3000),
   });
   const kit = new SceneKit(deps, player, 'bystander');
 
