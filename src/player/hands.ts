@@ -160,6 +160,14 @@ export function createHandTracker(): HandTracker {
 
 /* ------------------------------------------------------------- indicator */
 
+/** The badge's emoji for what the hand is doing: a fist (hold to talk) first, then pinch, open palm, any hand. */
+export function handIcon(s: GestureState): string {
+  if (s.fist) return '✊';
+  if (s.pinching) return '🤏';
+  if (s.palm) return '🖐️';
+  return '✋';
+}
+
 interface Indicator {
   show(state: HandState, detail?: string): void;
   pose(s: GestureState): void;
@@ -217,7 +225,7 @@ function createIndicator(): Indicator {
     },
     pose(s) {
       icon.toggleAttribute('data-seen', s.present);
-      icon.textContent = s.pinching ? '🤏' : s.palm ? '🖐️' : s.present ? '✋' : '✋';
+      icon.textContent = handIcon(s);
     },
     flash() {
       icon.setAttribute('data-flash', '');
