@@ -198,6 +198,12 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
   .scroll{display:none}
 }
 @media (prefers-reduced-motion:reduce){.slide,.pan,.glow,.live .lv i{animation:none}.slide.s1{opacity:1}.pan{transform:translate(calc(var(--fx) * -1),-50%) scale(1.1)}.live .lv i{background:var(--c)}#rain{display:none}}
+.cta{position:relative;animation:ctaGlow 2.4s ease-in-out infinite}
+.cta .cue{position:absolute;right:calc(100% + 14px);top:50%;color:#e9e4da;display:flex;transform:translateY(-50%);animation:cue 1.2s ease-in-out infinite;pointer-events:none}
+@keyframes cue{0%,100%{transform:translate(-8px,-50%);opacity:.55}50%{transform:translate(2px,-50%);opacity:1}}
+@keyframes ctaGlow{0%,100%{box-shadow:0 0 0 0 rgba(233,228,218,.0)}50%{box-shadow:0 0 0 6px rgba(233,228,218,.14),0 0 28px rgba(255,196,120,.25)}}
+@media (max-width:760px){.cta .cue{right:auto;left:50%;top:auto;bottom:calc(100% + 6px);transform:translateX(-50%) rotate(90deg);animation:cueDown 1.2s ease-in-out infinite}@keyframes cueDown{0%,100%{transform:translate(-50%,-6px) rotate(90deg);opacity:.55}50%{transform:translate(-50%,2px) rotate(90deg);opacity:1}}}
+@media (prefers-reduced-motion:reduce){.cta,.cta .cue{animation:none}}
 </style>
 </head>
 <body>
@@ -211,14 +217,14 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
   <div class="shade"></div><div class="grain"></div>
   <nav class="nav">
     <a class="mark" href="#top" aria-label="One in Three"><span class="dots all"><i></i><i></i><i></i></span><b>One in Three</b></a>
-    <ul><li><a href="#">Devpost</a></li><li><a href="https://github.com/limjiayi21/oneinthree">GitHub</a></li></ul>
+    <ul><li><a href="https://devpost.com/software/one-in-three" target="_blank" rel="noopener">Devpost</a></li><li><a href="https://github.com/limjiayi21/oneinthree" target="_blank" rel="noopener">GitHub</a></li></ul>
   </nav>
   <div class="hero-copy" id="top">
     <div class="eyebrow"><span class="dots"><i></i><i></i><i></i></span>A first-person simulation</div>
     <h1>One in Three</h1>
     <p class="hook">One in Three is an interactive AI simulation that puts men in a woman&rsquo;s shoes to raise awareness of sexual harassment and practise stepping in as bystanders.</p>
     <div class="btns">
-      <a class="btn primary" href="https://oneinthree.nyc/?demo=1">Try the 2-minute demo</a>
+      <a class="btn primary cta" href="https://oneinthree.nyc/?demo=1"><span class="cue" aria-hidden="true"><svg viewBox="0 0 40 16" width="40" height="16"><path d="M1 8h34M28 2l7 6-7 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Try the 2-minute demo</a>
       <a class="btn ghost" href="https://oneinthree.nyc/">Play the full experience</a>
     </div>
     <p class="hint"><span class="key">Esc</span> pauses at any time.</p>
@@ -325,12 +331,12 @@ footer a{text-decoration:none}footer a:hover{color:var(--ink)}
 <footer><div class="wrap">
   <div class="fgrid">
     <div><a class="mark" href="#top"><span class="dots all"><i></i><i></i><i></i></span><b>One in Three</b></a><div class="built">Built at HackPrinceton Fall 2026</div></div>
-    <div><h4>Project</h4><ul><li><a href="#">Devpost</a></li><li><a href="https://github.com/limjiayi21/oneinthree">GitHub</a></li></ul></div>
+    <div><h4>Project</h4><ul><li><a href="https://devpost.com/software/one-in-three" target="_blank" rel="noopener">Devpost</a></li><li><a href="https://github.com/limjiayi21/oneinthree" target="_blank" rel="noopener">GitHub</a></li></ul></div>
     <div class="team"><h4>Team</h4><ul>
-      <li>Vansh <a href="https://github.com/benguy6" rel="noopener">@benguy6</a></li>
-      <li>Julia <a href="https://github.com/limjiayi21" rel="noopener">@limjiayi21</a></li>
-      <li>Glenn <a href="https://github.com/glennliew" rel="noopener">@glennliew</a></li>
-      <li>Aish <a href="https://github.com/aishgogoyal" rel="noopener">@aishgogoyal</a></li>
+      <li>Vansh <a href="https://github.com/benguy6" target="_blank" rel="noopener">@benguy6</a></li>
+      <li>Julia <a href="https://github.com/limjiayi21" target="_blank" rel="noopener">@limjiayi21</a></li>
+      <li>Glenn <a href="https://github.com/glennliew" target="_blank" rel="noopener">@glennliew</a></li>
+      <li>Aish <a href="https://github.com/aishgogoyal" target="_blank" rel="noopener">@aishgogoyal</a></li>
     </ul></div>
   </div>
   <div class="credits"><span>Built with</span><b>ElevenLabs</b><b>Cloudflare</b><b>MediaPipe</b><b>three.js</b></div>
