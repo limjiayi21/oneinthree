@@ -89,6 +89,8 @@ export interface PlayerController extends Player {
   readonly body: BodyKind;
   /** Set the look direction directly (harness / cutscenes). */
   setLook(yaw: number, pitch: number): void;
+  /** Narrow the view by this many degrees, eased (0 = normal). A moment of focus, e.g. Part 2's options. */
+  setZoom(degrees: number): void;
   getReactionState(): ReactionState;
 }
 
@@ -194,6 +196,8 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
   const dip = new Spring(13, 0.62); // metres: shoulders up, head down
   const jolt = new Spring(17, 0.42); // metres: startle jump
   const fovKick = new Spring(16, 0.9); // degrees
+  let zoomWant = 0; // degrees narrower, eased toward (setZoom)
+  let zoom = 0;
   const sag = new Spring(3.6, 0.85); // metres: knees stay soft for a second after a startle
   let inputFreeze = 0; // startle: seconds of ignored movement input
   let freezeTimer = 0; // freeze(): seconds remaining
@@ -426,7 +430,7 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
 
     // FOV: adopt outside changes to the base, add the startle kick on top
     if (Math.abs(camera.fov - lastFovSet) > 1e-4) baseFov = camera.fov;
-    const fov = baseFov + clamp(fovKick.x, -5, 5);
+    const fov = baseFov + clamp(fovKick.x, -5, 5) - zoom;
     if (Math.abs(fov - camera.fov) > 1e-4) {
       camera.fov = fov;
       camera.updateProjectionMatrix();
@@ -616,6 +620,7 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     jolt.step(dt);
     fovKick.step(dt);
     sag.step(dt);
+    zoom = damp(zoom, zoomWant, 7, dt);
 
     tension = damp(tension, tensionTarget, 1.7, dt);
     if (Math.abs(tension - tensionTarget) < 1e-4) tension = tensionTarget;
@@ -813,6 +818,10 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     },
     releaseLock() {
       input.releaseLock();
+    },
+
+    setZoom(degrees) {
+      zoomWant = Math.max(0, degrees);
     },
 
     setPose(pos, newYaw) {

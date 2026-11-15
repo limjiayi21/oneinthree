@@ -368,7 +368,7 @@ export interface Hud {
    * Part 2: a moment that matters. A shaded tip, and one row of up to four options (numbered in
    * analog mode, "what to do" in immersive). null clears.
    */
-  moment(opts: { tip: string; options: MomentOption[]; mode: PlayMode } | null): void;
+  moment(opts: { tip: string; options: MomentOption[]; mode: PlayMode; /** Real seconds the timer under the options takes to drain. */ seconds: number } | null): void;
   /** Highlights the option that was picked or done, and dims the rest. */
   momentPicked(index: number): void;
   /** Small control hint at the bottom ("Hold SPACE to speak"). null clears. */

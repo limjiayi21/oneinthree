@@ -564,6 +564,37 @@
 .oit-opt.is-dim {
   opacity: 0.3;
 }
+.oit-opt-timer {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(233, 228, 218, 0.15);
+  overflow: hidden;
+}
+.oit-opt-timer i {
+  display: block;
+  height: 100%;
+  background: var(--oit-accent);
+  transform-origin: left;
+  animation: oit-drain var(--secs, 8s) linear forwards, oit-warn 0.3s linear var(--warn, 6s) forwards;
+}
+.oit-tips.is-held .oit-opt-timer i,
+.oit-opt-timer.is-done i {
+  animation-play-state: paused;
+}
+@keyframes oit-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+@keyframes oit-warn {
+  to {
+    background: #c9564b;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .oit-tips,
   .oit-opt {
