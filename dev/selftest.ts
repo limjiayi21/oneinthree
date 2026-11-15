@@ -182,17 +182,20 @@ export async function runSelfTest(hud: Hud, screens: Screens, evidence: Evidence
   expect('step 2 is the content note', q('.oit-h1')!.textContent === 'Before you begin' && document.activeElement === q('.oit-h1'));
   expect('intro has not resolved before the content note is passed', (await settle(intro, 100)) === 'PENDING');
   clickText('.oit-intro', 'Continue');
-  expect('step 3 is how it works', q('.oit-h1')!.textContent === 'How it works');
+  expect('step 3 is how to play', q('.oit-h1')!.textContent === 'How do you want to play?');
+  expect('the body is picked and recommended by default', q('.oit-mode-card.is-selected')!.dataset.mode === 'immersive' && Boolean(q('.oit-mode-card.is-selected .oit-mode-badge')));
+  expect('the body shows fist to talk', q('.oit-chips')!.textContent!.includes('fist to talk'));
   clickText('.oit-intro', 'Back');
   expect('Back returns to the content note', q('.oit-h1')!.textContent === 'Before you begin');
   clickText('.oit-intro', 'Continue');
-  clickText('.oit-intro', 'Continue');
-  expect('step 4 says voices are off', q('.oit-intro')!.textContent!.includes('Voices are off for this session'));
+  (q('[data-mode="analog"]') as HTMLButtonElement).click();
+  expect('picking the keyboard swaps the controls', q('.oit-mode-card.is-selected')!.dataset.mode === 'analog' && q('.oit-chips')!.textContent!.includes('Hold to talk') && document.activeElement === q('[data-mode="analog"]'));
+  expect('voices off is said', q('.oit-intro')!.textContent!.includes('Voices are off'));
   clickText('.oit-intro', 'Allow microphone');
   await sleep(50);
-  expect('mic denial is explained', micAsked === 1 && q('.oit-mic-status')!.dataset.state === 'denied' && q('.oit-mic-status')!.textContent!.includes('type what you would say'));
+  expect('mic denial is explained', micAsked === 1 && q('.oit-mic-status')!.dataset.state === 'denied' && q('.oit-mic-status')!.textContent!.includes('to type'));
   clickText('.oit-intro', 'Begin Part 1');
-  expect('intro resolves', (await settle(intro)) === undefined);
+  expect('intro resolves with the way picked', (await settle(intro)) === 'analog');
   await sleep(800);
   expect('nothing blocks the view after the intro', q('#screens')!.children.length === 0 && hitScene());
 
@@ -200,7 +203,7 @@ export async function runSelfTest(hud: Hud, screens: Screens, evidence: Evidence
     const briefing = screens.briefing(pov);
     expect(`briefing(${pov}) shows`, q('.oit-brief.is-in')!.dataset.pov === pov);
     clickText('.oit-brief.is-in', 'Begin');
-    expect(`briefing(${pov}) resolves`, (await settle(briefing)) === undefined);
+    expect(`briefing(${pov}) resolves`, (await settle(briefing)) === 'begin');
   }
 
   let summary = screens.summary(mockSummary('woman', evidence));
