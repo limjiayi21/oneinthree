@@ -514,7 +514,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         hud.objective(deps.demo ? 'Get to the shop.' : 'Get home.');
         kit.event('begin');
         // After the controls tutorial if it is still running, so the two do not talk over each other.
-        kit.after(Math.max(3.5, tutorialEnds - kit.time + 0.3), () => !kit.ended && hud.hint(deps.hands?.active ? 'Hold SPACE or hold up your right fist to speak.  Or say nothing.' : 'Hold SPACE to speak.  Or say nothing.', 8000));
+        kit.after(Math.max(3.5, tutorialEnds - kit.time + 0.3), () => !kit.ended && hud.hint(deps.hands?.active ? 'Hold SPACE or hold up a fist to speak.  Or say nothing.' : 'Hold SPACE to speak.  Or say nothing.', 8000));
         // demo: if she stops to deal with him, point her at the way out once, so the demo cannot stall.
         if (deps.demo) kit.after(DEMO.nudgeAfter, () => !kit.ended && !finishing && hud.hint('The shop is still open.', 5000));
       }
