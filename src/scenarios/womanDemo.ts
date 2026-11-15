@@ -12,12 +12,12 @@ export const DEMO = {
    * Her start: right sidewalk, mid-block, facing down the street (yaw 0, like the subway exit).
    * x = 6.6 is the clear lane between the curbside trees and trash (x ~ 5.3) and the wall.
    */
-  start: new THREE.Vector3(6.6, 0, -52),
+  start: new THREE.Vector3(6.6, 0, -54),
   startYaw: 0,
   /** His spot: leaning on the wall just past the scaffolding. */
-  manSpot: new THREE.Vector3(8.08, 0, -64),
+  manSpot: new THREE.Vector3(8.08, 0, -65.5),
   /** The trash-can crash plays from just ahead on her right (the real alley is behind her). */
-  crashSource: new THREE.Vector3(8.3, 1, -58),
+  crashSource: new THREE.Vector3(8.3, 1, -60),
   /** Seconds after the crash before he looks up. */
   noticeDelay: 2,
   /** Seconds after the encounter begins before the "shop is still open" nudge. */

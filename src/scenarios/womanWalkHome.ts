@@ -202,7 +202,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     kit.after(2.2, () => !kit.ended && kit.think('w_left_1'));
     kit.after(7, () => !kit.ended && kit.think('w_left_2'));
     kit.after(4, () => (kit.serverFear = Math.min(kit.serverFear, 0.3)));
-    hud.objective('Get home.');
+    hud.objective(deps.demo ? 'Get to the shop.' : 'Get home.'); // demo: the shop is the end of her street
   }
 
   function involuntaryStepBack(distance: number): void {
@@ -233,6 +233,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       man.human.setEmotion(emotion, decision?.emotionIntensity ?? 0.7);
       const g = GESTURE_FOR[stance];
       if (g && Math.random() < 0.8) man.human.playGesture(pick(g));
+      // demo: she thinks of the shop early, once her reaction to his first line has landed (it comes at +0.9 s).
+      if (deps.demo && first('shopThought')) kit.after(4, () => !kit.ended && !finishing && kit.think('w_shop'));
       manSpeaking = kit.say(man, 'man', text, url).then(() => {
         if (seq === speechSeq) armSilenceTimer();
       });
@@ -302,6 +304,15 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       await kit.wait(0.8);
       await kit.say(clerk, 'clerk', 'You okay, miss? That guy bothering you? Stay as long as you need.', '/audio/vo/c_refuge.mp3');
       kit.think('w_refuge_1');
+      if (deps.demo) {
+        // demo: one thought, then out.
+        await kit.wait(2.2);
+        await hud.fade(true, 1200);
+        audio.stopAmbience(1.2);
+        await kit.wait(0.6);
+        kit.end(outcome);
+        return;
+      }
       await kit.wait(3.6);
       kit.think('w_refuge_2');
       await kit.wait(3.2);
@@ -408,9 +419,11 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         encounter = true;
         kit.speechEnabled = true;
         kit.refreshMic();
-        hud.objective('Get home.');
+        hud.objective(deps.demo ? 'Get to the shop.' : 'Get home.');
         kit.event('begin');
         kit.after(3.5, () => hud.hint('Hold SPACE to speak.  Or say nothing.', 8000));
+        // demo: if she stops to deal with him, point her at the way out once, so the demo cannot stall.
+        if (deps.demo) kit.after(DEMO.nudgeAfter, () => !kit.ended && !finishing && hud.hint('The shop is still open.', 5000));
       }
     }
 
@@ -456,7 +469,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       }
 
       // Nudges toward the choices a real woman would be weighing.
-      if (Math.abs(pos.z - P.shopDoor.z) < 9 && pos.x > 4.5 && first('shopThought') && kit.secondsSinceThought > 3) {
+      if (!deps.demo && Math.abs(pos.z - P.shopDoor.z) < 9 && pos.x > 4.5 && first('shopThought') && kit.secondsSinceThought > 3) {
         kit.think('w_shop');
       }
       if (pos.z < P.homeStoop.z + 14 && d < 12 && first('homeNear') && kit.secondsSinceThought > 2.5) {
@@ -504,7 +517,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   audio.startAmbience();
   audio.play('subway_rumble', { volume: 0.8 });
-  await hud.card('11:42 PM', 'Four blocks from home.', 3800);
+  await hud.card('11:42 PM', 'Four blocks from home.', deps.demo ? 2500 : 3800); // demo: shorter
   world.spawnPassingCar(1);
   audio.play('car_pass', { position: new THREE.Vector3(0, 0.5, -20), volume: 0.7 });
   if (deps.demo) {
@@ -517,7 +530,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     passer.setBehaviour({ type: 'leave', to: P.passerbyA1, speed: 1.5 });
     once.add('passer');
   }
-  await hud.fade(false, 2200);
+  await hud.fade(false, deps.demo ? 1000 : 2200);
   player.inputEnabled = true;
   hud.objective('Walk home.');
   if (deps.demo) {

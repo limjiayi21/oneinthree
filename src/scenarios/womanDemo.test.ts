@@ -19,7 +19,7 @@ describe('Part 1 demo staging', () => {
   });
 
   it('leaves her alone on her sidewalk between start and shop', () => {
-    expect(at(6, -52).edge).toBeNull();
+    expect(at(6, -54).edge).toBeNull();
     expect(at(7.5, -64).edge).toBeNull();
     expect(at(5, -78).edge).toBeNull();
   });
@@ -39,7 +39,7 @@ describe('Part 1 demo staging', () => {
   it('stops her going back', () => {
     const { p, edge } = at(6, -45);
     expect(edge).toBe('back');
-    expect(p.z).toBeLessThanOrEqual(-50.5);
+    expect(p.z).toBeLessThanOrEqual(DEMO.start.z + 1.5);
   });
 
   it('stops her going past the shop toward home', () => {
