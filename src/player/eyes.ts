@@ -201,7 +201,7 @@ interface Indicator {
 }
 
 const CSS = `
-.oit-eyes{position:fixed;top:14px;right:14px;z-index:60;display:flex;align-items:center;gap:8px;padding:6px 10px 6px 8px;border-radius:999px;background:rgba(10,12,16,.72);color:#e9edf2;font:500 12px/1.2 system-ui,-apple-system,sans-serif;pointer-events:none;backdrop-filter:blur(6px);transition:opacity .3s}
+.oit-eyes{position:fixed;top:60px;right:14px;z-index:60;display:flex;align-items:center;gap:8px;padding:6px 10px 6px 8px;border-radius:999px;background:rgba(10,12,16,.72);color:#e9edf2;font:500 12px/1.2 system-ui,-apple-system,sans-serif;pointer-events:none;backdrop-filter:blur(6px);transition:opacity .3s}
 .oit-eyes[hidden]{display:none}
 .oit-eyes-pad{position:relative;width:34px;height:22px;border-radius:5px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
 .oit-eyes-pad::after{content:"";position:absolute;inset:7px 13px;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}

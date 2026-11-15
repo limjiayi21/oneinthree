@@ -169,7 +169,7 @@ interface Indicator {
 }
 
 const CSS = `
-.oit-hands{position:fixed;top:52px;right:14px;z-index:60;display:flex;align-items:center;gap:8px;padding:6px 10px 6px 8px;border-radius:999px;background:rgba(10,12,16,.72);color:#e9edf2;font:500 12px/1.2 system-ui,-apple-system,sans-serif;pointer-events:none;backdrop-filter:blur(6px)}
+.oit-hands{position:fixed;top:98px;right:14px;z-index:60;display:flex;align-items:center;gap:8px;padding:6px 10px 6px 8px;border-radius:999px;background:rgba(10,12,16,.72);color:#e9edf2;font:500 12px/1.2 system-ui,-apple-system,sans-serif;pointer-events:none;backdrop-filter:blur(6px)}
 .oit-hands[hidden],.oit-hands-hint[hidden]{display:none}
 .oit-hands-icon{width:22px;text-align:center;font-size:15px;line-height:1;opacity:.45;transition:opacity .15s,transform .15s}
 .oit-hands-icon[data-seen]{opacity:1}
