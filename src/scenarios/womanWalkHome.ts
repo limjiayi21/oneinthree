@@ -4,6 +4,7 @@
  * and turns the decision model's answers into his body, face and voice, and
  * into her involuntary reactions and inner thoughts.
  */
+import { LEVELS } from '../../shared/levels';
 import * as THREE from 'three';
 import type { Gesture, Npc, Posture } from '../contracts';
 import type { ManDecision, ManStance, OutcomeKind, TurnEvent } from '../../shared/types';
@@ -248,6 +249,11 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       case 'decision':
         applyDecision(ev.man);
         kit.serverFear = ev.fear;
+        if (typeof ev.man.level === 'number') {
+          // He has walked off: the meter goes away with him.
+          if (ev.man.stance === 'gone') kit.deps.hud.setLevel(null);
+          else kit.deps.hud.setLevel(ev.man.level, LEVELS[ev.man.level]?.name ?? '');
+        }
         break;
       case 'line':
         onLine(ev.text, ev.audioUrl, ev.speaker, ev.emotion);
@@ -269,6 +275,14 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         break;
     }
   };
+
+  /** Where he waits, on the sidewalk just outside the shop door. */
+  const SHOP_WAIT = new THREE.Vector3(P.shopDoor.x - 2.0, 0, P.shopDoor.z + 1.2);
+
+  /** One answer to "is he still around?" for every scripted beat that mentions him. */
+  function heIsHere(): boolean {
+    return encounter && !manGone && stance !== 'gone' && man.distanceTo(player.position) < 25;
+  }
 
   /* ------------------------------------------------------------ endings */
 
@@ -299,13 +313,23 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       audio.play('shop_bell', { position: P.shopDoor, volume: 0.9 });
       player.inputEnabled = false;
       kit.serverFear = Math.min(kit.serverFear, 0.5);
+      // Only talk about him if he is actually out there: he may have walked off long before she came in.
+      const present = heIsHere();
+      if (present) {
+        // He does not just vanish: he comes up to the door and waits outside for a moment, watching
+        // (women describe men waiting outside a shop), before he gives up and walks off.
+        man.setBehaviour({ type: 'goTo', target: SHOP_WAIT, speed: 1.6, faceOnArrive: () => P.shopDoor });
+        man.human.setEmotion('annoyed', 0.75);
+        man.human.setGaze(P.shopDoor.clone().setY(1.6));
+      }
       clerk.human.setGaze(player.getEyePosition(eye));
-      clerk.human.setEmotion('worried', 0.7);
+      clerk.human.setEmotion(present ? 'worried' : 'neutral', present ? 0.7 : 0.4);
       await kit.wait(0.8);
-      await kit.say(clerk, 'clerk', 'You okay, miss? That guy bothering you? Stay as long as you need.', '/audio/vo/c_refuge.mp3');
-      kit.think('w_refuge_1');
+      if (present) await kit.say(clerk, 'clerk', 'You okay, miss? That guy bothering you? Stay as long as you need.', '/audio/vo/c_refuge.mp3');
+      else await kit.say(clerk, 'clerk', 'Evening. You alright, miss? Cold one tonight.', '/audio/vo/c_refuge_alone.mp3');
+      kit.think(present ? 'w_refuge_1' : 'w_refuge_alone_1');
       if (deps.demo) {
-        // demo: one thought, then out.
+        // demo: one thought, then out (no second thought, no parting shot from him).
         await kit.wait(2.2);
         await hud.fade(true, 1200);
         audio.stopAmbience(1.2);
@@ -314,7 +338,14 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         return;
       }
       await kit.wait(3.6);
-      kit.think('w_refuge_2');
+      kit.think(present ? 'w_refuge_2' : 'w_refuge_alone_2');
+      if (present) {
+        // ... then a sour parting shot through the door, and he goes.
+        await kit.wait(2.4);
+        await kit.say(man, 'man', 'Whatever. Not worth it.', '/audio/vo/m_shop_sour.mp3');
+        leave();
+        await kit.wait(2.6);
+      }
       await kit.wait(3.2);
       await hud.fade(true, 2200);
       audio.stopAmbience(2);
@@ -445,6 +476,21 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     if (encounter && !manGone) {
       man.human.setGaze(eye);
       const d = man.distanceTo(pos);
+
+      // He keeps up with her. Decisions only arrive every few seconds; between them, a man who is still
+      // engaged does not stand there while she walks off and then wander over later. Beside her while he
+      // is talking (levels 0-3), trailing her once he is angry (4+). Leaving, backing off and the grab are
+      // the model's call alone.
+      const engaged = !['back_off', 'gone', 'escalate', 'idle'].includes(stance);
+      // 'closeIn' holds once it arrives, so a woman who walks off during it is left behind as well.
+      if (engaged && (man.behaviour === 'idle' || man.behaviour === 'closeIn') && !finishing) {
+        const lvl = decision?.level ?? 1;
+        const keep = (lvl >= 4 ? 3.2 : 2.4) + (man.behaviour === 'closeIn' ? 0.8 : 0);
+        if (d > keep && (player.speed > 0.4 || d > 4.5)) {
+          if (lvl >= 4 || stance === 'follow') man.setBehaviour({ type: 'followBehind', target: towardLagged, gap: 2.4, speed: 2.4 });
+          else man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, 1.3), gap: 1.3 });
+        }
+      }
 
       // Her body reacts before she does.
       if (d < 0.95 && man.speed > 0.2 && kit.time - lastFlinch > 3.5) {

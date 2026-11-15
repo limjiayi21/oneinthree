@@ -1,7 +1,8 @@
 /**
  * Shared machinery for the scene directors: a pausable scene clock, the fear
  * model that drives every sensory channel, speech and thought playback,
- * push-to-talk, and the serialised turn pipeline to the Worker.
+ * push-to-talk (pressing Space while he talks cuts him off), and the
+ * serialised turn pipeline to the Worker.
  */
 import * as THREE from 'three';
 import type { AudioEngine, Engine, Hud, Mic, Npc, Player, Rect, StreetWorld } from '../contracts';
@@ -17,7 +18,7 @@ import type {
 import { createSession, sendTurn } from '../net/api';
 import type { PhoneLink } from '../net/phoneLink';
 import { MAX_CLIP_BYTES } from '../../shared/audio';
-import { MAX_CLIP_MS, bargeOnTalkStart, pushToTalkDown, type TalkOrigin } from '../audio/talk';
+import { MAX_CLIP_MS, bargeOnTalkStart, heardPortion, pushToTalkDown, type TalkOrigin } from '../audio/talk';
 import { captionHoldMs } from '../ui/captions';
 import scriptJson from '../../content/script.json';
 import type { EyeLookSource } from '../player/eyes';
@@ -52,6 +53,8 @@ export interface SceneDeps {
   phone?: PhoneLink;
   /** ?demo=1: the short, guided Part 1 (see womanDemo.ts). */
   demo?: boolean;
+  /** 'golden': the scripted reference playthrough (docs/golden-run.md). */
+  run?: 'golden';
 }
 
 export interface SceneResult {
@@ -104,6 +107,10 @@ export class SceneKit {
   private npcAudible = false;
   /** Scenes switch this on once the player may speak. */
   speechEnabled = false;
+  /** His line that is playing now, to work out how much of it she let him say. */
+  private speaking: { text: string; startedAt: number; seconds: number } | null = null;
+  /** She cut him off; the next thing she says carries this so he knows. */
+  private cutOff: { line: string; heard: string } | null = null;
   private lastThoughtAt = -99;
   private resolveEnd!: (o: OutcomeKind) => void;
   readonly finished: Promise<OutcomeKind>;
@@ -133,7 +140,7 @@ export class SceneKit {
   /* ------------------------------------------------------------ lifecycle */
 
   async openSession(): Promise<void> {
-    const res = await createSession({ pov: this.pov, scenario: 'walk-home', seed: this.deps.seed });
+    const res = await createSession({ pov: this.pov, scenario: 'walk-home', seed: this.deps.seed, ...(this.deps.run && this.pov === 'woman' ? { run: this.deps.run } : {}) });
     this.sessionId = res.sessionId;
   }
 
@@ -239,6 +246,7 @@ export class SceneKit {
     this.deps.hud.hint(null);
     this.deps.hud.prompt(null);
     this.deps.hud.objective(null);
+    this.deps.hud.setLevel(null);
     this.deps.hud.clearSubtitle();
     this.deps.hud.setFilming(false);
   }
@@ -275,6 +283,7 @@ export class SceneKit {
     const hold = hasAudio ? captionHoldMs(true, text) : Math.ceil((estimate + 0.8) * 1000);
     hud.subtitle(speaker, text, hold);
     this.npcAudible = true;
+    this.speaking = { text, startedAt: performance.now(), seconds: estimate };
     try {
       if (hasAudio) {
         let got = false;
@@ -298,6 +307,7 @@ export class SceneKit {
     } finally {
       if (token === this.captionToken) {
         this.npcAudible = false;
+        this.speaking = null;
         hud.clearSubtitle();
       }
     }
@@ -369,7 +379,13 @@ export class SceneKit {
     const isSpeech = req.event === 'speech';
     const terminal = req.event === 'reached_home' || req.event === 'entered_shop' || req.event === 'scene_timeout';
     if (this.busy) {
-      // Keep only the most important thing waiting: speech and scene-ending events beat everything.
+      // Two utterances while he is answering: keep both sets of words, in order.
+      const prev = this.pending?.req;
+      if (isSpeech && prev?.event === 'speech' && prev.text && req.text && !audio && !this.pending?.audio) {
+        this.pending = { req: { ...req, text: `${prev.text} ${req.text}`, interrupted: prev.interrupted ?? req.interrupted } };
+        return;
+      }
+      // Otherwise keep only the most important thing waiting: speech and scene-ending events beat everything.
       if (isSpeech || terminal || !this.pending) this.pending = { req, audio };
       return;
     }
@@ -487,14 +503,9 @@ export class SceneKit {
   }
 
   private beginTalk(origin: TalkOrigin): void {
-    const { mic, hud, audio } = this.deps;
+    const { mic, hud } = this.deps;
     if (this.talkHeld || this.ended || !this.speechEnabled) return;
-    if (bargeOnTalkStart(this.npcAudible)) {
-      audio.stopAllSpeech();
-      this.npcAudible = false;
-      this.captionToken++;
-      hud.clearSubtitle();
-    }
+    if (bargeOnTalkStart(this.npcAudible)) this.bargeIn();
     this.talkOrigin = origin;
     this.talkHeld = true;
     this.missedUntil = 0;
@@ -522,7 +533,7 @@ export class SceneKit {
         this.flashMissed();
         return;
       }
-      void this.turn({ event: 'speech', ctx: this.context() }, blob);
+      void this.turn({ event: 'speech', ctx: this.context(), source: 'ptt', ...this.takeCutOff() }, blob);
     });
   }
 
@@ -539,9 +550,33 @@ export class SceneKit {
     this.typing = false;
     if (text && text.trim() && !this.ended) {
       hud.subtitle('you', text.trim(), 2600);
-      void this.turn({ event: 'speech', ctx: this.context(), text: text.trim() });
+      void this.turn({ event: 'speech', ctx: this.context(), text: text.trim(), source: 'typed', ...this.takeCutOff() });
     }
   }
+
+  /* ------------------------------------------------------------ barge-in */
+
+  /** Stop him mid-line because she is talking, and remember how much he got out. */
+  private bargeIn(): void {
+    const { audio, hud } = this.deps;
+    const sp = this.speaking;
+    if (sp) {
+      const played = (performance.now() - sp.startedAt) / 1000;
+      if (played < sp.seconds - 0.25) this.cutOff = { line: sp.text, heard: heardPortion(sp.text, played, sp.seconds) };
+    }
+    audio.stopAllSpeech();
+    this.npcAudible = false;
+    this.speaking = null;
+    this.captionToken++;
+    hud.clearSubtitle();
+  }
+
+  private takeCutOff(): { interrupted?: { line: string; heard: string } } {
+    const cut = this.cutOff;
+    this.cutOff = null;
+    return cut ? { interrupted: cut } : {};
+  }
+
 }
 
 /** Positions a point `gap` metres to one side of the player, preferring the open (road) side. */

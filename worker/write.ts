@@ -18,6 +18,7 @@
  * drops to the authored line bank.
  */
 import type { Emotion, ManStance, WomanStrategy, WorldContext } from '../shared/types';
+import { LEVELS } from './model/ladder';
 
 export const LINE_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 export const LINE_TIMEOUT_MS = 2500;
@@ -110,7 +111,7 @@ export const WOMAN_SYSTEM = `${HEADER}
 ${PERSONA}
 
 You are told what he does now (already decided) and what she just said or did. Write:
-- "line": what he says out loud now. ONE spoken line, 5 to 14 words, in his voice. It is a reply: pick up one of her own words, her excuse, her silence or her movement and throw it back at her. Use her words before any stock phrase. Write it as it would be transcribed, with commas, apostrophes and a question mark when he is asking. No stage directions, no quotation marks inside, no emojis.
+- "line": what he says out loud now. ONE spoken line, 5 to 14 words, in his voice. It is a reply to exactly what she just said: if she asked him something, he answers it (in his own way) before anything else; pick up her own words, her excuse, her silence or her movement and throw it back at her. Use her words before any stock phrase. He remembers the whole encounter: he uses her name if she gave it, never asks something he already asked or she already answered, and pushes for WHAT HE WANTS NOW. If RECENT shows she cut him off mid-sentence, he noticed: he may react to being talked over, but only in the way the stance allows. Write it as it would be transcribed, with commas, apostrophes and a question mark when he is asking. No stage directions, no quotation marks inside, no emojis.
 - "thought": her private thought in this instant, first person, 4 to 10 words, about the thing named under THOUGHT ABOUT. Plain and concrete, a full short sentence with its punctuation. She does not blame herself. She has not taken out her phone and nobody else is on the street. Never invent street names, people, or things she has done.
 
 ${LIMITS}
@@ -122,7 +123,7 @@ export const BYSTANDER_SYSTEM = `${HEADER} In this scene the trainee is a BYSTAN
 ${PERSONA}
 
 You are told what the bystander just said or did and who they addressed, and given a list of lines to WRITE with a direction for each. Write only those, in that order:
-- a line for "man" is what he says out loud, to the bystander unless the direction says otherwise: 5 to 14 words, in his voice. It answers what the bystander actually said or did: pick up their words.
+- a line for "man" is what he says out loud, to the bystander unless the direction says otherwise: 5 to 14 words, in his voice. It answers what the bystander actually said or did: pick up their words. If RECENT shows he was cut off mid-sentence, he noticed being talked over.
 - a line for "woman" is what she says out loud: 4 to 12 words, quiet, shaken, natural. If the bystander pretended to know her or asked for directions, she goes along with it.
 - "thought" is her private thought in this instant, first person, 4 to 10 words, a full short sentence.
 Write each line as it would be transcribed, with commas, apostrophes and question marks. No stage directions, no quotation marks inside, no emojis.
@@ -215,9 +216,38 @@ export interface WomanLineInput {
   avoidThoughts: string[];
   /** Two numbers in [0, 1) that pick the angle and the thought topic (from the session's seeded RNG). */
   dice: [number, number];
+  /** His escalation level 0..6 (worker/model/ladder.ts). The line has to sound like this level. */
+  level?: number;
+  /** The story so far (worker/story.ts): what he knows about her, what he has asked, what he wants now. */
+  memory?: string;
 }
 
 const pickBy = <T>(list: T[], roll: number): T => list[Math.min(list.length - 1, Math.floor(roll * list.length))];
+
+const REFUSALS: WomanStrategy[] = ['polite_deflect', 'firm_boundary', 'hostile', 'excuse', 'threaten_attention', 'plead', 'seek_help'];
+/** Level 1-2 after a no: he brushes it off, irritated, and keeps going. */
+const BRUSH_OFF_NO = [
+  'tells her to relax, he is only talking, and keeps going',
+  'asks what her problem is, he was just being friendly',
+  'scoffs at her no and asks for one more minute anyway',
+  'repeats her words back mockingly, then pushes on',
+  'says she does not have to be like that, and stays right beside her',
+];
+/** Level 3 after a no: he takes it as an insult. */
+const OFFENDED_AT_NO = [
+  'acts insulted by her no: she is rude, he was being nice',
+  'asks who she thinks she is, talking to him like that',
+  'says she is stuck up and could at least be polite',
+  'throws her words back at her, offended and sarcastic',
+];
+/** Leaving after a no: a sour, face-saving parting shot (what narrative accounts describe), not a polite goodbye. */
+const SOUR_EXITS = [
+  'says it is her loss, sourly, as he turns away',
+  'tells her to relax, he is going, she did not have to be rude about it',
+  'mutters that she is stuck up anyway as he leaves',
+  'says she is not even worth it and waves her off',
+  'says fine, whatever, and that she should learn some manners',
+];
 
 export function womanUserPrompt(i: WomanLineInput): string {
   const where: string[] = [];
@@ -236,21 +266,29 @@ export function womanUserPrompt(i: WomanLineInput): string {
   if (i.stance === 'persist' && i.strategy === 'excuse') angle = 'argues with her excuse instead of accepting it';
   else if (i.stance === 'persist' && i.strategy === 'engage') angle = 'takes her answer as encouragement and asks for more';
   else if (i.stance === 'back_off' && (i.strategy === 'threaten_attention' || i.strategy === 'seek_help')) angle = 'says he did nothing wrong and he is going';
+  // She just said no. He never carries on as if she had said nothing: the line answers the refusal itself,
+  // with the irritation of his level. Leaving after a no is a sour, face-saving parting shot, not a polite goodnight.
+  const refused = REFUSALS.includes(i.strategy) && i.event === 'speech';
+  if ((refused || (i.level ?? 0) >= 3) && i.stance === 'back_off') angle = pickBy(SOUR_EXITS, i.dice[0]);
+  else if (refused && (i.stance === 'persist' || i.stance === 'follow' || i.stance === 'block')) angle = pickBy((i.level ?? 2) >= 3 ? OFFENDED_AT_NO : BRUSH_OFF_NO, i.dice[0]);
   const topic = pickBy(i.stance === 'back_off' ? THOUGHT_TOPICS_LEAVING : THOUGHT_TOPICS, i.dice[1]);
 
   const she =
     i.event === 'speech' && i.herWords
-      ? `SHE JUST SAID: "${i.herWords.slice(0, 240)}" (${STRATEGY_NOTE[i.strategy]})`
+      ? `SHE JUST SAID: "${i.herWords.slice(0, 240)}" (${STRATEGY_NOTE[i.strategy]})${refused ? '. That was a no: his line reacts to her no directly and shows he is irritated by it; he never carries on as if she had not said it.' : ''}`
       : `SHE JUST: ${EVENT_NOTE[i.event] ?? 'said nothing'}`;
+  const lvl = typeof i.level === 'number' ? LEVELS[Math.max(0, Math.min(LEVELS.length - 1, i.level))] : null;
   const parts = [
     `HE NOW: ${brief.does}. One way he might do it: he ${angle}.`,
+    ...(lvl ? [`HIS LEVEL: ${lvl.level} of 6 (${lvl.name}): ${lvl.direction}. The line must sound exactly this heated: not calmer, not angrier.`] : []),
     `HIS MOOD: ${i.emotion}`,
     `WHERE: ${where.join(' ')}`,
-    `RECENT:\n${i.recent.slice(-5).join('\n') || '(nothing yet)'}`,
+    ...(i.memory ? [i.memory] : []),
+    `THE ENCOUNTER SO FAR (oldest first):\n${i.recent.slice(-14).join('\n') || '(nothing yet)'}`,
     she,
     `THOUGHT ABOUT: ${topic}`,
   ];
-  if (i.avoidLines.length) parts.push(`HE HAS ALREADY SAID (say something different): ${i.avoidLines.slice(-4).join(' / ')}`);
+  if (i.avoidLines.length) parts.push(`HE HAS ALREADY SAID (never repeat or re-ask any of it): ${i.avoidLines.slice(-12).join(' / ')}`);
   if (i.avoidThoughts.length) parts.push(`SHE HAS ALREADY THOUGHT (think something different): ${i.avoidThoughts.slice(-4).join(' / ')}`);
   return parts.join('\n');
 }
@@ -422,7 +460,7 @@ export function writeFields(ai: Ai, spec: WriteSpec): Promise<WriteResult> {
         if (winner === -1) {
           if (key !== first) continue;
           const value = spec.validate(key, raw);
-          if (value === null) throw new Error('rejected');
+          if (value === null) throw new Error(`rejected by the content check: ${JSON.stringify(String(raw).slice(0, 120))}`);
           winner = index;
           msFirst = Date.now() - started;
           fields[key] = value;
@@ -488,8 +526,12 @@ export function writeFields(ai: Ai, spec: WriteSpec): Promise<WriteResult> {
           }
         }
         if (winner === index) finish();
-      } catch {
-        /* this attempt is out; another may still win */
+      } catch (err) {
+        // This attempt is out; another may still win. Never silent: a refusal here (e.g. 4006, daily free
+        // allocation used up) means his line falls back to the pre-written bank, which ignores what she said.
+        // The losing request of a hedged pair is cancelled on purpose: that is not a failure.
+        const msg = String((err as Error)?.message ?? err);
+        if (!/cancel/i.test(msg)) console.warn('[ai] line writer failed:', msg.slice(0, 300));
       } finally {
         live -= 1;
         if (winner !== index) void readers[index]?.cancel().catch(() => {});

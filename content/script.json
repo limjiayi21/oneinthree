@@ -29,6 +29,10 @@
     "w_refuge_2": { "speaker": "thought", "text": "How long do I wait? Is he still out there?", "emotion": "afraid", "delivery": "low" },
 
     "c_refuge": { "speaker": "clerk", "text": "You okay, miss? That guy bothering you? Stay as long as you need.", "emotion": "worried", "delivery": "normal" },
+    "m_shop_sour": { "speaker": "man", "text": "Whatever. Not worth it.", "emotion": "annoyed", "delivery": "normal" },
+    "c_refuge_alone": { "speaker": "clerk", "text": "Evening. You alright, miss? Cold one tonight.", "emotion": "neutral", "delivery": "normal" },
+    "w_refuge_alone_1": { "speaker": "thought", "text": "Okay. I'm inside. I'm okay.", "emotion": "relieved", "delivery": "low" },
+    "w_refuge_alone_2": { "speaker": "thought", "text": "He's gone. Just breathe for a second.", "emotion": "relieved", "delivery": "low" },
     "c_help_1": { "speaker": "clerk", "text": "Hey! Hey, leave her alone, man. I got cameras out here.", "emotion": "determined", "delivery": "call_out" },
     "c_help_2": { "speaker": "clerk", "text": "Keep walking, or I'm calling the cops. I mean it.", "emotion": "determined", "delivery": "call_out" },
     "c_ask": { "speaker": "clerk", "text": "What's going on out there? Him? Yeah. Hold on.", "emotion": "worried", "delivery": "normal" },

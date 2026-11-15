@@ -1,0 +1,12 @@
+[
+ ["Hiya.","engage"],["Hey, what's up?","engage"],["Evening to you too.","engage"],["I'm Priya, and you?","engage"],["Just getting home from the gym.","engage"],["Ha, okay, thanks.","engage"],["Pretty good, how about you?","engage"],["I'm heading to my friend's place.","engage"],
+ ["No thanks, I'm all set.","polite_deflect"],["Thanks, but I'm good.","polite_deflect"],["Okay, well, good night.","polite_deflect"],["I should really go.","polite_deflect"],["Sorry, not tonight.","polite_deflect"],
+ ["Stop it.","firm_boundary"],["Leave me be.","firm_boundary"],["Do not follow me.","firm_boundary"],["I'm not interested. Goodbye.","firm_boundary"],["Get away from me.","firm_boundary"],
+ ["You're a creep.","hostile"],["Drop dead.","hostile"],["Who the hell do you think you are, asshole?","hostile"],["Ugh, gross. Fuck off.","hostile"],
+ ["I have a girlfriend.","excuse"],["My brother is meeting me at the corner.","excuse"],["I'm late for my shift.","excuse"],["Sorry, I'm on a call.","excuse"],
+ ["I'm calling 911.","threaten_attention"],["I'll scream if you come closer.","threaten_attention"],["Smile for my camera, I'm recording.","threaten_attention"],
+ ["Excuse me! Ma'am! Can you help me?","seek_help"],["I'm going in that shop right now.","seek_help"],["Somebody please help!","seek_help"],
+ ["Please, leave me alone, please.","plead"],["Please don't do this.","plead"],["Please, I just want to get home safe.","plead"],
+ ["Ugh.","ignore"],["Mmm.","ignore"],
+ ["Huh, what?","unclear"],["Sorry, I didn't catch that.","unclear"],["Pardon?","unclear"]
+]
