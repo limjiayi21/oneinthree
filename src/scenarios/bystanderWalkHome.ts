@@ -17,11 +17,14 @@ import { LINE, ROAD_HALF, SHOP, rect, shopPocket } from '../world/layout';
 import { DEMO } from './womanDemo';
 import type { MomentOption } from '../contracts';
 import { LEVELS } from '../../shared/levels';
+import { reducedMotion } from '../ui/dom';
 
 /** While a moment is open the street slows to this fraction of real time. */
 const SLOW = 0.3;
 /** How long a moment stays open, in real seconds, if the player does nothing. */
 const TIP_SECONDS = 8;
+/** When a moment opens the view eases this many degrees tighter (70 to 63, about 10% closer). */
+const ZOOM_DEG = 7;
 
 /** What an option does. Analog: pressing its number does it. Immersive: the player has to do it for real. */
 type Act = { kind: 'say'; line: string; to: 'man' | 'woman' } | { kind: 'film' } | { kind: 'help' } | { kind: 'look' } | { kind: 'walk' };
@@ -328,7 +331,8 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     open = { options: m.options };
     lookFor = 0;
     kit.timeScale = SLOW;
-    hud.moment({ tip: m.tip, options: m.options, mode });
+    if (!reducedMotion()) player.setZoom(ZOOM_DEG);
+    hud.moment({ tip: m.tip, options: m.options, mode, seconds: TIP_SECONDS });
     // Scene time, so a pause does not run it down. Letting it pass is the walk option.
     cancelMoment = kit.after(TIP_SECONDS * SLOW, () => did('walk'));
   }
@@ -340,6 +344,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     if (!open) return;
     open = null;
     kit.timeScale = 1;
+    player.setZoom(0);
     if (picked === undefined || picked < 0) {
       hud.moment(null);
       return;

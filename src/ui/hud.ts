@@ -783,6 +783,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     overlayLayer.appendChild(el);
     reflow(el);
     el.classList.add('is-on');
+    tipsEl.classList.add('is-held'); // a moment's timer stops while paused
     const release = trapFocus(el);
     resumeBtn.focus({ preventScroll: true });
 
@@ -794,6 +795,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
         release();
         pausePromise = null;
         pauseEnd = null;
+        tipsEl.classList.remove('is-held');
         el.classList.remove('is-on');
         el.setAttribute('inert', '');
         later(() => el.remove(), 320);
@@ -821,7 +823,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
   // leads with what to press (analog) or what to do for real (immersive), then the line, then its 5 Ds name.
   let momentOpts: HTMLElement[] = [];
 
-  function moment(opts: { tip: string; options: MomentOption[]; mode: PlayMode } | null): void {
+  function moment(opts: { tip: string; options: MomentOption[]; mode: PlayMode; seconds: number } | null): void {
     momentOpts = [];
     if (!opts) {
       tipsEl.classList.remove('is-on');
@@ -841,7 +843,11 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
         o.tag ? h('span', { class: 'oit-opt-tag' }, o.tag) : null,
       );
     });
-    tipsEl.replaceChildren(h('p', { class: 'oit-tip' }, opts.tip), h('div', { class: 'oit-opts' }, ...momentOpts));
+    // The timer under the options drains over the moment and turns red for its last two seconds.
+    const timer = h('div', { class: 'oit-opt-timer', 'aria-hidden': 'true' }, h('i'));
+    timer.style.setProperty('--secs', `${opts.seconds}s`);
+    timer.style.setProperty('--warn', `${Math.max(0, opts.seconds - 2)}s`);
+    tipsEl.replaceChildren(h('p', { class: 'oit-tip' }, opts.tip), h('div', { class: 'oit-opts' }, ...momentOpts), timer);
     reflow(tipsEl);
     tipsEl.classList.add('is-on');
     const how = (o: MomentOption, i: number) => (immersive ? `${o.how}: ${o.text}` : `${i + 1}: ${o.text}`);
@@ -850,6 +856,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
 
   function momentPicked(index: number): void {
     momentOpts.forEach((el, i) => el.classList.add(i === index ? 'is-picked' : 'is-dim'));
+    tipsEl.querySelector('.oit-opt-timer')?.classList.add('is-done');
   }
 
   function dispose(): void {
