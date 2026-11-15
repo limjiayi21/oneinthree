@@ -14,6 +14,8 @@ import type { SceneDeps, SceneResult } from './scenarios/common';
 import type { OutcomeKind, Pov, SummaryData } from '../shared/types';
 import { createEyeTracker } from './player/eyes';
 import { createHandTracker } from './player/hands';
+import { createAirPodsLook, detectAirPods } from './player/airpods';
+import type { EyeLookSource } from './player/eyes';
 import { firstPickTactics } from '../shared/content';
 
 /** The recap screen after the teaching replay, ticking the Ds the player chose first. */
@@ -93,12 +95,22 @@ async function main(): Promise<void> {
     verticalSensitivity: params.has('eyegainy') ? Number(params.get('eyegainy')) : undefined,
   });
   const hands = createHandTracker();
+  // AirPods head tracking (via the macOS helper, `npm run airpods`) takes over head look when available.
+  const airpods = createAirPodsLook({ flipX: params.get('airpodsx') === '-1', flipY: params.get('airpodsy') === '-1' });
+  const headLook: EyeLookSource = { read: () => airpods.read() ?? eyes.read() };
+  const lookForAirPods = () => void detectAirPods().then((found) => (found || params.get('airpods') === '1') && airpods.start());
+  lookForAirPods();
+  // Device names only show once microphone permission is granted, and AirPods can connect mid-session: look again then.
+  navigator.mediaDevices?.addEventListener?.('devicechange', lookForAirPods);
   window.addEventListener('keydown', (e) => {
     if ((e.code !== 'KeyG' && e.code !== 'KeyH') || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
     const el = document.activeElement;
     if (el instanceof HTMLElement && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
     if (e.code === 'KeyH') hands.toggle();
-    else if (e.shiftKey) eyes.recalibrate();
+    else if (e.shiftKey) {
+      eyes.recalibrate();
+      airpods.recalibrate();
+    }
     else eyes.toggle();
   });
 
@@ -115,7 +127,7 @@ async function main(): Promise<void> {
     seed,
     // ?run=golden: the scripted reference playthrough (docs/golden-run.md).
     run: params.get('run') === 'golden' ? 'golden' : undefined,
-    eyes,
+    eyes: headLook,
     hands,
     phone,
     demo: params.get('demo') === '1',
@@ -124,9 +136,9 @@ async function main(): Promise<void> {
 
   screens.loading(null);
   if (!skip.has('intro')) {
-    await screens.intro({ voiceAvailable: health.voice, requestMic: () => mic.init() });
+    await screens.intro({ voiceAvailable: health.voice, requestMic: () => mic.init().finally(lookForAirPods) });
   } else {
-    void mic.init();
+    void mic.init().finally(lookForAirPods);
   }
   if (params.get('eyes') === '1') void eyes.enable();
   if (params.get('hands') === '1') void hands.enable();
