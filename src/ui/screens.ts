@@ -18,6 +18,7 @@ import type { FiveDResult, Insight, Pov, Rationale, SummaryData, TimelineEntry }
 import type { CaseStudy, Evidence, EvidenceSource, EvidenceStat, SupportResource } from '../../shared/evidence';
 import { add, clamp01, ensureFonts, focusables, h, keycap, nextId, reflow, type Child } from './dom';
 import { bundledEvidence, headlineStat, hostOf, normaliseEvidence, resolveSources, resolveStats, safeUrl } from './evidence';
+import { createFilmPlayer, type FilmOptions, type FilmResult } from './film';
 
 export interface ScreensOptions {
   /**
@@ -441,8 +442,8 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
 
   /* --------------------------------------------------------------- briefing */
 
-  function briefing(pov: Pov): Promise<void> {
-    return new Promise<void>((resolve) => {
+  function briefing(pov: Pov, opts: { details?: boolean } = {}): Promise<'begin' | 'details'> {
+    return new Promise<'begin' | 'details'>((resolve) => {
       const bystander = pov === 'bystander';
       const titleId = nextId('oit-brief');
       const el = h('section', { class: 'oit-screen oit-screen--scrim oit-brief', 'aria-labelledby': titleId, 'data-pov': bystander ? 'bystander' : 'woman' });
@@ -455,11 +456,31 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           onclick: () => {
             // Resolved inside the click: the caller uses this gesture for pointer lock and audio.
             close(el);
-            resolve();
+            resolve('begin');
           },
         },
         'Begin',
       );
+      // After the Part 1 film: the old Part 1 debrief, one click away.
+      const details = opts.details
+        ? h(
+            'p',
+            { class: 'oit-brief-details' },
+            h(
+              'button',
+              {
+                class: 'oit-textbtn',
+                type: 'button',
+                onclick: () => {
+                  close(el);
+                  resolve('details');
+                },
+              },
+              'See full details',
+              h('span', { class: 'oit-sr' }, ' of what happened in Part 1'),
+            ),
+          )
+        : null;
 
       const affordance = (key: string | null, label: string): HTMLElement =>
         h('li', { class: 'oit-afford' }, h('span', { class: 'oit-afford-key' }, key ? keycap(key) : null), h('span', null, label));
@@ -509,6 +530,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
             { class: 'oit-brief-in' },
             body,
             h('div', { class: 'oit-actions oit-rise' }, begin, h('p', { class: 'oit-brief-esc' }, keycap('Esc'), ' pauses at any time.')),
+            details,
           ),
         ),
       );
@@ -1176,5 +1198,17 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     focusStart(el);
   }
 
-  return { intro, briefing, summary, recap, closing, loading, error };
+  /* -------------------------------------------------------------------- film */
+
+  function film(opts: FilmOptions): Promise<FilmResult> {
+    return new Promise<FilmResult>((resolve) => {
+      const { el } = createFilmPlayer(opts, (result) => {
+        close(el);
+        resolve(result);
+      });
+      show(el);
+    });
+  }
+
+  return { intro, briefing, film, summary, recap, closing, loading, error };
 }

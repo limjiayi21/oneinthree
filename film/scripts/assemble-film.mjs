@@ -1,0 +1,502 @@
+#!/usr/bin/env node
+/**
+ * Assembles the Part 1 film (about 36 s) from the prepared assets. No API calls.
+ * Needs ffmpeg and Google Chrome (headless, to render the text cards).
+ *
+ *   node film/scripts/assemble-film.mjs              build everything
+ *   node film/scripts/assemble-film.mjs --vtt-only   only write the text track
+ *
+ * Inputs (film/assets/, not in git): video/A-veo.mp4, video/C-veo.mp4,
+ * edit/B.mp4, edit/D.mp4, edit/E.mp4, montage-5s.wav (build-montage.mjs
+ * --profile short), the narration-*-female.mp3 lines, music.mp3, sfx-*.mp3.
+ *
+ * Outputs:
+ *   film/assets/part1-film-master.mp4   1280x720, 24 fps, high quality
+ *   public/film/part1-film.mp4          H.264 crf 26, AAC 128k, +faststart
+ *   public/film/part1-film.vtt          the on-screen words, for screen readers
+ *   film/assets/check/still-*.png       a still from the middle of each shot
+ *   film/assets/build/                  text cards, trimmed narration, the mix
+ *
+ * The film is narrated end to end, so the timeline is worked out from the
+ * narration (see plan()): each line is trimmed of silence and sped up by
+ * TEMPO, the lines run back to back with GAP between them, and every shot,
+ * text card and sound effect is placed around the line it belongs to.
+ * Stats are read from content/evidence.json by id; the on-screen source line
+ * is the publisher (up to any bracket or "via") and the source's year.
+ *
+ * ffmpeg here has no drawtext/libass, so each text card is rendered to a
+ * transparent 1280x720 PNG by headless Chrome (with the game's fonts and
+ * colours) and laid over the picture with a 0.3 s alpha fade in and out.
+ */
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const A = (p) => resolve(root, 'film/assets', p);
+const build = A('build');
+const fontsDir = A('fonts');
+const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const W = 1280, H = 720, FPS = 24, XF = 0.3, FADE_OUT = 1.5;
+/** Film length in seconds: set by plan() from the narration (about 36 s). */
+let LENGTH = 30;
+
+// ---------------------------------------------------------------- the script
+
+/**
+ * The film:
+ *   1. the walk:   black + montage, then clip A under "For you, that was a simulation…"
+ *   2. the stats:  66%, 44% and 25%, back to back with no gap, each on
+ *                  its own shot with only its own card (a hard cut to the next),
+ *                  heartbeat and follower rising underneath
+ *   3. a beat of silence, then clip E (the push-in across the road): "But sometimes,
+ *                  there is someone to help.", "And this time, it's you" ("it's you"
+ *                  whispered, a gust of wind behind it, the line in the middle of the
+ *                  screen), then "What are you going to do?" on screen only, in silence
+ * Every time, including the film's length, is worked out from the narration in plan().
+ */
+const TEMPO = 1.03; // narration speed-up (pitch kept): close to natural
+const STAT_GAP = 0.02; // between stats: none to speak of
+const NARRATION_START = 5.1;
+
+const SHOTS = {
+  A: { file: 'video/A-veo.mp4', from: 0 }, // the walk, original speed
+  D: { file: 'edit/D.mp4', from: 0 }, // the empty street, rain
+  B: { file: 'edit/B.mp4', from: 0 }, // keys (the calm 4 s of the clip, slowed)
+  C: { file: 'video/C-veo.mp4', from: 0, maxSource: 3 }, // the shadow; after 3 s the light cuts out and strobes
+  E: { file: 'edit/E.mp4', from: 0, maxSource: 8, hold: true }, // the push-in from across the road (road visible throughout); 8 s long, then its last frame holds
+};
+/** Clip A is 8 s long: the opening uses it at normal speed, the 66% shot the rest of it, slowed. */
+const A_LENGTH = 8;
+
+const OPENING = { file: 'narration-1-female.mp3', text: 'For you, that was a simulation. For many women, it’s an ordinary walk home.' };
+/** The stats, in order. short: the on-screen phrase (the words she says); the full wording is in the text track. */
+const STATS = [
+  { file: 'narration-stat-66-female.mp3', shot: 'A2', id: 'ssh2018_public_66', short: 'of women in the US have been sexually harassed in public.' },
+  { file: 'narration-stat-44-female.mp3', shot: 'B', id: 'yougov_keys_44', short: 'of women in the UK hold their keys ready to defend themselves.', corner: 'tr' }, // top right: the hand fills the lower left
+  { file: 'narration-stat-25-female.mp3', shot: 'D', id: 'loreal_helped_25', short: 'of people harassed in public say someone helped.' },
+];
+const SOMEONE = { file: 'narration-someone-to-help-female.mp3', text: 'But sometimes, there is someone to help.' };
+/** "And this time," in her calm voice, then "it's you" whispered: take 1 of 3 (the truest whisper, and the clearest). */
+const WHISPER = { file: 'narration-its-you-take1-female.mp3', text: 'And this time, it\u2019s you.' };
+/** The closing question is not spoken: it appears on its own, in silence, as the picture fades to black. */
+const QUESTION = { text: 'What are you going to do?', readFor: 3.8 };
+/** A single gust of night wind from the game's own sounds, behind the whisper. */
+const WIND = resolve(root, 'public/audio/sfx/wind_gust.mp3');
+
+/** Target loudness (LUFS) of each source before mixing, as measured with ebur128. */
+const NARRATION_LUFS = -16;
+const MUSIC_BELOW = 20; // dB under the narration
+
+/** Filled in by plan(). */
+let SCENES = [];
+let AUDIO = [];
+let LAYERS = [];
+let CUES = [];
+let TIMES = {};
+let PIC_FADE = { at: 0, dur: FADE_OUT };
+
+/** Layout in pixels of the 1280x720 frame. */
+export const LAYOUT = { side: 96, statTop: 448, statMaxWidth: 700, captionBottom: 46, stackTop: 300, stackRow: 92 };
+
+/** Trim a narration line's leading and trailing silence and speed it up; returns the new file and its length. */
+function prepareLine(file) {
+  const out = resolve(build, `vo-${file.replace(/\.mp3$/, '')}.wav`);
+  const trim = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.03';
+  ff(['-i', A(file), '-af', `${trim},areverse,${trim},areverse,atempo=${TEMPO}`, '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s24le', out]);
+  const dur = Number(sh('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', out]).toString().trim());
+  return { wav: out, dur };
+}
+const frame = (t) => Math.round(t * FPS) / FPS;
+
+function plan() {
+  // ---- narration times
+  const line = (spec, at) => {
+    const p = prepareLine(spec.file);
+    return { ...spec, ...p, at, until: at + p.dur };
+  };
+  const opening = line(OPENING, NARRATION_START);
+  const stats = [];
+  let t = frame(opening.until + 0.3);
+  for (const spec of STATS) {
+    const l = line(spec, t);
+    stats.push(l);
+    t = l.until + STAT_GAP;
+  }
+  const cut = frame(stats[stats.length - 1].until + 0.06); // end of the stats: the push-in fades in
+  const eAt = cut;
+  const someone = line(SOMEONE, cut + 0.75);
+  const whisper = line(WHISPER, someone.until + 0.6);
+  const whisperOff = whisper.until + 1.0; // the line stays up a moment, then fades
+  const question = { ...QUESTION, at: frame(whisperOff + 0.5) };
+  LENGTH = frame(question.at + QUESTION.readFor);
+  PIC_FADE = { at: question.at - 0.4, dur: 1.6 }; // the picture goes dark as the question appears
+  TIMES = { opening, stats, cut, eAt, someone, whisper, question };
+
+  // ---- picture. xf: the crossfade into that scene (1 frame = a hard cut).
+  const hard = 1 / FPS;
+  const aEnd = frame(stats[0].at - 0.05);
+  const aUsed = aEnd - 5; // seconds of clip A the opening plays at normal speed
+  SCENES = [
+    { name: 'black', at: 0 },
+    { name: 'A', at: 5, xf: XF, ...SHOTS.A, maxSource: aUsed },
+    ...stats.map((l) => {
+      const shot = l.shot === 'A2' ? { file: SHOTS.A.file, from: aUsed, maxSource: A_LENGTH - aUsed } : SHOTS[l.shot];
+      return { name: l.shot, at: frame(l.at - 0.05), xf: hard, ...shot };
+    }),
+    { name: 'E', at: eAt, xf: 0.7, ...SHOTS.E },
+  ];
+  SCENES.forEach((s, i) => (s.slot = (i + 1 < SCENES.length ? SCENES[i + 1].at : LENGTH) - s.at));
+
+  // ---- text layers (drawn in this order)
+  LAYERS = [];
+  const layer = (name, card, at, until, fadeIn = XF, fadeOut = XF) => LAYERS.push({ name, card, at, until, fadeIn, fadeOut });
+  layer('band-opening', { kind: 'band' }, opening.at + 0.2, stats[0].at - 0.05);
+  layer('caption-opening', { kind: 'caption', text: OPENING.text }, opening.at + 0.2, stats[0].at - 0.05);
+  // The stats: each on its own shot with only its own card (number, full wording, source), switching on the cut.
+  // A card in the corner gets a soft corner shade instead of the lower-third band.
+  stats.forEach((l, i) => {
+    const last = i + 1 === stats.length;
+    const from = l.at - 0.05;
+    const until = last ? cut : stats[i + 1].at - 0.05;
+    const fadeIn = i === 0 ? 0.2 : 0.06;
+    const fadeOut = last ? 0.25 : 0.06;
+    layer(l.corner ? `shade-${l.corner}` : `band-${l.id}`, l.corner ? { kind: 'shade', corner: l.corner } : { kind: 'band' }, from, until, fadeIn, fadeOut);
+    layer(`stat-${l.id}`, { kind: 'stat', id: l.id, corner: l.corner }, from, until, i === 0 ? 0.2 : 0.12, fadeOut);
+  });
+  layer('band-someone', { kind: 'band' }, someone.at - 0.1, whisper.at - 0.15);
+  layer('caption-someone', { kind: 'caption', text: SOMEONE.text }, someone.at - 0.1, whisper.at - 0.15);
+  layer('whisper', { kind: 'closing', text: WHISPER.text }, whisper.at - 0.1, whisperOff, 0.4, 0.6);
+  layer('question', { kind: 'closing', text: QUESTION.text }, question.at, LENGTH, 0.5, 0.2);
+
+  // ---- text track: what is on screen, with the full stat wording and source
+  const full = (id) => {
+    const st = stat(id);
+    return `${st.headline} ${st.text} (Source: ${st.source})`;
+  };
+  CUES = [
+    { at: 0, until: 4.8, text: '[A man calls out at a woman, again and again, over a heartbeat. Then silence.]' },
+    { at: opening.at, until: stats[0].at, text: OPENING.text },
+    ...stats.map((l) => ({ at: l.at, until: l.until, text: full(l.id) })),
+    { at: someone.at, until: whisper.at, text: SOMEONE.text },
+    { at: whisper.at, until: whisperOff, text: WHISPER.text },
+    { at: question.at, until: LENGTH, text: QUESTION.text },
+  ];
+
+  // ---- sound
+  const s0 = stats[0].at;
+  const bAt = SCENES.find((x) => x.name === 'B').at;
+  const bIdx = SCENES.findIndex((x) => x.name === 'B');
+  const afterB = SCENES[bIdx + 1].at;
+  // After the last stat nothing stops dead: her steps, the follower and the heartbeat ease out over a second,
+  // and the city and the music carry on into the push-in, fading away under "someone is there to help".
+  const ease = 1.0;
+  const away = someone.until + 0.2;
+  const awayFade = away - someone.at;
+  AUDIO = [
+    { file: 'montage-5s.wav', at: 0, until: 5, keep: true }, // already mixed and cut at 4.8 s
+    { file: 'sfx-ambience.mp3', at: 5, until: away, loop: true, lufs: -34, fadeIn: XF, fadeOut: awayFade },
+    { file: 'music.mp3', at: 5, until: away, lufs: NARRATION_LUFS - MUSIC_BELOW, fadeIn: 0.5, fadeOut: awayFade },
+    { file: 'sfx-footsteps.mp3', at: 5, until: cut + ease, loop: true, lufs: -30, fadeIn: XF, fadeOut: ease },
+    { file: 'sfx-keys.mp3', at: bAt, until: Math.min(afterB + 0.3, bAt + 6), lufs: -28, fadeIn: 0.1, fadeOut: 0.3 },
+    // Building under the stats: the follower closing in and her heartbeat speeding up (loop if the stats run long).
+    { file: 'sfx-follower.mp3', at: s0, until: cut + ease, loop: true, from: 0, lufs: -28, ramp: [0.3, 1.1], fadeIn: 0.6, fadeOut: ease },
+    { file: 'sfx-heartbeat.mp3', at: s0, until: cut + ease, loop: true, from: 0, lufs: -24, ramp: [0.3, 1.15], fadeIn: 0.6, fadeOut: ease },
+    // One gust of wind behind the whisper (it rises out of silence and dies away), gone before the question.
+    { path: WIND, at: whisper.at - 1.0, until: Math.min(whisper.at - 1.0 + 4.48, question.at - 0.15), lufs: -33, fadeOut: 0.5 },
+    { wav: opening.wav, at: opening.at, lufs: NARRATION_LUFS },
+    ...stats.map((l) => ({ wav: l.wav, at: l.at, lufs: NARRATION_LUFS })),
+    { wav: someone.wav, at: someone.at, lufs: NARRATION_LUFS },
+    { wav: whisper.wav, at: whisper.at, lufs: NARRATION_LUFS + 1 },
+  ];
+}
+
+// ---------------------------------------------------------------- helpers
+
+const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { maxBuffer: 1 << 26, ...opts });
+const ff = (args) => sh('ffmpeg', ['-y', '-v', 'error', ...args], { stdio: ['ignore', 'inherit', 'inherit'] });
+/** Integrated loudness (LUFS) of a file, from ffmpeg's ebur128 summary on stderr. */
+function measureLufs(file) {
+  const res = spawnSync('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-af', 'ebur128=framelog=quiet', '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 1 << 24 });
+  const m = String(res.stderr).match(/Integrated loudness:\s*\n\s*I:\s*(-?[\d.]+) LUFS/);
+  if (!m) throw new Error(`could not measure loudness of ${file}`);
+  return Number(m[1]);
+}
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// ---------------------------------------------------------------- fonts
+
+const FONTS = {
+  'Inter-400.ttf': ['Inter', 400],
+  'Inter-500.ttf': ['Inter', 500],
+  'Newsreader-300.ttf': ['Newsreader', 300],
+  'Newsreader-400.ttf': ['Newsreader', 400],
+};
+function ensureFonts() {
+  mkdirSync(fontsDir, { recursive: true });
+  if (Object.keys(FONTS).every((f) => existsSync(resolve(fontsDir, f)))) return;
+  // The Google Fonts CSS API returns static TTF URLs to a plain client.
+  const css = sh('curl', ['-sfL', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Newsreader:opsz,wght@6..72,300;6..72,400&display=swap']).toString();
+  for (const block of css.split('@font-face').slice(1)) {
+    const fam = block.match(/font-family:\s*'([^']+)'/)?.[1];
+    const wt = Number(block.match(/font-weight:\s*(\d+)/)?.[1]);
+    const url = block.match(/url\((https:[^)]+\.ttf)\)/)?.[1];
+    const name = Object.keys(FONTS).find((f) => FONTS[f][0] === fam && FONTS[f][1] === wt);
+    if (name && url) sh('curl', ['-sfL', '-o', resolve(fontsDir, name), url]);
+  }
+  for (const f of Object.keys(FONTS)) if (!existsSync(resolve(fontsDir, f))) throw new Error(`could not download font ${f}`);
+}
+
+// ---------------------------------------------------------------- cards
+
+const evidence = JSON.parse(readFileSync(resolve(root, 'content/evidence.json'), 'utf8'));
+function stat(id) {
+  const s = evidence.stats.find((x) => x.id === id);
+  if (!s) throw new Error(`evidence.json has no stat ${id}`);
+  const src = Array.isArray(evidence.sources) ? evidence.sources.find((x) => x.id === s.sourceId) : evidence.sources[s.sourceId];
+  if (!src) throw new Error(`evidence.json has no source ${s.sourceId}`);
+  const publisher = src.publisher.split(' (')[0].split(' via ')[0].trim();
+  return { headline: s.headline, text: s.text, source: `${publisher}, ${src.year}` };
+}
+
+const fontFaces = Object.entries(FONTS)
+  .map(([f, [fam, wt]]) => `@font-face{font-family:'${fam}';font-weight:${wt};src:url('file://${resolve(fontsDir, f)}') format('truetype');}`)
+  .join('\n');
+
+// Game tokens from src/ui/base.css.
+const CSS = `${fontFaces}
+:root{--ink:#e9e4da;--ink-2:#b8b2a6;--bg:7,8,11;--sans:'Inter',sans-serif;--serif:'Newsreader',serif}
+html,body{margin:0;width:${W}px;height:${H}px;background:transparent;overflow:hidden;-webkit-font-smoothing:antialiased}
+.band{position:absolute;left:0;right:0;bottom:0;height:${H - 400}px;
+  background:linear-gradient(to bottom,rgba(var(--bg),0) 0%,rgba(var(--bg),.58) 26%,rgba(var(--bg),.74) 55%,rgba(var(--bg),.8) 100%)}
+.caption{position:absolute;left:${LAYOUT.side}px;right:${LAYOUT.side}px;bottom:${LAYOUT.captionBottom}px;
+  color:var(--ink);font:500 27px/1.35 var(--sans);letter-spacing:-.005em;text-wrap:balance}
+.stat{position:absolute;left:${LAYOUT.side}px;top:${LAYOUT.statTop}px;max-width:${LAYOUT.statMaxWidth}px;color:var(--ink)}
+.stat .num{font:300 50px/1 var(--serif);font-variant-numeric:lining-nums proportional-nums;margin:0 0 8px}
+.stat .txt{font:400 20px/1.42 var(--sans);margin:0;text-wrap:pretty}
+.stat .src{font:400 13px/1.4 var(--sans);color:var(--ink-2);margin:8px 0 0;letter-spacing:.01em}
+.band.tall{height:${H - LAYOUT.stackTop + 70}px;
+  background:linear-gradient(to bottom,rgba(var(--bg),0) 0%,rgba(var(--bg),.6) 22%,rgba(var(--bg),.76) 50%,rgba(var(--bg),.82) 100%)}
+.stack{position:absolute;left:${LAYOUT.side}px;right:${LAYOUT.side}px;top:${LAYOUT.stackTop}px;color:var(--ink)}
+.row{height:${LAYOUT.stackRow}px;display:flex;flex-direction:column;justify-content:flex-start}
+.row.old{opacity:.4}
+.row .line{display:flex;align-items:baseline;gap:16px;margin:0}
+.row .num{font:300 54px/1 var(--serif);font-variant-numeric:lining-nums proportional-nums;white-space:nowrap}
+.row .txt{font:400 22px/1.25 var(--sans)}
+.row .src{font:400 13px/1.4 var(--sans);color:var(--ink-2);margin:6px 0 0;letter-spacing:.01em}
+.solo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--ink);padding:0 180px}
+.solo .num{font:300 96px/1 var(--serif);margin:0 0 18px}
+.solo .txt{font:400 26px/1.4 var(--sans);margin:0;max-width:780px;text-wrap:balance}
+.solo .src{font:400 14px/1.4 var(--sans);color:var(--ink-2);margin:16px 0 0}
+.stat.tr{left:auto;right:${LAYOUT.side}px;top:60px;max-width:600px;text-align:right}
+.stat.tr .txt{text-wrap:balance}
+.shade{position:absolute;inset:0;background:radial-gradient(ellipse 60% 55% at 100% 0%,rgba(var(--bg),.62) 0%,rgba(var(--bg),.38) 50%,rgba(var(--bg),0) 100%)}
+.closing{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--ink);font:400 50px/1.15 var(--serif);text-align:center;padding:0 ${LAYOUT.side}px;
+  text-shadow:0 2px 24px rgba(0,0,0,.55);
+  background:radial-gradient(ellipse 46% 22% at 50% 50%,rgba(var(--bg),.62) 0%,rgba(var(--bg),.38) 55%,rgba(var(--bg),0) 100%)}
+`;
+
+function cardHtml(card) {
+  let body = '';
+  if (card.kind === 'band') body = `<div class="band${card.tall ? ' tall' : ''}"></div>`;
+  else if (card.kind === 'shade') body = `<div class="shade ${esc(card.corner)}"></div>`;
+  else if (card.kind === 'stack') {
+    body = `<div class="stack">${card.rows
+      .map((r, i) => {
+        const st = stat(r.id);
+        return `<div class="row${i < card.rows.length - 1 ? ' old' : ''}"><p class="line"><span class="num">${esc(st.headline)}</span><span class="txt">${esc(r.short)}</span></p><p class="src">Source: ${esc(st.source)}</p></div>`;
+      })
+      .join('')}</div>`;
+  } else if (card.kind === 'solo') {
+    const st = stat(card.id);
+    body = `<div class="solo"><p class="num">${esc(st.headline)}</p><p class="txt">${esc(st.text)}</p><p class="src">Source: ${esc(st.source)}</p></div>`;
+  }
+  else if (card.kind === 'caption') body = `<div class="caption">${esc(card.text)}</div>`;
+  else if (card.kind === 'closing') body = `<div class="closing">${esc(card.text)}</div>`;
+  else {
+    const s = stat(card.id);
+    body = `<div class="stat${card.corner ? ` ${esc(card.corner)}` : ''}"><p class="num">${esc(s.headline)}</p><p class="txt">${esc(s.text)}</p><p class="src">Source: ${esc(s.source)}</p></div>`;
+  }
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${body}</body></html>`;
+}
+
+function renderCard(name, card) {
+  const html = resolve(build, `${name}.html`);
+  const png = resolve(build, `${name}.png`);
+  writeFileSync(html, cardHtml(card));
+  sh(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run', '--no-default-browser-check', `--user-data-dir=${resolve(build, 'chrome-profile')}`, '--default-background-color=00000000', `--window-size=${W},${H}`, '--virtual-time-budget=2000', `--screenshot=${png}`, `file://${html}`], { stdio: 'ignore' });
+  if (!existsSync(png)) throw new Error(`Chrome did not render ${name}`);
+  return png;
+}
+
+// ---------------------------------------------------------------- audio
+
+function buildAudio() {
+  const inputs = [];
+  const filters = [];
+  AUDIO.forEach((l, i) => {
+    const file = l.wav ?? l.path ?? A(l.file);
+    if (!existsSync(file)) throw new Error(`missing ${file}`);
+    if (l.loop) inputs.push('-stream_loop', '-1');
+    inputs.push('-i', file);
+    const from = l.from ?? 0;
+    const chain = [`aformat=sample_rates=48000:channel_layouts=stereo`];
+    if (l.until !== undefined) chain.push(`atrim=start=${from}:duration=${(l.until - l.at).toFixed(3)}`);
+    else if (from) chain.push(`atrim=start=${from}`);
+    chain.push('asetpts=PTS-STARTPTS');
+    if (!l.keep) {
+      const gain = l.lufs - measureLufs(file);
+      chain.push(`volume=${gain.toFixed(2)}dB`);
+    }
+    const dur = l.until !== undefined ? l.until - l.at : null;
+    if (l.ramp && dur) chain.push(`volume='${l.ramp[0]}+(${l.ramp[1] - l.ramp[0]})*min(t/${dur.toFixed(3)},1)':eval=frame`);
+    if (l.rise) {
+      const a = l.rise.from - l.at, b = l.rise.to - l.at, g = 10 ** (l.rise.db / 20) - 1;
+      chain.push(`volume='1+${g.toFixed(4)}*clip((t-${a})/${b - a},0,1)':eval=frame`);
+    }
+    if (l.duckAt) chain.push(`volume='if(lt(t,${l.duckAt.toFixed(3)}),1,${DUCK}+(1-${DUCK})*max(0,1-(t-${l.duckAt.toFixed(3)})/0.2))':eval=frame`);
+    if (l.pan) {
+      const a = ((l.pan + 1) * Math.PI) / 4;
+      chain.push(`pan=stereo|c0=${(Math.cos(a) * Math.SQRT2).toFixed(3)}*c0|c1=${(Math.sin(a) * Math.SQRT2).toFixed(3)}*c1`);
+    }
+    if (l.fadeIn) chain.push(`afade=t=in:d=${l.fadeIn}`);
+    if (l.fadeOut && dur) chain.push(`afade=t=out:st=${(dur - l.fadeOut).toFixed(3)}:d=${l.fadeOut}`);
+    chain.push(`adelay=${Math.round(l.at * 1000)}:all=1`);
+    filters.push(`[${i}:a]${chain.join(',')}[a${i}]`);
+  });
+  // Music and effects fade out with the picture; the narration (the closing hook) is left whole.
+  const bed = AUDIO.map((l, i) => (l.wav ? null : `[a${i}]`)).filter(Boolean);
+  const voice = AUDIO.map((l, i) => (l.wav ? `[a${i}]` : null)).filter(Boolean);
+  filters.push(`${bed.join('')}amix=inputs=${bed.length}:normalize=0:duration=longest,atrim=0:${LENGTH},apad=whole_dur=${LENGTH},afade=t=out:st=${LENGTH - FADE_OUT}:d=${FADE_OUT}[bed]`);
+  filters.push(`${voice.join('')}amix=inputs=${voice.length}:normalize=0:duration=longest,apad=whole_dur=${LENGTH},atrim=0:${LENGTH}[voice]`);
+  filters.push('[bed][voice]amix=inputs=2:normalize=0:duration=first[mix]');
+  const raw = resolve(build, 'mix-raw.wav');
+  ff([...inputs, '-filter_complex', filters.join(';'), '-map', '[mix]', '-t', String(LENGTH), '-c:a', 'pcm_s24le', raw]);
+  // Bring the whole mix to -16 LUFS with a -1 dBFS ceiling.
+  const gain = -16 - measureLufs(raw);
+  const out = resolve(build, 'mix.wav');
+  ff(['-i', raw, '-af', `volume=${gain.toFixed(2)}dB,alimiter=limit=0.89:level=false`, '-c:a', 'pcm_s24le', out]);
+  return { out, gain };
+}
+
+// ---------------------------------------------------------------- picture
+
+function buildFilm(mixWav) {
+  const inputs = [];
+  const f = [];
+  let n = 0;
+  // Scenes
+  SCENES.forEach((s, i) => {
+    const next = SCENES[i + 1];
+    const dur = s.slot + (next ? next.xf : 0);
+    if (s.name === 'black') inputs.push('-f', 'lavfi', '-t', String(dur), '-i', `color=c=black:s=${W}x${H}:r=${FPS}`);
+    else {
+      const file = A(s.file);
+      if (!existsSync(file)) throw new Error(`missing ${file}`);
+      inputs.push('-i', file);
+    }
+    // A shot allowed only maxSource seconds of its clip is slowed (frames held) to fill a longer slot.
+    // A shot with hold keeps its last frame instead of slowing down.
+    const source = s.maxSource && dur > s.maxSource ? s.maxSource : dur;
+    const stretch = s.hold ? 1 : dur / source;
+    const hold = s.hold && dur > source ? `,tpad=stop_mode=clone:stop_duration=${(dur - source + 0.1).toFixed(3)}` : '';
+    f.push(`[${n}:v]trim=start=${s.from ?? 0}:duration=${source.toFixed(3)},setpts=(PTS-STARTPTS)*${stretch.toFixed(4)},fps=${FPS}${hold},scale=${W}:${H},setsar=1,format=yuv420p,settb=AVTB[s${i}]`);
+    s.stretch = stretch;
+    n++;
+  });
+  let prev = 's0';
+  for (let i = 1; i < SCENES.length; i++) {
+    f.push(`[${prev}][s${i}]xfade=transition=fade:duration=${SCENES[i].xf.toFixed(4)}:offset=${SCENES[i].at.toFixed(4)}[x${i}]`);
+    prev = `x${i}`;
+  }
+  // Fade the picture (not the text) to black at the end.
+  f.push(`[${prev}]fade=t=out:st=${PIC_FADE.at.toFixed(3)}:d=${PIC_FADE.dur},format=yuva420p[pic0]`);
+  prev = 'pic0';
+  // Text layers: bands first, then cards.
+  const layers = LAYERS;
+  const pngs = {};
+  layers.forEach((L, i) => {
+    const key = L.card.kind === 'band' ? `band${L.card.tall ? '-tall' : ''}` : L.card.kind === 'shade' ? `shade-${L.card.corner}` : L.name;
+    const png = (pngs[key] ??= renderCard(key, L.card));
+    const dur = L.until - L.at;
+    inputs.push('-loop', '1', '-framerate', String(FPS), '-t', dur.toFixed(3), '-i', png);
+    f.push(`[${n}:v]format=rgba,fade=t=in:st=0:d=${L.fadeIn.toFixed(3)}:alpha=1,fade=t=out:st=${(dur - L.fadeOut).toFixed(3)}:d=${L.fadeOut.toFixed(3)}:alpha=1,setpts=PTS-STARTPTS+${L.at.toFixed(4)}/TB[t${i}]`);
+    f.push(`[${prev}][t${i}]overlay=0:0:eof_action=pass:format=yuv420[o${i}]`);
+    prev = `o${i}`;
+    n++;
+  });
+  f.push(`[${prev}]format=yuv420p,trim=duration=${LENGTH}[vout]`);
+  inputs.push('-i', mixWav);
+  const master = A('part1-film-master.mp4');
+  ff([...inputs, '-filter_complex', f.join(';'), '-map', '[vout]', '-map', `${n}:a`, '-r', String(FPS), '-c:v', 'libx264', '-preset', 'slow', '-crf', '14', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '320k', '-t', String(LENGTH), '-movflags', '+faststart', master]);
+  return { master, layers };
+}
+
+// ---------------------------------------------------------------- text track
+
+/**
+ * public/film/part1-film.vtt: the on-screen words with a description of the
+ * montage, so the game can read them to screen readers (the narration says
+ * a short form of each stat; the cue carries the full wording and source).
+ */
+function writeVtt() {
+  const ts = (s) => {
+    const ms = Math.round(s * 1000);
+    const hh = String(Math.floor(ms / 3600000)).padStart(2, '0');
+    const mm = String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0');
+    const ss = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0');
+    return `${hh}:${mm}:${ss}.${String(ms % 1000).padStart(3, '0')}`;
+  };
+  const cues = [...CUES].sort((a, b) => a.at - b.at);
+  const body = cues.map((c, i) => `${i + 1}\n${ts(c.at)} --> ${ts(c.until)}\n${c.text}\n`).join('\n');
+  const out = resolve(root, 'public/film/part1-film.vtt');
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, `WEBVTT\n\n${body}`);
+  return out;
+}
+
+// ---------------------------------------------------------------- run
+
+mkdirSync(build, { recursive: true });
+plan();
+console.log('narration:');
+const T = TIMES;
+console.log(`  question on screen (silent) from ${T.question.at.toFixed(2)} s`);
+for (const l of [T.opening, ...T.stats, T.someone, T.whisper]) console.log(`  ${l.at.toFixed(2)}-${l.until.toFixed(2)} s  ${l.file}`);
+console.log(`stats end ${T.cut.toFixed(2)} s; push-in from ${T.eAt.toFixed(2)} s; film length ${LENGTH.toFixed(2)} s`);
+console.log(`shots: ${SCENES.map((s) => `${s.name} ${s.at.toFixed(2)}-${(s.at + s.slot).toFixed(2)}`).join(', ')}`);
+console.log(`text track -> ${writeVtt()}`);
+if (process.argv.includes('--vtt-only')) process.exit(0);
+if (!existsSync(A('montage-5s.wav'))) {
+  console.log('building montage-5s.wav');
+  sh('node', [resolve(root, 'film/scripts/build-montage.mjs'), '--profile', 'short'], { stdio: 'inherit' });
+}
+ensureFonts();
+console.log('mixing audio');
+const mix = buildAudio();
+console.log(`  mix gain to -16 LUFS: ${mix.gain.toFixed(1)} dB`);
+console.log('building picture and master');
+const { master, layers } = buildFilm(mix.out);
+
+const web = resolve(root, 'public/film/part1-film.mp4');
+mkdirSync(dirname(web), { recursive: true });
+console.log('compressing for the web');
+ff(['-i', master, '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', web]);
+
+const check = A('check');
+mkdirSync(check, { recursive: true });
+const stills = [...SCENES.slice(1, -1).map((s) => ({ name: s.name, t: s.at + s.slot / 2 })), { name: 'E-someone', t: T.someone.at + 1 }, { name: 'E-whisper', t: T.whisper.until - 0.3 }, { name: 'E-question', t: LENGTH - 1.5 }];
+for (const { name, t } of stills) ff(['-ss', t.toFixed(2), '-i', master, '-frames:v', '1', resolve(check, `still-${name}-${t.toFixed(1)}s.png`)]);
+console.log(`shot stretch: ${SCENES.slice(1).map((s) => `${s.name} x${(s.stretch ?? 1).toFixed(2)}`).join(', ')}`);
+
+const mb = (p) => (statSync(p).size / 1e6).toFixed(2);
+console.log(`master ${mb(master)} MB -> ${master}`);
+console.log(`web    ${mb(web)} MB -> ${web}`);
+console.log(`stills -> ${check}`);
+console.log(`text layers: ${layers.map((l) => `${l.name} ${l.at}-${l.until}s`).join(', ')}`);
+if (statSync(web).size >= 25e6) {
+  console.error('web file is 25 MB or more');
+  process.exit(1);
+}
