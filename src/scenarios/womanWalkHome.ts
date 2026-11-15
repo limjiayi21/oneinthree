@@ -374,11 +374,23 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   }
 
   /** He looks up from his phone. That is all. It is enough. */
-  function notice(thought: 'w_notice_1' | 'w_notice_2'): void {
+  function notice(thought: 'w_notice_1' | null): void {
     man.human.setGaze(player.getEyePosition(eye));
     man.human.setEmotion('smirk', 0.35);
     kit.serverFear = Math.max(kit.serverFear, 0.28);
-    kit.think(thought, { intensity: 0.35 });
+    if (thought) kit.think(thought, { intensity: 0.35 });
+  }
+
+  /** demo: the crash, then he looks up. Once, from the timer or from how far she has walked. */
+  function demoCrash(): void {
+    if (kit.ended || finishing || !first('alley')) return;
+    alleyScare(DEMO.crashSource, DEMO.crashSource);
+    kit.after(DEMO.noticeDelay, () => {
+      if (kit.ended || !first('notice')) return;
+      // demo: she is already close, so the encounter starts at once and her first
+      // thought comes from the model; a scripted one here would be cut off.
+      notice(null);
+    });
   }
 
   /* ---------------------------------------------------- per-frame logic */
@@ -402,6 +414,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       passer.human.setVisible(true);
       passer.setBehaviour({ type: 'leave', to: P.passerbyA1, speed: 1.5 });
     }
+    if (deps.demo && player.inputEnabled && pos.z < DEMO.crashByZ) demoCrash();
     if (!deps.demo && inRect(pos, Z.alleyTrigger) && first('alley')) {
       world.triggerAlleyEvent();
       alleyScare(P.alleySource, P.alleyMouth);
@@ -518,12 +531,6 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   audio.startAmbience();
   audio.play('subway_rumble', { volume: 0.8 });
-  if (deps.demo) {
-    // demo: the keys thought plays over the time card, so it has finished before the crash.
-    audio.play('keys_jingle', { volume: 0.5 });
-    kit.think('w_keys', { intensity: 0.12 });
-    once.add('keys');
-  }
   await hud.card('11:42 PM', 'Four blocks from home.', deps.demo ? 2500 : 3800); // demo: shorter
   world.spawnPassingCar(1);
   audio.play('car_pass', { position: new THREE.Vector3(0, 0.5, -20), volume: 0.7 });
@@ -538,13 +545,13 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   player.inputEnabled = true;
   hud.objective('Walk home.');
   if (deps.demo) {
-    once.add('alley');
-    alleyScare(DEMO.crashSource, DEMO.crashSource);
-    kit.after(DEMO.noticeDelay, () => {
-      if (kit.ended || !first('notice')) return;
-      // demo: he is past the scaffolding here, so not w_notice_1 ("Under the scaffolding.").
-      notice('w_notice_2');
+    // demo: a few calm seconds first. Keys, then the crash (sooner if she hurries: see onFrame).
+    kit.after(DEMO.keysDelay, () => {
+      if (kit.ended || !first('keys')) return;
+      audio.play('keys_jingle', { volume: 0.5 });
+      kit.think('w_keys', { intensity: 0.12 });
     });
+    kit.after(DEMO.crashDelay, demoCrash);
   }
 
   // Life on the street, unrelated to her: a car now and then, a siren far off.

@@ -17,7 +17,12 @@ export const DEMO = {
   /** His spot: leaning on the wall just past the scaffolding. */
   manSpot: new THREE.Vector3(8.08, 0, -65.5),
   /** The trash-can crash plays from just ahead on her right (the real alley is behind her). */
-  crashSource: new THREE.Vector3(8.3, 1, -60),
+  crashSource: new THREE.Vector3(8.3, 1, -63),
+  /** A calm start: seconds after she can move before her keys thought, and before the crash. */
+  keysDelay: 1,
+  crashDelay: 5,
+  /** If she hurries, the crash comes anyway once she has walked this far (where 5 s at walking pace gets her). */
+  crashByZ: -61,
   /** Seconds after the crash before he looks up. */
   noticeDelay: 2,
   /** Seconds after the encounter begins before the "shop is still open" nudge. */

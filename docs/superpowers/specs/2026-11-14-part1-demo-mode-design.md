@@ -55,15 +55,13 @@ for now.
 **Staging (demo only).**
 - She starts on the right sidewalk at about z = −52, facing down the street.
 - He leans on the wall at about (8.08, −64), the same pose and behaviour as today.
-- **A quick scene-setting prologue**, packed into the fade-in and first seconds instead of
-  being spread along the street:
-  - During the fade-in: keys jingle and her keys thought (`w_keys`). The passer-by is already
-    on the far sidewalk, headphones on, walking the other way.
-  - As she gains control: the trash-can crash and cat yowl, played from just ahead on her
-    right (not the real alley, which is behind her), with the startle, gasp and `w_alley_1`.
-    `w_alley_2` is dropped.
-- He looks up (the notice beat) ~2 s after the crash, once `w_alley_1` has landed. The
-  encounter begins when she is ~6.5 m from him, about 4 s in.
+- **A calm, scene-setting start** (~5 s), instead of beats spread along the street:
+  - During the fade-in: the passer-by is already on the far sidewalk, headphones on, walking the other way.
+  - 1 s after she can move: keys jingle and her keys thought (`w_keys`).
+  - 5 s after she can move (or once she reaches z = −61 if she hurries): the trash-can crash and
+    cat yowl from just ahead on her right, with the startle, gasp and `w_alley_1`. `w_alley_2` is dropped.
+  - 2 s after the crash he looks up, silently: she is close by then, so the encounter starts at once
+    and her first thought comes from the model. `w_start_1` is dropped in demo.
 
 **Corridor (demo only).** Two rects: her sidewalk from x = 4.5 to the building line, from 1.5 m
 behind her start to 2 m past the shop door's far edge, plus the shop pocket. The edges are
