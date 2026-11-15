@@ -1,0 +1,292 @@
+/* Interactive debrief pieces (debriefCards.ts): your five cards, guess then see, the pledge. */
+
+/* ------------------------------------------------------------ five cards */
+
+.oit-dcards-lede {
+  margin: 0;
+  color: var(--oit-ink-2, var(--oit-ink));
+  font: 400 16px/1.5 var(--oit-sans);
+}
+.oit-dcards-hand {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+@media (max-width: 760px) {
+  .oit-dcards-hand {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.oit-dcard {
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  perspective: 900px;
+  cursor: pointer;
+  animation: oit-dcard-deal 0.55s var(--oit-ease) both;
+  animation-delay: calc(var(--i) * 90ms + 150ms);
+}
+.oit-dcard:disabled {
+  cursor: default;
+}
+@keyframes oit-dcard-deal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) rotate(-3deg);
+  }
+}
+.oit-dcard-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s var(--oit-ease);
+  transform: rotateY(180deg);
+}
+.oit-dcard[data-flipped='true'] .oit-dcard-inner {
+  transform: rotateY(0deg);
+}
+.oit-dcard-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+.oit-dcard-front {
+  border: 1px solid var(--oit-line);
+  background: rgba(233, 228, 218, 0.05);
+}
+.oit-dcard[data-used='true'] .oit-dcard-front {
+  border-color: var(--oit-you);
+  background: rgba(219, 180, 108, 0.1);
+}
+.oit-dcard-back {
+  transform: rotateY(180deg);
+  justify-content: space-between;
+  border: 1px dashed rgba(233, 228, 218, 0.28);
+  background: repeating-linear-gradient(135deg, rgba(233, 228, 218, 0.03) 0 8px, rgba(233, 228, 218, 0.06) 8px 16px);
+}
+.oit-dcard:not(:disabled):hover .oit-dcard-back,
+.oit-dcard:focus-visible .oit-dcard-back {
+  border-color: var(--oit-accent);
+}
+.oit-dcard:focus-visible {
+  outline: 2px solid var(--oit-accent);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+.oit-dcard-name {
+  color: var(--oit-ink);
+  font: 500 15px/1.2 var(--oit-sans);
+}
+.oit-dcard[data-used='true'] .oit-dcard-name {
+  color: var(--oit-you);
+}
+.oit-dcard-quote {
+  margin: 0;
+  color: var(--oit-ink);
+  font: italic 400 14px/1.4 var(--oit-serif);
+}
+.oit-dcard-text {
+  margin: 0;
+  color: var(--oit-ink-2, var(--oit-ink));
+  font: 400 13px/1.45 var(--oit-sans);
+}
+.oit-dcard-tag {
+  margin-top: auto;
+  color: var(--oit-ink-3, var(--oit-ink));
+  font: 500 10px/1.3 var(--oit-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.oit-dcard[data-used='true'] .oit-dcard-tag {
+  color: var(--oit-you);
+}
+.oit-dcard-flip {
+  color: var(--oit-ink-3, var(--oit-ink));
+  font: 500 11px/1.3 var(--oit-sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------- guess, then see */
+
+.oit-guess-q {
+  display: block;
+  color: var(--oit-ink);
+  font: 400 clamp(20px, 2vw, 24px)/1.3 var(--oit-serif);
+}
+.oit-guess-grid {
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  gap: 6px;
+  max-width: 30rem;
+  margin-top: 18px;
+}
+.oit-guess-dot {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(233, 228, 218, 0.12);
+  transition:
+    background 0.25s,
+    box-shadow 0.25s;
+}
+.oit-guess-dot[data-guess='true'] {
+  background: rgba(233, 228, 218, 0.45);
+}
+.oit-guess[data-revealed='true'] .oit-guess-dot {
+  background: rgba(233, 228, 218, 0.1);
+}
+/* revealed: the real number in gold; the people your guess missed in pale gold; an over-guess as outlines */
+.oit-guess[data-revealed='true'] .oit-guess-dot[data-real='true'][data-guess='true'] {
+  background: var(--oit-accent);
+}
+.oit-guess[data-revealed='true'] .oit-guess-dot[data-real='true'][data-guess='false'] {
+  background: rgba(209, 162, 92, 0.35);
+  box-shadow: inset 0 0 0 1.5px var(--oit-accent);
+}
+.oit-guess[data-revealed='true'] .oit-guess-dot[data-real='false'][data-guess='true'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(233, 228, 218, 0.55);
+}
+.oit-guess-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 30rem;
+  margin-top: 16px;
+}
+.oit-guess-slider {
+  flex: 1;
+  accent-color: var(--oit-accent);
+}
+.oit-guess-value {
+  min-width: 2.5ch;
+  color: var(--oit-ink);
+  font: 500 22px/1 var(--oit-sans);
+  text-align: right;
+}
+.oit-guess-answer {
+  margin: 16px 0 0;
+  color: var(--oit-ink);
+  font: 400 17px/1.5 var(--oit-sans);
+}
+.oit-guess-answer strong {
+  color: var(--oit-accent);
+  font-weight: 600;
+}
+.oit-guess-key {
+  margin: 4px 0 0;
+  color: var(--oit-ink-3, var(--oit-ink));
+  font: 400 13px/1.5 var(--oit-sans);
+}
+.oit-guess-key:empty {
+  display: none;
+}
+.oit-guess-full {
+  margin: 6px 0 0;
+  color: var(--oit-ink-2, var(--oit-ink));
+  font: 400 14px/1.5 var(--oit-sans);
+}
+.oit-guess-source {
+  margin: 4px 0 0;
+  color: var(--oit-ink-3, var(--oit-ink));
+  font: 400 12px/1.5 var(--oit-sans);
+}
+
+/* ---------------------------------------------------------------- pledge */
+
+.oit-pledge {
+  margin-bottom: 32px;
+}
+.oit-pledge-q {
+  margin: 0;
+  color: var(--oit-ink);
+  font: 400 clamp(22px, 2.2vw, 28px)/1.25 var(--oit-serif);
+}
+.oit-pledge-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.oit-pledge-choice {
+  padding: 9px 16px;
+  border: 1px solid var(--oit-line);
+  border-radius: 999px;
+  background: none;
+  color: var(--oit-ink);
+  font: 500 15px/1.2 var(--oit-sans);
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+.oit-pledge-choice:hover,
+.oit-pledge-choice:focus-visible {
+  border-color: var(--oit-accent);
+}
+.oit-pledge-choice[aria-pressed='true'] {
+  border-color: var(--oit-accent);
+  background: rgba(209, 162, 92, 0.16);
+}
+.oit-pledge-card {
+  max-width: 26rem;
+  margin-top: 18px;
+  padding: 22px 24px;
+  border: 1px solid var(--oit-accent);
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(209, 162, 92, 0.14), rgba(209, 162, 92, 0.03));
+}
+.oit-pledge-card--in {
+  animation: oit-pledge-in 0.5s var(--oit-ease) both;
+}
+@keyframes oit-pledge-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+.oit-pledge-eyebrow {
+  margin: 0;
+  color: var(--oit-accent);
+  font: 500 11px/1.4 var(--oit-sans);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.oit-pledge-big {
+  margin: 6px 0 0;
+  color: var(--oit-ink);
+  font: 400 clamp(30px, 3.2vw, 40px)/1.1 var(--oit-serif);
+}
+.oit-pledge-line {
+  margin: 10px 0 0;
+  color: var(--oit-ink-2, var(--oit-ink));
+  font: 400 15px/1.5 var(--oit-sans);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oit-dcard,
+  .oit-dcard-inner,
+  .oit-guess-dot,
+  .oit-pledge-card--in {
+    animation: none;
+    transition: none;
+  }
+}
