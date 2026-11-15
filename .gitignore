@@ -16,3 +16,6 @@ coverage/
 
 # Raw film media (source material, not shipped or committed)
 film/assets/
+
+# AirPods helper build output
+tools/airpods-helper/build/

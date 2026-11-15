@@ -13,6 +13,7 @@
     "test": "vitest run",
     "deploy": "npm run build && wrangler deploy",
     "set-key": "sh scripts/set-key.sh",
+    "airpods": "sh tools/airpods-helper/build.sh",
     "gen:voice": "node scripts/gen-voice.mjs",
     "gen:sfx": "node scripts/gen-sfx.mjs"
   },

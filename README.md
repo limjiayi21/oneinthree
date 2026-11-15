@@ -38,6 +38,8 @@ Head look (optional): press G to look around by turning your head in front of th
 
 Headphones recommended: in Part 1, when he follows behind you, his footsteps fall into step with yours and keep going a beat after you stop.
 
+AirPods head tracking (optional, macOS 14+): run `npm run airpods` to build and start a small helper app (🎧 in the menu bar). Browsers cannot read headphone motion, so the helper reads the AirPods' sensors with Apple's CMHeadphoneMotionManager and streams them to the game on `ws://127.0.0.1:8765`, this machine only. When the game sees AirPods as the audio device and the helper is running, head look uses them instead of the webcam; otherwise it falls back to the webcam. Allow Motion access the first time macOS asks. If turning your head moves the view the wrong way, add `?airpodsx=-1` (or `?airpodsy=-1` for up and down).
+
 Hand tracking (optional): press H. In Part 2, look down and pinch your thumb and index finger to take out or put away your phone (same as F), and hold up an open hand near the shop to ask the shopkeeper for help (same as E). Head look and hand tracking share one webcam and can run together. `?hands=1` starts it after the intro.
 
 ## How a turn works
