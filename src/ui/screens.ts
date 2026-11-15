@@ -21,6 +21,7 @@ import { bundledEvidence, headlineStat, hostOf, normaliseEvidence, resolveSource
 import { createFilmPlayer, type FilmOptions, type FilmResult } from './film';
 import { phonePairUrl, qrSvg } from './qr';
 import { briefingControls } from './briefingControls';
+import { createFiveCards, createGuessStat, createPledge } from './debriefCards';
 import { icon, type IconName } from './icons';
 
 export interface ScreensOptions {
@@ -852,6 +853,16 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
 
       // Part 2: the outcome, then straight on to the teaching replay. The full debrief is kept, unchanged, behind a disclosure.
       if (pov === 'bystander') {
+        // Do, not read: your 5 Ds as cards, then one number to guess before it is shown.
+        const hand = createFiveCards(Array.isArray(data.fiveDs) ? data.fiveDs : []);
+        const guess = createGuessStat(
+          Array.isArray(data.statIds) ? data.statIds : [],
+          (id) => resolveStats(evidence, [id])[0] ?? null,
+          (sourceId) => {
+            const src = resolveSources(evidence, [sourceId])[0];
+            return src ? `Source: ${src.publisher || src.title}${src.year ? `, ${src.year}` : ''}` : '';
+          },
+        );
         const learnBtn = h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => finish('continue') }, 'Learn how to help');
         const fullId = nextId('oit-full');
         add(
@@ -864,6 +875,8 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               'article',
               { class: 'oit-article' },
               header,
+              hand ? section('Your five cards', 'oit-sec--cards', hand) : null,
+              guess ? section('Guess, then see', 'oit-sec--guess', guess) : null,
               h(
                 'section',
                 { class: 'oit-sec oit-sec--plain oit-sec--next', 'aria-label': 'What next' },
@@ -989,7 +1002,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               'section',
               { class: 'oit-sec oit-sec--plain oit-sec--end' },
               h('span', { class: 'oit-sec-title', 'aria-hidden': 'true' }),
-              h('div', { class: 'oit-sec-body' }, h('p', { class: 'oit-recap-closing' }, opts.closing), h('div', { class: 'oit-actions' }, next)),
+              h('div', { class: 'oit-sec-body' }, createPledge(opts.fiveDs), h('p', { class: 'oit-recap-closing' }, opts.closing), h('div', { class: 'oit-actions' }, next)),
             ),
           ),
         ),
