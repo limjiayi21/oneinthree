@@ -19,8 +19,9 @@ import { DOT_SECONDS, LOOK_GATE_TIMEOUT, LookGate, turnHint } from './lookGate';
 import { createLookPrompt } from '../ui/lookPrompt';
 import { SAFE_LIGHT_TRIGGER, createSafeLight } from '../world/safeLight';
 import { createWayfinder, wayfinderLevel } from '../ui/wayfinder';
-import { damp, wrapAngle, yawOf } from '../player/mathx';
+import { damp, forwardX, forwardZ, wrapAngle, yawOf } from '../player/mathx';
 import { DEMO, demoCorridor } from './womanDemo';
+import { SetPath } from './setPath';
 
 const GESTURE_FOR: Partial<Record<ManStance, Gesture[]>> = {
   opening: ['beckon', 'wave'],
@@ -50,6 +51,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   /** A short walk the game does for her (into the shop, up to her door): waypoints she walks through. */
   let guide: { points: THREE.Vector3[]; i: number; until: number } | null = null;
+  // demo: while she walks, her feet follow the set path (start, the cat, him, the shop); she steps round him.
+  const setPath = deps.demo ? new SetPath(DEMO.path, DEMO.pathXRange) : null;
 
   const player = createPlayer(engine, world, {
     body: 'woman',
@@ -57,6 +60,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     eyes: deps.eyes,
     // The guided walk drives her own legs (steps, bob, collisions), the same way the phone does.
     extraMove: () => (guide ? { forward: 1, hurry: false } : (deps.phone?.move(performance.now()) ?? null)),
+    moveYaw: () => (setPath && !guide ? setPath.heading(player.position, manInTheWay()) : null),
     // Only the walk home: this street, her building at the end, the shop if she needs it.
     // demo: only her sidewalk up to the shop, and the edges say nothing.
     corridor: deps.demo ? demoCorridor() : walkCorridor(P.subwayExit.z),
@@ -103,6 +107,16 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   let decision: ManDecision | null = null;
   let encounter = false; // he has engaged
   let manGone = false;
+  /** Him, when he is close enough to be in her way (the set path steps round him). */
+  function manInTheWay(): THREE.Vector3 | null {
+    return !manGone && man.distanceTo(player.position) < 3 ? man.position : null;
+  }
+  /*
+   * His block, in Part 1: he steps into her way and plants himself there, but does not shadow her sideways
+   * steps, so she can always walk round him. Until this scene time he counts as blocking.
+   */
+  let blockingUntil = 0;
+  const isBlocking = (): boolean => kit.time < blockingUntil;
   let manSpeaking: Promise<void> = Promise.resolve();
   let speechSeq = 0;
   let cancelSilence: (() => void) | null = null;
@@ -128,7 +142,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     progress: progress(),
     playerSpeed: player.speed,
     facingMan: !manGone && player.isLookingAt(man.human.getHeadPosition(manHead), 35),
-    manBlocking: man.behaviour === 'block',
+    manBlocking: isBlocking(),
     oppositeSidewalk: player.position.x < -4.5,
   });
 
@@ -148,11 +162,12 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     man.human.setEmotion(d.emotion, d.emotionIntensity);
     const posture = POSTURE_FOR[d.stance];
     if (posture) man.human.setPosture(posture);
-    // demo: in her face. Every distance he keeps is a quarter tighter (never under 0.65 m), and he closes faster.
-    const tight = deps.demo ? 0.75 : 1;
-    const near = (floor: number) => Math.max(0.65, floor * tight);
+    // demo: close. Every distance he keeps is tighter, but never under 0.8 m: their bodies touch at 0.64 m,
+    // and he should crowd her, not pin her.
+    const tight = deps.demo ? 0.85 : 1;
+    const near = (floor: number) => Math.max(0.8, floor * tight);
     const quick = deps.demo ? 1.2 : 1;
-    const gap = Math.max(0.65, d.proximity * tight);
+    const gap = Math.max(0.8, d.proximity * tight);
 
     switch (d.action) {
       case 'stay':
@@ -177,28 +192,31 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         man.human.playGesture('lean_in');
         kit.after(0.45, () => involuntaryStepBack(0.5));
         break;
-      case 'block_path':
-        // demo: he gets in her way, but never seals her off. By the shop he walks beside her instead, and a
-        // block lasts a couple of seconds before he falls back beside her, so the way in always opens again.
+      case 'block_path': {
+        // demo: by the shop he walks beside her instead, so the way in is always open.
         if (deps.demo && player.position.distanceTo(P.shopDoor) < 7) {
           man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, near(0.9)), gap: near(0.9) });
           break;
         }
-        man.setBehaviour({ type: 'block', target: toward, targetForward: towardFwd, gap: Math.max(near(1.0), gap) });
-        if (deps.demo) {
-          kit.after(2.2, () => {
-            if (kit.ended || finishing || man.behaviour !== 'block') return;
-            man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, near(0.9)), gap: near(0.9) });
-          });
-        }
+        // The spot just ahead of her, on the way she is going (the set path in the demo, else where she looks).
+        const fy = setPath?.heading(player.position) ?? null;
+        const dir = fy !== null ? new THREE.Vector3(forwardX(fy), 0, forwardZ(fy)) : towardFwd().setY(0).normalize();
+        const spot = player.position.clone().addScaledVector(dir, Math.max(1.3, gap));
+        man.setBehaviour({ type: 'goTo', target: spot, speed: 1.8 * quick, faceOnArrive: toward });
+        const until = (blockingUntil = kit.time + (deps.demo ? 2.2 : 3.5));
+        // Then he falls back beside her (unless a later block has taken over).
+        kit.after(deps.demo ? 2.2 : 3.5, () => {
+          if (kit.ended || finishing || blockingUntil !== until || man.behaviour !== 'goTo') return;
+          man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, near(0.9)), gap: near(0.9) });
+        });
         kit.after(1.4, () => {
-          if (stance === 'block' && !kit.ended && man.distanceTo(player.position) < 2.2) {
-            player.freeze(0.5);
-            kit.scare(0.15);
-            if (kit.secondsSinceThought > 3.5) kit.think(pick(['w_block_1', 'w_block_2']));
+          if (stance === 'block' && !kit.ended && man.distanceTo(player.position) < 2.2 && kit.secondsSinceThought > 3.5) {
+            kit.scare(0.1);
+            kit.think(pick(['w_block_1', 'w_block_2']));
           }
         });
         break;
+      }
       case 'back_away':
         man.setBehaviour({ type: 'backAway', from: toward, distance: 3.2, speed: 1.1 });
         break;
@@ -677,14 +695,14 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   const offBump = player.on('bumped', ({ collider }) => {
     if (collider !== man || manGone || !encounter) return;
-    if (man.behaviour === 'block' && kit.time - lastBumpEvent > 5) {
+    if (isBlocking() && kit.time - lastBumpEvent > 5) {
       lastBumpEvent = kit.time;
       kit.scare(0.12);
       kit.event('pushed_past');
     }
   });
 
-  kit.exposeDebug({ man, clerk, world, stance: () => stance, decision: () => decision, log: [] as unknown[] });
+  kit.exposeDebug({ man, clerk, world, stance: () => stance, decision: () => decision, applyDecision, log: [] as unknown[] });
 
   /* --------------------------------------------------------------- run */
 
