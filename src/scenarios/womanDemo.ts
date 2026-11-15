@@ -8,8 +8,11 @@ import type { Rect } from '../contracts';
 import { LINE, ROAD_HALF, SHOP, rect, shopPocket } from '../world/layout';
 
 export const DEMO = {
-  /** Her start: right sidewalk, mid-block, facing down the street (yaw 0, like the subway exit). */
-  start: new THREE.Vector3(5.75, 0, -52),
+  /**
+   * Her start: right sidewalk, mid-block, facing down the street (yaw 0, like the subway exit).
+   * x = 6.6 is the clear lane between the curbside trees and trash (x ~ 5.3) and the wall.
+   */
+  start: new THREE.Vector3(6.6, 0, -52),
   startYaw: 0,
   /** His spot: leaning on the wall just past the scaffolding. */
   manSpot: new THREE.Vector3(8.08, 0, -64),

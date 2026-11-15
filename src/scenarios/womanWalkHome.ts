@@ -13,6 +13,7 @@ import { createNpc } from '../characters/npc';
 import { SceneKit, clamp01, inRect, pick, pickSide, type SceneDeps, type SceneResult } from './common';
 import { bindEchoSteps, laggedTarget } from './echoSteps';
 import { walkCorridor } from '../world/layout';
+import { DEMO, demoCorridor } from './womanDemo';
 
 const GESTURE_FOR: Partial<Record<ManStance, Gesture[]>> = {
   opening: ['beckon', 'wave'],
@@ -46,9 +47,12 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     eyes: deps.eyes,
     extraMove: () => deps.phone?.move(performance.now()) ?? null,
     // Only the walk home: this street, her building at the end, the shop if she needs it.
-    corridor: walkCorridor(P.subwayExit.z),
-    onCorridorEdge: (edge) =>
-      hud.hint(edge === 'back' ? 'Home is the other way.' : edge === 'ahead' ? 'This is your building.' : 'Home is down this street.', 3000),
+    // demo: only her sidewalk up to the shop, and the edges say nothing.
+    corridor: deps.demo ? demoCorridor() : walkCorridor(P.subwayExit.z),
+    onCorridorEdge: deps.demo
+      ? undefined
+      : (edge) =>
+          hud.hint(edge === 'back' ? 'Home is the other way.' : edge === 'ahead' ? 'This is your building.' : 'Home is down this street.', 3000),
   });
   const kit = new SceneKit(deps, player, 'woman');
 
@@ -61,7 +65,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   kit.addNpc(man, true);
   man.addAvoid({ getPosition: () => player.position, radius: 0.34 });
   // He starts leaning on the wall under the scaffolding, facing the street.
-  man.setPose(P.harasserSpot, Math.PI / 2);
+  man.setPose(deps.demo ? DEMO.manSpot : P.harasserSpot, Math.PI / 2); // demo: closer to the shop
   man.human.setPosture('lean_wall');
   man.human.setEmotion('neutral', 0.4);
   man.human.playGesture('check_phone');
@@ -104,7 +108,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const eye = new THREE.Vector3();
   const manHead = new THREE.Vector3();
 
-  const progress = () => clamp01((P.subwayExit.z - player.position.z) / (P.subwayExit.z - P.homeStoop.z));
+  const startZ = deps.demo ? DEMO.start.z : P.subwayExit.z; // demo: she starts mid-block
+  const progress = () => clamp01((startZ - player.position.z) / (startZ - P.homeStoop.z));
 
   kit.context = () => ({
     elapsed: kit.time,
@@ -345,6 +350,26 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     kit.end(outcome);
   }
 
+  /* ------------------------------------------------ street beats */
+
+  /** The crash and the cat: she startles before she knows what it was. */
+  function alleyScare(crashAt: THREE.Vector3, catAt: THREE.Vector3): void {
+    audio.play('trash_can_crash', { position: crashAt, volume: 1 });
+    kit.after(0.25, () => audio.play('cat_yowl', { position: catAt, volume: 0.9 }));
+    player.startle(0.9);
+    audio.play('gasp', { volume: 0.9 });
+    kit.scare(0.75);
+    kit.after(0.35, () => kit.think('w_alley_1', { intensity: 0.95 }));
+  }
+
+  /** He looks up from his phone. That is all. It is enough. */
+  function notice(thought: 'w_notice_1' | 'w_notice_2'): void {
+    man.human.setGaze(player.getEyePosition(eye));
+    man.human.setEmotion('smirk', 0.35);
+    kit.serverFear = Math.max(kit.serverFear, 0.28);
+    kit.think(thought, { intensity: 0.35 });
+  }
+
   /* ---------------------------------------------------- per-frame logic */
 
   kit.onFrame((dt) => {
@@ -357,30 +382,21 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       kit.after(1.6, () => kit.think('w_start_1', { intensity: 0.1 }));
       kit.after(2.2, () => hud.hint('W A S D to walk  ·  mouse to look  ·  Shift to hurry', 7000));
     }
-    if (pos.z < P.subwayExit.z - 7 && first('keys')) {
+    if (!deps.demo && pos.z < P.subwayExit.z - 7 && first('keys')) {
       audio.play('keys_jingle', { volume: 0.5 });
       kit.think('w_keys', { intensity: 0.12 });
     }
-    if (pos.z < P.subwayExit.z - 13 && first('passer')) {
+    if (!deps.demo && pos.z < P.subwayExit.z - 13 && first('passer')) {
       passer.human.setVisible(true);
       passer.setBehaviour({ type: 'leave', to: P.passerbyA1, speed: 1.5 });
     }
-    if (inRect(pos, Z.alleyTrigger) && first('alley')) {
+    if (!deps.demo && inRect(pos, Z.alleyTrigger) && first('alley')) {
       world.triggerAlleyEvent();
-      audio.play('trash_can_crash', { position: P.alleySource, volume: 1 });
-      kit.after(0.25, () => audio.play('cat_yowl', { position: P.alleyMouth, volume: 0.9 }));
-      player.startle(0.9);
-      audio.play('gasp', { volume: 0.9 });
-      kit.scare(0.75);
-      kit.after(0.35, () => kit.think('w_alley_1', { intensity: 0.95 }));
+      alleyScare(P.alleySource, P.alleyMouth);
       kit.after(2.6, () => kit.think('w_alley_2', { intensity: 0.35 }));
     }
-    if (inRect(pos, Z.noticeTrigger) && first('notice')) {
-      // He looks up from his phone. That is all. It is enough.
-      man.human.setGaze(eye);
-      man.human.setEmotion('smirk', 0.35);
-      kit.serverFear = Math.max(kit.serverFear, 0.28);
-      kit.think('w_notice_1', { intensity: 0.35 });
+    if (!deps.demo && inRect(pos, Z.noticeTrigger) && first('notice')) {
+      notice('w_notice_1');
       kit.after(3.4, () => !encounter && kit.think('w_notice_2', { intensity: 0.4 }));
       kit.after(6.8, () => !encounter && pos.x > 4.5 && kit.think('w_notice_cross', { intensity: 0.4 }));
     }
@@ -474,7 +490,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   /* --------------------------------------------------------------- run */
 
-  player.setPose(P.subwayExit, 0);
+  player.setPose(deps.demo ? DEMO.start : P.subwayExit, deps.demo ? DEMO.startYaw : 0);
   player.inputEnabled = false;
   player.requestLock();
   hud.setVisible(true);
@@ -491,9 +507,28 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   await hud.card('11:42 PM', 'Four blocks from home.', 3800);
   world.spawnPassingCar(1);
   audio.play('car_pass', { position: new THREE.Vector3(0, 0.5, -20), volume: 0.7 });
+  if (deps.demo) {
+    // demo: the street beats she would have walked past, packed into the fade-in.
+    audio.play('keys_jingle', { volume: 0.5 });
+    kit.think('w_keys', { intensity: 0.12 });
+    once.add('keys');
+    passer.setPose(new THREE.Vector3(-6.35, 0, DEMO.start.z - 12), Math.PI);
+    passer.human.setVisible(true);
+    passer.setBehaviour({ type: 'leave', to: P.passerbyA1, speed: 1.5 });
+    once.add('passer');
+  }
   await hud.fade(false, 2200);
   player.inputEnabled = true;
   hud.objective('Walk home.');
+  if (deps.demo) {
+    once.add('alley');
+    alleyScare(DEMO.crashSource, DEMO.crashSource);
+    kit.after(DEMO.noticeDelay, () => {
+      if (kit.ended || !first('notice')) return;
+      // demo: he is past the scaffolding here, so not w_notice_1 ("Under the scaffolding.").
+      notice('w_notice_2');
+    });
+  }
 
   // Life on the street, unrelated to her: a car now and then, a siren far off.
   const traffic = () => {
