@@ -65,6 +65,95 @@ export function pushOutOfRect(p: Vec2, r: number, rect: Rect, n?: Vec2): number 
   return m + r;
 }
 
+/** Rects no wider or deeper than this are posts (trunks, poles, hydrants, bins), not walls. */
+export const POST_MAX_SIDE = 0.8;
+
+export const isPost = (rect: Rect): boolean => rect.maxX - rect.minX <= POST_MAX_SIDE && rect.maxZ - rect.minZ <= POST_MAX_SIDE;
+
+/**
+ * Push circle (p, r) out of a small rect treated as a round post, so walking
+ * into it slides round it instead of stopping dead against a flat face.
+ * (moveX, moveZ) is the step being taken: when it hits the post almost
+ * head-on, the push is turned a little sideways (towards whichever side p is
+ * already on, else to the right of the move) so there is always a way past.
+ * Mutates p; returns the resolved depth.
+ */
+export function pushOutOfPost(p: Vec2, r: number, rect: Rect, moveX = 0, moveZ = 0): number {
+  const cx = (rect.minX + rect.maxX) / 2;
+  const cz = (rect.minZ + rect.maxZ) / 2;
+  const cr = Math.max(rect.maxX - rect.minX, rect.maxZ - rect.minZ) / 2;
+  let dx = p.x - cx;
+  let dz = p.z - cz;
+  const min = r + cr;
+  const d2 = dx * dx + dz * dz;
+  if (d2 >= min * min) return 0;
+  let d = Math.sqrt(d2);
+  const ml = Math.hypot(moveX, moveZ);
+  if (d < 1e-6) {
+    // Dead centre: back out the way she came.
+    dx = ml > 1e-9 ? -moveX / ml : 0;
+    dz = ml > 1e-9 ? -moveZ / ml : 1;
+    d = 0;
+  } else {
+    dx /= d;
+    dz /= d;
+  }
+  if (ml > 1e-9) {
+    const fx = moveX / ml;
+    const fz = moveZ / ml;
+    // Head-on: the push is nearly opposite the move. Turn it about 25 degrees to one side.
+    if (-(dx * fx + dz * fz) > 0.97) {
+      const side = dx * fz - dz * fx; // > 0: p is to the right of the move
+      const s = side >= 0 ? 1 : -1;
+      const rx = fz * s; // the move's right-hand perpendicular, signed
+      const rz = -fx * s;
+      dx = dx * 0.9 + rx * 0.42;
+      dz = dz * 0.9 + rz * 0.42;
+      const l = Math.hypot(dx, dz) || 1;
+      dx /= l;
+      dz /= l;
+    }
+  }
+  const pen = min - d;
+  p.x = cx + dx * min;
+  p.z = cz + dz * min;
+  return pen;
+}
+
+/** How far to one side an obstacle's edge may be for a head-on bump to turn into a slide round it. */
+export const EDGE_ASSIST = 0.6;
+
+/**
+ * pushOutOfRect, plus corner assist: when the step (moveX, moveZ) runs almost
+ * head-on into a flat face and the obstacle's nearer side edge is within
+ * EDGE_ASSIST, the blocked step becomes a sideways slide towards that edge, so
+ * a bin or a pile of bags in her path does not stop her dead. Walls, whose
+ * edges are far away, still stop her. Mutates p; returns the resolved depth.
+ */
+export function pushOutOfRectAssisted(p: Vec2, r: number, rect: Rect, moveX = 0, moveZ = 0): number {
+  const n: Vec2 = { x: 0, z: 0 };
+  const pen = pushOutOfRect(p, r, rect, n);
+  const ml = Math.hypot(moveX, moveZ);
+  if (pen <= 0 || ml < 1e-9) return pen;
+  if (-(n.x * moveX + n.z * moveZ) / ml < 0.97) return pen; // glancing: plain sliding already works
+  // Distance to slip past each side edge, along the face.
+  let lo: number;
+  let hi: number;
+  if (Math.abs(n.z) >= Math.abs(n.x)) {
+    lo = p.x - (rect.minX - r); // shift needed towards -x
+    hi = rect.maxX + r - p.x; // towards +x
+  } else {
+    lo = p.z - (rect.minZ - r);
+    hi = rect.maxZ + r - p.z;
+  }
+  const need = Math.min(lo, hi);
+  if (need > EDGE_ASSIST || need <= 0) return pen;
+  const shift = Math.min(need, ml * 0.9) * (hi <= lo ? 1 : -1);
+  if (Math.abs(n.z) >= Math.abs(n.x)) p.x += shift;
+  else p.z += shift;
+  return pen;
+}
+
 /**
  * Push circle (p, r) out of circle (cx, cz, cr). Mutates p. Returns the
  * resolved penetration depth; `n` receives the unit normal from the other
