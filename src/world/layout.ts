@@ -60,6 +60,22 @@ export const inRect = (r: Rect, x: number, z: number): boolean => x >= r.minX &&
 
 export const BOUNDS: Rect = rect(-12.5, 14, BLOCK_FAR, BLOCK_NEAR);
 
+/**
+ * Where the player may walk in the two playable scenes: the street from just
+ * behind the start to just past home (both sidewalks and the road, so crossing
+ * stays a choice), plus the shop and the home stoop. Not the cross streets,
+ * the alley, or back the way she came. First rect = the main stretch.
+ */
+export function walkCorridor(startZ: number): Rect[] {
+  return [
+    rect(-LINE, LINE, HOME.z1 - 1.5, startZ + 1.5),
+    // Side pockets start 1 m inside the building line so they overlap the street by
+    // more than a body's width: she must be able to step from one into the other.
+    rect(LINE - 1, SHOP.x1, SHOP.iz1, SHOP.iz0), // the shop, through its door
+    rect(LINE - 1, 9.0, HOME.doorZ - (HOME.stoopHalf + 0.6), HOME.doorZ + (HOME.stoopHalf + 0.6)), // the stoop and door
+  ];
+}
+
 const v = (x: number, z: number) => new THREE.Vector3(x, 0, z);
 
 export function makePoints(): Record<WorldPoint, THREE.Vector3> {

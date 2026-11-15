@@ -126,3 +126,36 @@ export function clampToBounds(p: Vec2, r: number, bounds: Rect): boolean {
   }
   return moved;
 }
+
+export type CorridorEdge = 'back' | 'ahead' | 'side';
+
+/**
+ * Keep a circle inside the union of `rects` (the walkable route). rects[0] is
+ * the main stretch of street; the rest are side pockets (the shop, the stoop).
+ * Returns null when nothing moved, else which edge of the route stopped it:
+ * 'back' (behind the start, larger z), 'ahead' (past the end) or 'side'.
+ */
+export function clampToCorridor(p: Vec2, r: number, rects: readonly Rect[]): CorridorEdge | null {
+  if (!rects.length) return null;
+  const inside = (b: Rect) => p.x >= b.minX + r && p.x <= b.maxX - r && p.z >= b.minZ + r && p.z <= b.maxZ - r;
+  if (rects.some(inside)) return null;
+  let bestX = p.x;
+  let bestZ = p.z;
+  let bestD = Infinity;
+  for (const b of rects) {
+    const x = Math.min(Math.max(p.x, b.minX + r), b.maxX - r);
+    const z = Math.min(Math.max(p.z, b.minZ + r), b.maxZ - r);
+    const d = (x - p.x) ** 2 + (z - p.z) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      bestX = x;
+      bestZ = z;
+    }
+  }
+  const main = rects[0];
+  const edge: CorridorEdge = p.z > main.maxZ - r ? 'back' : p.z < main.minZ + r ? 'ahead' : 'side';
+  p.x = bestX;
+  p.z = bestZ;
+  return edge;
+}
+
