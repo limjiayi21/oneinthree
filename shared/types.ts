@@ -248,6 +248,12 @@ export interface HealthResponse {
   ok: boolean;
   voice: boolean;
   ai: boolean;
+  /** The debrief coach (Part 3) has a model key and can run. */
+  coach?: boolean;
+  /** MongoDB is configured (MONGODB_URI). */
+  mongo?: boolean;
+  /** Only with /api/health?deep=1: a ping to MongoDB succeeded. */
+  mongoPing?: boolean;
 }
 
 export interface TimelineEntry {

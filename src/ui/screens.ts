@@ -20,6 +20,7 @@ import { add, clamp01, ensureFonts, focusables, h, keycap, nextId, reflow, withK
 import { bundledEvidence, headlineStat, hostOf, normaliseEvidence, resolveSources, resolveStats, safeUrl } from './evidence';
 import { createFilmPlayer, type FilmOptions, type FilmResult } from './film';
 import { phonePairUrl, qrSvg } from './qr';
+import { createCoachScreen, type CoachOptions } from './coach';
 import { briefingControls } from './briefingControls';
 import { createFiveCards, createGuessStat, createPledge } from './debriefCards';
 import { icon, type IconName } from './icons';
@@ -798,13 +799,13 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     );
   }
 
-  function summary(data: SummaryData): Promise<'continue' | 'retry'> {
-    return new Promise<'continue' | 'retry'>((resolve) => {
+  function summary(data: SummaryData, sumOpts: { coach?: boolean } = {}): Promise<'continue' | 'retry' | 'coach'> {
+    return new Promise<'continue' | 'retry' | 'coach'>((resolve) => {
       const pov: Pov = data.pov === 'bystander' ? 'bystander' : 'woman';
       const titleId = nextId('oit-sum');
       const el = h('section', { class: 'oit-screen oit-summary', 'aria-labelledby': titleId, 'data-pov': pov, 'data-outcome': data.outcome?.kind ?? '' });
 
-      const finish = (choice: 'continue' | 'retry'): void => {
+      const finish = (choice: 'continue' | 'retry' | 'coach'): void => {
         close(el);
         resolve(choice);
       };
@@ -864,6 +865,8 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           },
         );
         const learnBtn = h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => finish('continue') }, 'Learn how to help');
+        // The debrief coach (src/ui/coach.ts), only when the server can run it.
+        const coachBtn = sumOpts.coach ? h('button', { class: 'oit-btn oit-btn--ghost oit-coach-open', type: 'button', onclick: () => finish('coach') }, 'Talk it through with a coach') : null;
         const fullId = nextId('oit-full');
         add(
           el,
@@ -885,7 +888,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
                   'div',
                   { class: 'oit-sec-body' },
                   h('p', { class: 'oit-next-note' }, 'Next: the same street once more. It will stop at five moments and show what helps.'),
-                  h('div', { class: 'oit-actions' }, learnBtn, retryBtn),
+                  h('div', { class: 'oit-actions' }, learnBtn, coachBtn, retryBtn),
                 ),
               ),
               h(
@@ -1245,5 +1248,31 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     });
   }
 
-  return { intro, briefing, film, summary, recap, closing, loading, error };
+  /* ------------------------------------------------------------------- coach */
+
+  /** One coach screen per Part 2 session: going back to the debrief and opening the coach again returns to the same work. */
+  const coaches = new Map<string, { el: HTMLElement; done: (() => void) | null }>();
+
+  function coach(opts: CoachOptions): Promise<void> {
+    return new Promise<void>((resolve) => {
+      let entry = coaches.get(opts.bystander);
+      if (!entry) {
+        const fresh: { el: HTMLElement; done: (() => void) | null } = { el: document.createElement('section'), done: null };
+        fresh.el = createCoachScreen(opts, wordmark(), () => {
+          close(fresh.el);
+          fresh.done?.();
+        }).el;
+        coaches.set(opts.bystander, fresh);
+        entry = fresh;
+      } else {
+        entry.el.classList.remove('is-out');
+        entry.el.removeAttribute('inert');
+        entry.el.removeAttribute('aria-hidden');
+      }
+      entry.done = resolve;
+      show(entry.el);
+    });
+  }
+
+  return { intro, briefing, film, summary, recap, coach, closing, loading, error };
 }

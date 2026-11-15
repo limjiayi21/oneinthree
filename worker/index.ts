@@ -9,7 +9,8 @@
  *   POST /api/phone/pair                 -> PhonePairResponse
  *   GET  /api/phone/:code/ws?role=       -> WebSocket relay (worker/phoneRelay.ts)
  *   POST /api/session/:id/guided         -> records the guided replay's first choices (worker/stats.ts)
- *   GET  /api/stats                      -> aggregate playthrough counts; needs STATS_CODE
+ *   GET  /api/stats                      -> aggregate playthrough counts (D1) and MongoDB insights; needs STATS_CODE
+ *   POST /api/coach                      -> NDJSON stream: the debrief coach (worker/coach/); needs OPENAI_API_KEY
  *
  * Everything under /api/session/:id is handled by that session's Durable
  * Object (worker/session.ts). Static assets and the SPA are served by the
@@ -20,6 +21,12 @@ import { PHONE_CODE_ALPHABET, PHONE_CODE_LENGTH, isPhoneCode, phonePairPath, typ
 import { PhoneRelayDO } from './phoneRelay';
 import { SessionDO, type Env } from './session';
 import { codeMatches, readStats } from './stats';
+import { handleCoach, type CoachEnv } from './coach';
+import { pickProvider } from './coach/models';
+import { COACH_PATH } from '../shared/coach';
+import { mongoOn, pingMongo, withDb, type MongoEnv } from './mongo';
+import { readInsights, runDoc, saveRun } from './runlog';
+import type { SummaryData } from '../shared/types';
 
 export { PhoneRelayDO, SessionDO };
 export type { Env };
@@ -43,12 +50,14 @@ const json = (body: unknown, status = 200): Response =>
 const SESSION_ID = /^[a-z0-9-]{8,64}$/i;
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
 
     if (path === '/api/health') {
-      const body: HealthResponse = { ok: true, voice: Boolean(env.ELEVENLABS_API_KEY), ai: Boolean(env.AI) };
+      const body: HealthResponse = { ok: true, voice: Boolean(env.ELEVENLABS_API_KEY), ai: Boolean(env.AI), coach: pickProvider(env as CoachEnv) !== null, mongo: mongoOn(env as MongoEnv) };
+      // ?deep=1 also does a round trip to MongoDB (slower; for checking a deploy, not for the game).
+      if (body.mongo && url.searchParams.get('deep') === '1') body.mongoPing = await pingMongo(env as MongoEnv);
       return json(body);
     }
 
@@ -57,14 +66,23 @@ export default {
       // Off unless STATS_CODE is set. The code goes in the x-stats-code header (or ?code= for a quick look in a browser).
       const given = request.headers.get('x-stats-code') ?? url.searchParams.get('code');
       if (!env.STATS_CODE || !codeMatches(given, env.STATS_CODE)) return json({ error: 'Not found' }, 404);
-      if (!env.DB) return json({ error: 'No stats database is bound' }, 503);
-      try {
-        return json(await readStats(env.DB));
-      } catch (err) {
-        console.error('[stats] read failed', err);
-        return json({ error: 'Stats are unavailable' }, 500);
-      }
+      const mongo = mongoOn(env as MongoEnv);
+      if (!env.DB && !mongo) return json({ error: 'No stats database is bound' }, 503);
+      // D1 counts as before, plus MongoDB aggregations (worker/runlog.ts) when it is configured. Either can fail alone.
+      const [d1, insights] = await Promise.all([
+        env.DB
+          ? readStats(env.DB).catch((err) => {
+              console.error('[stats] read failed', err);
+              return null;
+            })
+          : null,
+        mongo ? withDb(env as MongoEnv, readInsights, 'stats') : null,
+      ]);
+      if (!d1 && !insights) return json({ error: 'Stats are unavailable' }, 500);
+      return json({ ...(d1 ?? {}), ...(insights ? { insights } : {}) });
     }
+
+    if (path === COACH_PATH) return handleCoach(request, env as CoachEnv, ctx);
 
     if (path === '/api/session') {
       if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -86,7 +104,18 @@ export default {
       const id = match[1];
       if (!SESSION_ID.test(id)) return json({ error: 'Unknown session' }, 404);
       // The session object answers directly: turn streams and audio streams pass through untouched.
-      return env.SESSION.get(env.SESSION.idFromName(id)).fetch(request);
+      const res = await env.SESSION.get(env.SESSION.idFromName(id)).fetch(request);
+      // A part's summary is read when it ends: keep its anonymous record in MongoDB, after the response.
+      if (match[2] === 'summary' && request.method === 'GET' && res.ok && mongoOn(env as MongoEnv)) {
+        const copy = res.clone();
+        ctx.waitUntil(
+          copy
+            .json()
+            .then((s) => withDb(env as MongoEnv, (db) => saveRun(db, runDoc(id, s as SummaryData)), 'runlog'))
+            .catch(() => {}),
+        );
+      }
+      return res;
     }
 
     if (path === phonePairPath) {

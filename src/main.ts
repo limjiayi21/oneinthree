@@ -162,6 +162,8 @@ async function main(): Promise<void> {
     let part2: SceneResult | null = null;
     /** Part 1's debrief, fetched while the film plays and offered from the Part 2 brief ("See full details"). */
     let part1Details: Promise<SummaryData> | null = null;
+    /** Part 1's session, for the coach. */
+    let part1Session: string | null = null;
 
     if (!skip.has('part1')) {
       await screens.briefing('woman', { mode: deps.mode });
@@ -171,7 +173,10 @@ async function main(): Promise<void> {
       const result = await runWomanWalkHome(deps);
       hud.setVisible(false);
       if (result.outcome === 'exited') exited = true;
-      else part1Details = debrief(result, 'woman'); // never rejects: falls back to a local outcome
+      else {
+        part1Details = debrief(result, 'woman'); // never rejects: falls back to a local outcome
+        part1Session = result.sessionId || null;
+      }
     }
 
     // The film replaces Part 1's debrief in the main flow (?skip=film leaves it out).
@@ -206,7 +211,15 @@ async function main(): Promise<void> {
         screens.loading('…');
         const summary = await debrief(result, 'bystander');
         screens.loading(null);
-        if ((await screens.summary(summary)) === 'continue') break;
+        // The debrief coach (worker/coach/) is one button on this debrief when the server can run it
+        // and Part 2 was recorded (?coach=0 hides it). It opens the coach and comes back here.
+        const offerCoach = Boolean(health.coach) && Boolean(result.sessionId) && params.get('coach') !== '0';
+        let next = await screens.summary(summary, { coach: offerCoach });
+        while (next === 'coach') {
+          await screens.coach({ bystander: result.sessionId, woman: part1Session ?? undefined });
+          next = await screens.summary(summary, { coach: offerCoach });
+        }
+        if (next === 'continue') break;
       }
     }
 

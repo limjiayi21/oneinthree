@@ -18,6 +18,7 @@
 import type * as THREE from 'three';
 import type { Emotion, SummaryData, Pov } from '../shared/types';
 import type { FilmOptions, FilmResult } from './ui/film';
+import type { CoachOptions } from './ui/coach';
 
 /* ------------------------------------------------------------------ engine */
 
@@ -443,7 +444,7 @@ export interface Screens {
   /** The narrated film after Part 1 (about 36 s), with its content note. See src/ui/film.ts. */
   film(opts: FilmOptions): Promise<FilmResult>;
   /** Debrief for a part. */
-  summary(data: SummaryData): Promise<'continue' | 'retry'>;
+  summary(data: SummaryData, opts?: { coach?: boolean }): Promise<'continue' | 'retry' | 'coach'>;
   /** After the teaching replay: the 5 Ds (ticked where they were the player's first pick), the two steps before helping, the closing line. */
   recap(opts: {
     title: string;
@@ -452,6 +453,8 @@ export interface Screens {
     steps: Array<{ name: string; line: string }>;
     closing: string;
   }): Promise<void>;
+  /** The debrief coach, opened from the Part 2 debrief: its plan, the debrief, follow-up questions. Resolves when the player goes back. See src/ui/coach.ts. */
+  coach(opts: CoachOptions): Promise<void>;
   /** Closing screen: resources and sources. */
   closing(): Promise<'restart'>;
   /** Loading / error states. */
