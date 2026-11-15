@@ -159,6 +159,8 @@ async function main(): Promise<void> {
     let part2: SceneResult | null = null;
     /** Part 1's debrief, fetched while the film plays and offered from the Part 2 brief ("See full details"). */
     let part1Details: Promise<SummaryData> | null = null;
+    /** Part 1's session, for the coach (?coach=1). */
+    let part1Session: string | null = null;
 
     if (!skip.has('part1')) {
       await screens.briefing('woman');
@@ -168,7 +170,10 @@ async function main(): Promise<void> {
       const result = await runWomanWalkHome(deps);
       hud.setVisible(false);
       if (result.outcome === 'exited') exited = true;
-      else part1Details = debrief(result, 'woman'); // never rejects: falls back to a local outcome
+      else {
+        part1Details = debrief(result, 'woman'); // never rejects: falls back to a local outcome
+        part1Session = result.sessionId || null;
+      }
     }
 
     // The film replaces Part 1's debrief in the main flow (?skip=film leaves it out).
@@ -222,6 +227,8 @@ async function main(): Promise<void> {
       }
       if (part2.sessionId && Object.keys(picks).length) void postGuided(part2.sessionId, picks, part2.outcome);
       if (!exited) await screens.recap(recapFor(picks));
+      // The debrief coach (worker/coach/), only with ?coach=1 and a recorded Part 2 session.
+      if (!exited && params.get('coach') === '1' && part2.sessionId) await screens.coach({ bystander: part2.sessionId, woman: part1Session ?? undefined });
     }
 
     audio.stopAmbience(1);

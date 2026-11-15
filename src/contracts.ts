@@ -18,6 +18,7 @@
 import type * as THREE from 'three';
 import type { Emotion, SummaryData, Pov } from '../shared/types';
 import type { FilmOptions, FilmResult } from './ui/film';
+import type { CoachOptions } from './ui/coach';
 
 /* ------------------------------------------------------------------ engine */
 
@@ -451,6 +452,8 @@ export interface Screens {
     steps: Array<{ name: string; line: string }>;
     closing: string;
   }): Promise<void>;
+  /** The debrief coach after the recap (?coach=1): its plan, the debrief, follow-up questions. See src/ui/coach.ts. */
+  coach(opts: CoachOptions): Promise<void>;
   /** Closing screen: resources and sources. */
   closing(): Promise<'restart'>;
   /** Loading / error states. */

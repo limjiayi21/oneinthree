@@ -20,6 +20,7 @@ import { add, clamp01, ensureFonts, focusables, h, keycap, nextId, reflow, type 
 import { bundledEvidence, headlineStat, hostOf, normaliseEvidence, resolveSources, resolveStats, safeUrl } from './evidence';
 import { createFilmPlayer, type FilmOptions, type FilmResult } from './film';
 import { phonePairUrl, qrSvg } from './qr';
+import { createCoachScreen, type CoachOptions } from './coach';
 import { icon, type IconName } from './icons';
 
 export interface ScreensOptions {
@@ -1221,5 +1222,17 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
     });
   }
 
-  return { intro, briefing, film, summary, recap, closing, loading, error };
+  /* ------------------------------------------------------------------- coach */
+
+  function coach(opts: CoachOptions): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const { el } = createCoachScreen(opts, wordmark(), () => {
+        close(el);
+        resolve();
+      });
+      show(el);
+    });
+  }
+
+  return { intro, briefing, film, summary, recap, coach, closing, loading, error };
 }

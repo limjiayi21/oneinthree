@@ -1,0 +1,320 @@
+/* The debrief coach screen (src/ui/coach.ts). Uses the game's tokens from base.css. */
+
+.oit-coach .oit-sum-head {
+  padding: clamp(28px, 5vh, 56px) 0 clamp(20px, 3vh, 32px);
+}
+
+.oit-coach-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: clamp(28px, 4vw, 64px);
+  width: min(100% - 80px, 1120px);
+  margin: 0 auto;
+  padding: 0 0 96px;
+}
+@media (max-width: 860px) {
+  .oit-coach-layout {
+    grid-template-columns: minmax(0, 1fr);
+    width: calc(100% - 32px);
+  }
+  .oit-coach-work {
+    order: -1;
+    position: static !important;
+    max-height: none !important;
+  }
+}
+
+.oit-coach-main {
+  min-width: 0;
+  color: var(--oit-ink);
+  font: 400 17px/1.65 var(--oit-sans);
+}
+
+.oit-coach-skip {
+  padding: 8px 12px;
+  border: 1px solid var(--oit-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--oit-ink-2);
+  font: 500 13px/1 var(--oit-sans);
+  cursor: pointer;
+}
+.oit-coach-skip:hover,
+.oit-coach-skip:focus-visible {
+  border-color: var(--oit-line-2);
+  color: var(--oit-ink);
+}
+
+/* ------------------------------------------------------------ status */
+
+.oit-coach-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--oit-ink-2);
+}
+.oit-coach-dots {
+  width: 28px;
+  height: 8px;
+  flex: none;
+  background: radial-gradient(circle, var(--oit-you) 0 3px, transparent 3.5px) 0 50% / 10px 8px repeat-x;
+  animation: oit-coach-pulse 1.2s ease-in-out infinite;
+}
+@keyframes oit-coach-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.oit-coach-error {
+  color: var(--oit-man);
+}
+
+/* ------------------------------------------------------------ the debrief */
+
+.oit-coach-debrief {
+  max-width: 40em;
+}
+.oit-coach-h {
+  margin: 30px 0 8px;
+  color: var(--oit-ink);
+  font: 500 22px/1.25 var(--oit-serif);
+}
+.oit-coach-debrief > .oit-coach-h:first-child {
+  margin-top: 0;
+}
+.oit-coach-debrief p,
+.oit-coach-a p {
+  margin: 0 0 12px;
+}
+.oit-coach-debrief strong,
+.oit-coach-a strong {
+  color: var(--oit-you);
+  font-weight: 600;
+}
+.oit-coach-cite {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.35em;
+  height: 1.35em;
+  margin: 0 1px;
+  padding: 0 4px;
+  border: 1px solid var(--oit-line-2);
+  border-radius: 999px;
+  color: var(--oit-accent);
+  font: 600 11px/1 var(--oit-sans);
+  text-decoration: none;
+  vertical-align: 0.25em;
+}
+.oit-coach-cite:hover,
+.oit-coach-cite:focus-visible {
+  border-color: var(--oit-accent);
+}
+.oit-coach-checked {
+  margin: 4px 0 0;
+  color: var(--oit-ink-3);
+  font: 500 13px/1.5 var(--oit-sans);
+}
+.oit-coach-checked::before {
+  content: '✓ ';
+  color: var(--oit-clerk);
+}
+
+/* ------------------------------------------------------------ questions */
+
+.oit-coach-answers {
+  max-width: 40em;
+}
+.oit-coach-qa {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--oit-line);
+}
+.oit-coach-q {
+  margin: 0 0 10px;
+  color: var(--oit-you);
+  font: italic 400 19px/1.4 var(--oit-serif);
+}
+.oit-coach-ask {
+  max-width: 40em;
+  margin-top: 36px;
+  padding-top: 8px;
+  border-top: 1px solid var(--oit-line);
+}
+.oit-coach-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 14px;
+}
+.oit-coach-chip {
+  padding: 9px 14px;
+  border: 1px solid var(--oit-line-2);
+  border-radius: 999px;
+  background: var(--oit-bg-1);
+  color: var(--oit-ink);
+  font: 500 14px/1.3 var(--oit-sans);
+  text-align: left;
+  cursor: pointer;
+}
+.oit-coach-chip:hover:not(:disabled),
+.oit-coach-chip:focus-visible {
+  border-color: var(--oit-you);
+}
+.oit-coach-chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.oit-coach-row {
+  display: flex;
+  gap: 10px;
+}
+.oit-coach-input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--oit-line-2);
+  border-radius: 10px;
+  background: var(--oit-bg-1);
+  color: var(--oit-ink);
+  font: 400 16px/1.3 var(--oit-sans);
+}
+.oit-coach-input:focus-visible {
+  outline: 2px solid var(--oit-you);
+  outline-offset: 1px;
+}
+.oit-coach-left {
+  margin: 8px 0 0;
+  color: var(--oit-ink-3);
+  font: 500 13px/1.4 var(--oit-sans);
+}
+
+/* ------------------------------------------------------------ research */
+
+.oit-coach-research {
+  max-width: 40em;
+  margin-top: 36px;
+}
+.oit-coach-sources {
+  margin: 0;
+  padding-left: 1.4em;
+  color: var(--oit-ink-2);
+  font: 400 14px/1.55 var(--oit-sans);
+}
+.oit-coach-sources li {
+  margin-bottom: 10px;
+}
+.oit-coach-sources li:target {
+  color: var(--oit-ink);
+}
+.oit-coach-cite-src {
+  display: block;
+  color: var(--oit-ink-3);
+  font-size: 12px;
+}
+.oit-coach-cite-src a {
+  color: inherit;
+}
+
+/* ------------------------------------------------------------ the coach's work */
+
+.oit-coach-work {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  max-height: calc(100vh - 48px);
+  margin-top: clamp(28px, 5vh, 56px);
+  padding: 20px 20px 16px;
+  overflow: auto;
+  border: 1px solid var(--oit-line);
+  border-radius: 14px;
+  background: var(--oit-bg-1);
+}
+.oit-coach-label {
+  margin: 0 0 10px;
+  color: var(--oit-ink-3);
+  font: 500 11px/1 var(--oit-sans);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.oit-coach-plan {
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+}
+.oit-coach-plan li {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: var(--oit-ink-2);
+  font: 400 14px/1.4 var(--oit-sans);
+}
+.oit-coach-check {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border: 1.5px solid var(--oit-line-2);
+  border-radius: 50%;
+}
+.oit-coach-plan li.is-in-progress {
+  color: var(--oit-ink);
+}
+.oit-coach-plan li.is-in-progress .oit-coach-check {
+  border-color: var(--oit-you);
+  border-right-color: transparent;
+  animation: oit-coach-spin 1s linear infinite;
+}
+.oit-coach-plan li.is-completed .oit-coach-check {
+  border-color: var(--oit-clerk);
+  background: var(--oit-clerk);
+  box-shadow: inset 0 0 0 2px var(--oit-bg-1);
+}
+@keyframes oit-coach-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.oit-coach-feed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 400 13px/1.45 var(--oit-sans);
+  color: var(--oit-ink-2);
+}
+.oit-coach-step {
+  display: grid;
+  gap: 1px;
+  padding: 6px 0;
+  border-top: 1px solid var(--oit-line);
+}
+.oit-coach-who {
+  color: var(--oit-ink-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.oit-coach-step.is-moment-analyst .oit-coach-who {
+  color: var(--oit-woman);
+}
+.oit-coach-step.is-evidence-researcher .oit-coach-who {
+  color: var(--oit-clerk);
+}
+.oit-coach-step.is-coach .oit-coach-who {
+  color: var(--oit-you);
+}
+.oit-coach-sep {
+  margin-top: 10px;
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--oit-line-2);
+  color: var(--oit-ink);
+  font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oit-coach-dots,
+  .oit-coach-plan li.is-in-progress .oit-coach-check {
+    animation: none;
+  }
+}
