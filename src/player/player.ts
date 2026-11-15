@@ -20,7 +20,7 @@
 import * as THREE from 'three';
 import type { DynamicCollider, Engine, Player, PlayerEvents, StreetWorld } from '../contracts';
 import { createBody, type BodyFrame, type BodyKind } from './body';
-import { circlePenetration, clampToBounds, clampToCorridor, pushOutOfCircle, pushOutOfRect, type CorridorEdge, type Vec2 } from './collision';
+import { circlePenetration, clampToBounds, clampToCorridor, isPost, pushOutOfCircle, pushOutOfPost, pushOutOfRectAssisted, type CorridorEdge, type Vec2 } from './collision';
 import type { Rect } from '../contracts';
 import { createInput, type MoveIntent } from './input';
 import type { EyeLookSource } from './eyes';
@@ -279,6 +279,9 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
 
   let corridorEdge: CorridorEdge | null = null;
   let lastEdgeReport = -10;
+  /** The sub-step being resolved, so a post hit head-on can turn her aside. */
+  let stepX = 0;
+  let stepZ = 0;
   function resolve(): void {
     const statics = world.colliders;
     for (let iter = 0; iter < 6; iter++) {
@@ -301,7 +304,10 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
       }
       // Statics and bounds go last in every pass: walls always win over bodies.
       for (let i = 0; i < statics.length; i++) {
-        if (pushOutOfRect(p, T.radius, statics[i]) > 1e-6) any = true;
+        // Small statics (trunks, poles, bins) are round, so she slides past them. Bigger ones slide her
+        // round a near edge when she walks into them head-on; walls, with far edges, still stop her.
+        const s = statics[i];
+        if ((isPost(s) ? pushOutOfPost(p, T.radius, s, stepX, stepZ) : pushOutOfRectAssisted(p, T.radius, s, stepX, stepZ)) > 1e-6) any = true;
       }
       if (clampToBounds(p, T.radius, world.bounds)) any = true;
       if (opts.corridor) {
@@ -327,6 +333,8 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
     const subs = Math.max(1, Math.ceil(dist / 0.1));
     const sx = dx / subs;
     const sz = dz / subs;
+    stepX = sx;
+    stepZ = sz;
     for (let i = 0; i < subs; i++) {
       const ox = position.x;
       const oz = position.z;
@@ -342,6 +350,8 @@ export function createPlayer(engine: Engine, world: Pick<StreetWorld, 'colliders
       position.x = p.x;
       position.z = p.z;
     }
+    stepX = 0;
+    stepZ = 0;
   }
 
   /* ------------------------------------------------------------- footfalls */
