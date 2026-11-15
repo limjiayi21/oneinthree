@@ -16,6 +16,7 @@ import { bindEchoSteps, laggedTarget } from './echoSteps';
 import { LINE, walkCorridor } from '../world/layout';
 import { runKeyTutorial } from './keyTutorial';
 import { LOOK_GATE_TIMEOUT, LookGate, turnHint } from './lookGate';
+import { SAFE_LIGHT_TRIGGER, createSafeLight } from '../world/safeLight';
 import { createWayfinder, wayfinderLevel } from '../ui/wayfinder';
 import { damp, wrapAngle, yawOf } from '../player/mathx';
 import { DEMO, demoCorridor } from './womanDemo';
@@ -46,11 +47,15 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const P = world.points;
   const Z = world.zones;
 
+  /** A short walk the game does for her (into the shop, up to her door): waypoints she walks through. */
+  let guide: { points: THREE.Vector3[]; i: number; until: number } | null = null;
+
   const player = createPlayer(engine, world, {
     body: 'woman',
     requireLock: deps.requireLock,
     eyes: deps.eyes,
-    extraMove: () => deps.phone?.move(performance.now()) ?? null,
+    // The guided walk drives her own legs (steps, bob, collisions), the same way the phone does.
+    extraMove: () => (guide ? { forward: 1, hurry: false } : (deps.phone?.move(performance.now()) ?? null)),
     // Only the walk home: this street, her building at the end, the shop if she needs it.
     // demo: only her sidewalk up to the shop, and the edges say nothing.
     corridor: deps.demo ? demoCorridor() : walkCorridor(P.subwayExit.z),
@@ -492,18 +497,47 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   let tutorialEnds = 0; // scene time the controls tutorial finishes (set when she gains control)
 
-  /** demo: how close to the shop door she has to get before she walks in by herself, and how long that takes. */
-  const AUTO_ENTER_RADIUS = 2.3;
-  const AUTO_ENTER_SECONDS = 1.1;
-  let autoEnter: { from: THREE.Vector3; t: number } | null = null;
-  // Its own frame step, so the walk in finishes even after the shop ending has begun (at the threshold).
+  /*
+   * Places of safety, marked with a circle of light: the shop (both versions) and her front door (full
+   * version; the demo's street ends at the shop). Nothing there until he starts on her; then they light up
+   * and pulse. Stepping into one and she walks in herself: to the doorway, through the middle of it, inside.
+   */
+  const shopLightAt = new THREE.Vector3(7.3, 0, P.shopDoor.z);
+  const homeLightAt = new THREE.Vector3(P.homeStoop.x, 0, P.homeStoop.z);
+  const shopLight = createSafeLight(engine.scene, shopLightAt);
+  const homeLight = deps.demo ? null : createSafeLight(engine.scene, homeLightAt);
+  const v3 = (x: number, z: number) => new THREE.Vector3(x, 0, z);
+  const INTO_SHOP = [v3(7.4, P.shopDoor.z), v3(8.7, P.shopDoor.z), P.shopInside.clone()];
+  const UP_TO_HOME = [P.homeStoop.clone(), P.homeDoor.clone()];
+  // Its own frame step, so the lights and the guided walk carry on after an ending has begun at the threshold.
   kit.onFrame((dt) => {
-    if (!autoEnter || autoEnter.t >= 1 || kit.ended) return;
-    autoEnter.t = Math.min(1, autoEnter.t + dt / AUTO_ENTER_SECONDS);
-    const k = autoEnter.t * autoEnter.t * (3 - 2 * autoEnter.t);
-    const to = P.shopInside;
-    player.setPose(autoEnter.from.clone().lerp(to, k), yawOf(to.x - autoEnter.from.x, to.z - autoEnter.from.z));
+    if (kit.ended) {
+      guide = null;
+      return;
+    }
+    const lit = encounter ? 1 : 0;
+    shopLight.setStrength(lit);
+    homeLight?.setStrength(lit);
+    shopLight.update(dt);
+    homeLight?.update(dt);
+    if (!guide) return;
+    const pos = player.position;
+    let target = guide.points[guide.i]!;
+    if (Math.hypot(target.x - pos.x, target.z - pos.z) < 0.3) {
+      guide.i += 1;
+      if (guide.i >= guide.points.length || kit.time > guide.until) {
+        guide = null;
+        return;
+      }
+      target = guide.points[guide.i]!;
+    }
+    if (kit.time > guide.until) {
+      guide = null;
+      return;
+    }
+    player.setLook(yawOf(target.x - pos.x, target.z - pos.z), 0);
   });
+  const inLight = (pos: THREE.Vector3, at: THREE.Vector3) => Math.hypot(pos.x - at.x, pos.z - at.z) < SAFE_LIGHT_TRIGGER;
 
   kit.onFrame((dt) => {
     if (kit.ended || finishing) {
@@ -629,10 +663,10 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       // If the server is unreachable, still end the scene.
       kit.after(4, () => !finishing && void finish(manGone || !encounter ? 'reached_home_alone' : 'reached_home_followed'));
     }
-    // demo: at the door she goes in by herself, a short walk the player does not have to steer.
-    if (deps.demo && encounter && !autoEnter && pos.distanceTo(P.shopDoor) < AUTO_ENTER_RADIUS) {
-      autoEnter = { from: pos.clone(), t: 0 };
-      player.inputEnabled = false;
+    // Stepping into a lit circle (he has started on her) and she walks in by herself.
+    if (!guide && encounter && player.inputEnabled) {
+      if (inLight(pos, shopLightAt)) guide = { points: INTO_SHOP.map((p) => p.clone()), i: 0, until: kit.time + 6 };
+      else if (homeLight && inLight(pos, homeLightAt)) guide = { points: UP_TO_HOME.map((p) => p.clone()), i: 0, until: kit.time + 6 };
     }
     if (encounter && inRect(pos, Z.shopEntrance) && first('shop')) {
       void kit.turn({ event: 'entered_shop', ctx: kit.context() });
@@ -732,6 +766,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   offBump();
   await hud.fade(true, 400);
   way.dispose();
+  shopLight.dispose();
+  homeLight?.dispose();
   kit.dispose();
   player.dispose();
   return { sessionId, outcome };
