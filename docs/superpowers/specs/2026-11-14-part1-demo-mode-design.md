@@ -55,10 +55,10 @@ for now.
 **Staging (demo only).**
 - She starts on the right sidewalk at about z = −52, facing down the street.
 - He leans on the wall at about (8.08, −64), the same pose and behaviour as today.
-- **A calm, scene-setting start** (~5 s), instead of beats spread along the street:
+- **A calm, scene-setting start** (~4 s), instead of beats spread along the street:
   - During the fade-in: the passer-by is already on the far sidewalk, headphones on, walking the other way.
   - 1 s after she can move: keys jingle and her keys thought (`w_keys`).
-  - 5 s after she can move (or once she reaches z = −61 if she hurries): the trash-can crash and
+  - 4 s after she can move (or once she reaches z = −60 if she hurries): the trash-can crash and
     cat yowl from just ahead on her right, and the cat bolts across the sidewalk ~2 m ahead of her
     to the curb (a cat-only dash, `world.triggerCatDash`, since the alley's cat is ~40 m behind her),
     with the startle, gasp and `w_alley_1`. `w_alley_2` is dropped.

@@ -32,9 +32,9 @@ export const DEMO = {
   ],
   /** A calm start: seconds after she can move before her keys thought, and before the crash. */
   keysDelay: 1,
-  crashDelay: 5,
-  /** If she hurries, the crash comes anyway once she has walked this far (where 5 s at walking pace gets her). */
-  crashByZ: -61,
+  crashDelay: 4,
+  /** If she hurries, the crash comes anyway once she has walked this far (where 4 s at walking pace gets her). */
+  crashByZ: -60,
   /** Seconds after the crash before he looks up. */
   noticeDelay: 2,
   /** Seconds after the encounter begins before the "shop is still open" nudge. */
