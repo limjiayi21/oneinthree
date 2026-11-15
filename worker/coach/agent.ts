@@ -15,7 +15,7 @@
  * the plan tick off.
  */
 import { createDeepAgent } from 'deepagents';
-import { todoListMiddleware } from 'langchain';
+import { todoListMiddleware, type AgentMiddleware } from 'langchain';
 import { tool } from '@langchain/core/tools';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
@@ -27,6 +27,8 @@ import { momentDetail, overview, type RunPart } from './run';
 
 export interface CoachDeps {
   model: BaseChatModel;
+  /** Extra agent middleware from the model setup (e.g. a fallback model). */
+  middleware?: AgentMiddleware[];
   embed?: Embedder;
   parts: RunPart[];
   onEvent: (ev: CoachEvent) => void;
@@ -219,19 +221,21 @@ export function createCoachAgent(deps: CoachDeps, mode: 'debrief' | 'followup') 
     model: deps.model,
     systemPrompt: mode === 'debrief' ? COACH_PROMPT : FOLLOWUP_PROMPT,
     tools: [t.getMyRun, t.getMoment, t.searchEvidence, t.fiveDs, t.checkDraft],
-    middleware: [todoListMiddleware()],
+    middleware: [todoListMiddleware(), ...(deps.middleware ?? [])],
     subagents: [
       {
         name: 'moment-analyst',
         description: 'Analyses one moment of the run (give the part and moment number): what the player did, what it achieved and risked, and the best alternatives among the 5 Ds at that point.',
         systemPrompt: ANALYST_PROMPT,
         tools: [t.getMoment, t.fiveDs, t.searchEvidence],
+        middleware: deps.middleware,
       },
       {
         name: 'evidence-researcher',
         description: 'Finds the research behind one point (give the point in plain words). Returns passage ids with their exact wording.',
         systemPrompt: RESEARCHER_PROMPT,
         tools: [t.searchEvidence],
+        middleware: deps.middleware,
       },
     ],
   });

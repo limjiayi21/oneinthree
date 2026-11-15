@@ -17,7 +17,7 @@ The coach appears after the 5 Ds recap, but only when the URL has `?coach=1`.
 ## How it works
 
 ```
-POST /api/coach  ──►  coach (deep agent, gpt-5.4-mini)
+POST /api/coach  ──►  coach (deep agent, Gemini or OpenAI)
                        │  write_todos: a plan the player can read, kept up to date
                        │  get_my_run: the outcome and every moment, numbered
                        ├─► moment-analyst  (one per key moment, run in parallel)
@@ -36,12 +36,23 @@ POST /api/coach  ──►  coach (deep agent, gpt-5.4-mini)
 - **Follow-up questions:** the client sends the coach's working files (its notes and the debrief) back with each question. The server keeps no conversation state, and the coach can still build on its own notes.
 - **Safety rules** in every prompt: the player's safety comes first; no physical intervention; Direct is described as the riskiest option; no blaming; and gentle signposting to support if the player seems upset.
 
+## Which model
+
+`worker/coach/models.ts` picks the model:
+
+- **Gemini (the default when `GEMINI_API_KEY` is set).** It uses `gemini-3.6-flash` and falls back to `gemini-flash-lite-latest` when a call fails or takes over 30 s. Busy Gemini models answer 503 or hang without replying. Embeddings use `gemini-embedding-001`. Deep Agents' built-in tools use schema features Gemini rejects, so the schemas are rewritten into the subset Gemini accepts before they are sent.
+- **OpenAI (when only `OPENAI_API_KEY` is set, or `COACH_PROVIDER=openai`).** It uses `gpt-5.4-mini` and `text-embedding-3-small`. Setting `OPENAI_BASE_URL` points it at any OpenAI-compatible service instead, for example a self-hosted or Vultr endpoint.
+- `COACH_MODEL` overrides the chat model for either provider.
+
+**Gemini's free tier is too small for the coach.** It allows 15 requests per minute per model, and one debrief makes 15–25 calls in about 20 s. The coach needs a Gemini key with billing turned on (paid tier); until then, use `COACH_PROVIDER=openai`.
+
 ## Files
 
 | File | What it is |
 |---|---|
 | `worker/coach/agent.ts` | The deep agent, its two helpers, the tools and prompts, and the progress reporting |
 | `worker/coach/index.ts` | `POST /api/coach`: validation, per-session limits, the streaming, and the final check-and-revise loop |
+| `worker/coach/models.ts` | Picks Gemini or OpenAI, with the Gemini fallback, timeout and schema rewrite |
 | `worker/coach/knowledge.ts` | The citable passages and the search |
 | `worker/coach/check.ts` | The grounding check |
 | `worker/coach/run.ts` | Turns a session summary into numbered moments |
@@ -58,7 +69,8 @@ It hooks into the existing code in five places, all additions:
 ## Running it
 
 ```sh
-# .dev.vars (never committed)
+# .dev.vars (never committed): one or both
+GEMINI_API_KEY=...
 OPENAI_API_KEY=sk-...
 
 npm run dev:local        # or npm run dev
@@ -68,22 +80,22 @@ npm run dev:local        # or npm run dev
 To deploy, add the key as a secret on the Cloudflare account that hosts the game:
 
 ```sh
-npx wrangler secret put OPENAI_API_KEY
-# optional: npx wrangler secret put COACH_MODEL   (default gpt-5.4-mini)
+npx wrangler secret put GEMINI_API_KEY      # and/or OPENAI_API_KEY
+# optional: COACH_PROVIDER (gemini | openai), COACH_MODEL, OPENAI_BASE_URL
 ```
 
-Without `OPENAI_API_KEY`, `/api/coach` returns 503 and the screen says the coach is unavailable.
+Without either key, `/api/coach` returns 503 and the screen says the coach is unavailable.
 
 ## Limits and cost
 
 - **Per Part 2 session:** two debriefs and six questions, counted in the session's Durable Object.
 - **Input limits:** questions up to 300 characters, and the returned working files up to 60 KB.
-- **Speed and cost:** a debrief takes about 30 s and a question about 10–15 s, each a cent or two on `gpt-5.4-mini`. A run times out after 150 s.
-- **Privacy:** the run summary, including what the player said, is sent to OpenAI to write the debrief. Nothing new is stored.
+- **Speed and cost:** a debrief takes about 30 s and a question about 10–15 s, each a cent or two on `gpt-5.4-mini` and less on Gemini Flash. A run times out after 150 s.
+- **Privacy:** the run summary, including what the player said, is sent to the model provider (Google or OpenAI) to write the debrief. Nothing new is stored.
 
 ## Tested
 
-- Unit tests: `npx vitest run worker/coach`, 12 tests.
+- Unit tests: `npx vitest run worker/coach`, 14 tests.
 - End to end on the local dev server, with real Part 2 sessions played through the API:
   - the plan streamed live and three moment analysts ran in parallel;
   - the debrief passed the check first time and showed its numbered sources;

@@ -120,3 +120,38 @@ describe('request validation', () => {
     expect(parseCoachRequest({ bystander: id, question: 'Hi', files: [{ path: '../etc', content: '' }] })).toMatch(/markdown/);
   });
 });
+
+describe('model setup', () => {
+  it('rewrites tool schemas into the subset Gemini accepts', async () => {
+    const { geminiSchema } = await import('./models');
+    const out = geminiSchema({
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        path: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'dir' },
+        glob: { type: ['string', 'null'] },
+        n: { type: 'integer', exclusiveMinimum: 0 },
+        tags: { type: 'array', items: { type: 'string', pattern: 'x' } },
+      },
+      required: ['n'],
+    });
+    expect(out).toEqual({
+      type: 'object',
+      properties: {
+        path: { type: 'string', nullable: true, description: 'dir' },
+        glob: { type: 'string', nullable: true },
+        n: { type: 'integer', minimum: 0 },
+        tags: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['n'],
+    });
+  });
+
+  it('picks Gemini when its key is set, OpenAI otherwise, and nothing without keys', async () => {
+    const { pickProvider } = await import('./models');
+    expect(pickProvider({ GEMINI_API_KEY: 'g', OPENAI_API_KEY: 'o' })).toBe('gemini');
+    expect(pickProvider({ GEMINI_API_KEY: 'g', OPENAI_API_KEY: 'o', COACH_PROVIDER: 'openai' })).toBe('openai');
+    expect(pickProvider({ OPENAI_API_KEY: 'o' })).toBe('openai');
+    expect(pickProvider({})).toBeNull();
+  });
+});

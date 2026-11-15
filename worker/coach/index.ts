@@ -3,24 +3,23 @@
  * (shared/coach.ts). Reads each session's summary from its Durable Object;
  * changes nothing in the game.
  *
- * Off (503) unless OPENAI_API_KEY is set. COACH_MODEL picks the OpenAI model
- * (default gpt-5.4-mini). Each Part 2 session may ask for its debrief twice
+ * Off (503) unless GEMINI_API_KEY or OPENAI_API_KEY is set (worker/coach/models.ts
+ * picks the model; Gemini by default). Each Part 2 session may ask for its debrief twice
  * and up to COACH_LIMITS.questionsPerRun follow-up questions.
  */
-import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import { HumanMessage, type BaseMessage } from '@langchain/core/messages';
 import type { SummaryData } from '../../shared/types';
 import { COACH_LIMITS, type CheckSummary, type CoachEvent, type CoachFile, type CoachRequest, type CoachTodo } from '../../shared/coach';
 import type { Env } from '../session';
 import { createCoachAgent } from './agent';
 import { checkText, formatProblems, removeProblems } from './check';
-import { citation, type Embedder } from './knowledge';
+import { citation } from './knowledge';
+import { createModels, pickProvider, type ModelEnv } from './models';
 import { toRunPart, type RunPart } from './run';
 
-export type CoachEnv = Env & { OPENAI_API_KEY?: string; COACH_MODEL?: string };
+export type CoachEnv = Env & ModelEnv;
 
 const SESSION_ID = /^[a-z0-9-]{8,64}$/i;
-const DEFAULT_MODEL = 'gpt-5.4-mini';
 const MAX_DEBRIEFS = 2;
 const RUN_TIMEOUT_MS = 150_000;
 const MAX_REVISIONS = 2;
@@ -94,7 +93,8 @@ const lastText = (messages: BaseMessage[]): string => {
 
 export async function handleCoach(request: Request, env: CoachEnv, ctx: ExecutionContext): Promise<Response> {
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
-  if (!env.OPENAI_API_KEY) return json({ error: 'The coach is not switched on' }, 503);
+  const provider = pickProvider(env);
+  if (!provider) return json({ error: 'The coach is not switched on' }, 503);
   const req = parseCoachRequest(await request.json().catch(() => null));
   if (typeof req === 'string') return json({ error: req }, 400);
 
@@ -117,15 +117,13 @@ export async function handleCoach(request: Request, env: CoachEnv, ctx: Executio
     void writer.write(enc.encode(`${JSON.stringify(ev)}\n`)).catch(() => (closed = true));
   };
 
-  const model = new ChatOpenAI({ model: env.COACH_MODEL || DEFAULT_MODEL, apiKey: env.OPENAI_API_KEY, reasoning: { effort: 'low' }, useResponsesApi: true, maxRetries: 2 });
-  const embeddings = new OpenAIEmbeddings({ model: 'text-embedding-3-small', apiKey: env.OPENAI_API_KEY });
-  const embed: Embedder = (texts) => (texts.length === 1 ? embeddings.embedQuery(texts[0]).then((v) => [v]) : embeddings.embedDocuments(texts));
+  const { model, embed, middleware } = createModels(env, provider);
 
   const work = (async () => {
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), RUN_TIMEOUT_MS);
     try {
-      const { agent, progress } = createCoachAgent({ model, embed, parts, onEvent: send }, kind === 'question' ? 'followup' : 'debrief');
+      const { agent, progress } = createCoachAgent({ model, embed, middleware, parts, onEvent: send }, kind === 'question' ? 'followup' : 'debrief');
       const config = { recursionLimit: 80, callbacks: [progress], signal: abort.signal };
       const target = kind === 'question' ? '/answer.md' : '/debrief.md';
       const ask = kind === 'question' ? `My question: ${req.question}` : 'Write my debrief.';
