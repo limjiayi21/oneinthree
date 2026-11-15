@@ -41,3 +41,37 @@ describe('matchSpoken', () => {
     expect(matchSpoken('um', m5)).toBe(-1);
   });
 });
+
+describe('matchSpoken: everyday wording (from a real run that picked nothing)', () => {
+  const m1: SpokenChoice[] = [{ index: 0, line: 'Hey, you alright?', tag: 'Check in' }];
+  const m2: SpokenChoice[] = [
+    { index: 0, line: "Hey! Sorry I'm late, you ready?", tag: 'Distract' },
+    { index: 1, line: "Hey! Can you come out here? He won't leave her alone.", tag: 'Delegate' },
+  ];
+  const m4: SpokenChoice[] = [
+    { index: 0, line: 'Hey! Back off. Leave her alone.', tag: 'Direct' },
+    { index: 1, line: "I'm calling the police.", tag: 'Delegate' },
+    { index: 2, line: 'Back off, creep. You want a problem?', tag: 'Insult, risky' },
+  ];
+
+  it('one clearly typical word is enough to check in on her', () => {
+    expect(matchSpoken('Are you okay?', m1)).toBe(0);
+    expect(matchSpoken('You good?', m1)).toBe(0);
+    expect(matchSpoken('Hey are you ok', m1)).toBe(0);
+  });
+
+  it('"leave her alone" is telling him, not calling the shopkeeper (whose line also says it)', () => {
+    expect(matchSpoken('Leave her alone', m3)).toBe(0);
+    expect(matchSpoken('Get away from her', m3)).toBe(0);
+  });
+
+  it('pretending to know her is the distraction', () => {
+    expect(matchSpoken('Hey there you are', m2)).toBe(0);
+  });
+
+  it('a short firm "stop" is telling him directly', () => {
+    expect(matchSpoken('Stop it right now', m4)).toBe(0);
+    expect(matchSpoken('I am calling the cops', m4)).toBe(1);
+    expect(matchSpoken('Back off you creep', m4)).toBe(2);
+  });
+});

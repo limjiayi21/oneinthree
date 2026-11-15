@@ -364,7 +364,8 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     const choices: SpokenChoice[] = [];
     open.options.forEach((o, index) => {
       if (o.act.kind === 'say') choices.push({ index, line: o.act.line, tag: o.tag ?? '' });
-      else if (o.act.kind === 'help') choices.push({ index, line: HELP_LINE, tag: o.tag ?? 'Delegate' });
+      // Only the calling part: the rest of HELP_LINE ("he won't leave her alone") is what telling him says too.
+      else if (o.act.kind === 'help') choices.push({ index, line: 'Hey! Can you come out here?', tag: o.tag ?? 'Delegate' });
     });
     let index = text ? matchSpoken(text, choices) : -1;
     // Spoken towards the shop with no clearer match: that is calling the shopkeeper.

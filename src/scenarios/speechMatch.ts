@@ -3,9 +3,10 @@
  * moment's spoken options, so the option picked is the one they actually said (or a paraphrase in its
  * spirit), not simply the first one. Pure, so it is unit tested.
  *
- * Score: each word they said that is in an option's line counts 1; a word typical of that kind of help
- * (its tag: Direct, Distract, Delegate, Delay...) counts KEYWORD. The best option wins if it scores at
- * least MIN and beats the next one; otherwise nothing is picked.
+ * Score: each word they said that is in an option's line counts 1, and a word typical of that kind of
+ * help (its tag: Direct, Distract, Delegate, Delay...) counts KEYWORD on top. The best option wins if it
+ * scores at least MIN (one clearly typical word is enough: "Are you okay?") and beats the next one;
+ * otherwise nothing is picked.
  */
 
 export interface SpokenChoice {
@@ -18,18 +19,19 @@ export interface SpokenChoice {
 }
 
 const KEYWORD = 0.6;
-const MIN = 1;
+const MIN = KEYWORD;
 
 const STOP = new Set(
-  'a an the i me my you your he him his she her it its is am are was be to of and or for with on at in here there this that do does can could would will want just so please hey hi oh um uh ah er like well yeah yes no what'.split(' '),
+  'a an the i me my you your he him his she her it its is am are was be to of and or for with on at in here this that do does can could would will want just so please hey hi oh um uh ah er like well yeah yes no what'.split(' '),
 );
 // "like" is a stop word: "I like your shoes" says nothing about any option.
 
 /** Words typical of each kind of help, beyond the option's own line. */
 const TAG_WORDS: Record<string, string[]> = {
-  direct: ['leave', 'alone', 'stop', 'back', 'off', 'enough', 'quit', 'cut', 'go', 'away', 'bothering'],
-  distract: ['subway', 'train', 'station', 'way', 'directions', 'where', 'lost', 'time', 'late', 'ready', 'know'],
+  direct: ['leave', 'alone', 'stop', 'back', 'off', 'enough', 'quit', 'cut', 'go', 'get', 'away', 'bothering'],
+  distract: ['subway', 'train', 'station', 'way', 'directions', 'where', 'lost', 'time', 'late', 'ready', 'know', 'there', 'friend', 'waiting', 'finally', 'sorry'],
   delegate: ['come', 'out', 'help', 'shopkeeper', 'shop', 'store', 'sir', 'over'],
+  'insult, risky': ['creep', 'problem', 'loser', 'idiot', 'punk', 'pathetic', 'freak'],
   delay: ['okay', 'ok', 'alright', 'right', 'fine', 'safe', 'walk', 'home', 'call', 'someone', 'need', 'stay'],
   'check in': ['okay', 'ok', 'alright', 'right', 'fine', 'good'],
 };
@@ -59,7 +61,7 @@ export function matchSpoken(text: string, choices: readonly SpokenChoice[]): num
     let score = 0;
     for (const w of said) {
       if (line.has(w)) score += 1;
-      else if (typical.has(w)) score += KEYWORD;
+      if (typical.has(w)) score += KEYWORD;
     }
     return { index: c.index, score };
   });
