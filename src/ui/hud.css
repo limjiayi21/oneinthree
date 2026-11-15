@@ -471,6 +471,110 @@
 .oit-phone-lost.is-on {
   opacity: 1;
 }
+
+/* Part 2: what you can do, always open in the top right (below the phone line). */
+.oit-kit {
+  position: absolute;
+  top: 48px;
+  right: 16px;
+  width: min(17.5rem, 34vw);
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(7, 8, 11, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--oit-ink);
+  font: 500 calc(var(--hud-u) * 0.82) / 1.35 var(--oit-sans);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+.oit-kit-title {
+  margin: 0 0 6px;
+  color: var(--oit-ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.85em;
+}
+.oit-kit-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.oit-kit-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 5px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+.oit-kit-item.is-lit {
+  border-color: var(--oit-accent);
+  background: rgba(209, 162, 92, 0.12);
+}
+.oit-kit-icon {
+  color: var(--oit-ink-2);
+  line-height: 0;
+  padding-top: 1px;
+}
+.oit-kit-item.is-lit .oit-kit-icon {
+  color: var(--oit-accent);
+}
+.oit-kit-body {
+  display: grid;
+}
+.oit-kit-how {
+  color: var(--oit-ink-2);
+  font-weight: 400;
+}
+.oit-kit .oit-key {
+  height: 1.5em;
+  min-width: 1.5em;
+  padding: 0 0.35em;
+  font-size: 0.85em;
+  background: rgba(7, 8, 11, 0.62);
+}
+
+/* Part 2: quiet tips at a moment that matters, like a whisper above the subtitles. */
+.oit-tips {
+  position: absolute;
+  left: 50%;
+  bottom: calc(110px + var(--hud-u) * 9);
+  transform: translateX(-50%);
+  display: grid;
+  gap: 6px;
+  width: min(40rem, 84vw);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.oit-tips.is-on {
+  opacity: 1;
+}
+.oit-tip {
+  margin: 0;
+  color: rgba(233, 228, 218, 0.92);
+  font: italic 400 calc(var(--hud-u) * 1.15) / 1.4 var(--oit-serif);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 14px rgba(0, 0, 0, 0.85);
+}
+.oit-tip .oit-key {
+  height: 1.5em;
+  min-width: 1.5em;
+  padding: 0 0.35em;
+  font: 500 0.75em/1 var(--oit-sans);
+  font-style: normal;
+  vertical-align: 0.1em;
+  background: rgba(7, 8, 11, 0.62);
+}
+@media (prefers-reduced-motion: reduce) {
+  .oit-tips,
+  .oit-kit-item {
+    transition: none;
+  }
+}
 .oit-hint .oit-key,
 .oit-prompt .oit-key,
 .oit-mic .oit-key {

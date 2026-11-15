@@ -67,6 +67,8 @@ export class SceneKit {
   /** Scene time in seconds. Stops while paused. */
   time = 0;
   paused = false;
+  /** Slow motion: 1 is real time. Scales the scene clock, bodies and the player (mouse look is not slowed). */
+  timeScale = 1;
   ended = false;
   sessionId = '';
 
@@ -154,6 +156,7 @@ export class SceneKit {
     // The world and bodies keep moving even when paused would look frozen; but
     // a paused scene must not advance the encounter.
     if (this.paused) return;
+    dt *= this.timeScale;
     this.time += dt;
 
     world.update(dt, elapsed);

@@ -13,6 +13,45 @@ import { createNpc } from '../characters/npc';
 import { SCRIPT, SceneKit, clamp01, inRect, voUrl, type SceneDeps, type SceneResult } from './common';
 import { bindHandActions } from './handActions';
 import { walkCorridor } from '../world/layout';
+import type { ToolkitItem } from '../contracts';
+
+/** While a tip is up the street slows to this fraction of real time. */
+const SLOW = 0.3;
+/** How long a tip stays up, in real seconds, if the player does nothing. */
+const TIP_SECONDS = 8;
+
+/** Always open in the top right during Part 2: everything the player can do, and how. */
+const TOOLKIT: ToolkitItem[] = [
+  { id: 'walk', icon: 'walk', label: 'Walk', how: 'Press W, or step in place with your phone' },
+  { id: 'look', icon: 'look', label: 'Look around', how: 'Move the mouse, or turn your head (press G for the webcam)' },
+  { id: 'speak', icon: 'speak', label: 'Speak', how: 'Hold SPACE and talk to them' },
+  { id: 'film', icon: 'film', label: 'Film it', how: 'Press F, or look down and pinch (press H for hands)' },
+  { id: 'help', icon: 'help', label: 'Get the shopkeeper', how: 'Near the shop, press E or raise an open hand' },
+];
+
+/** The tips at each moment (the moment ids of content/guided.json), and which toolkit items they light up. */
+const TIPS = {
+  m1: {
+    lines: ['Something feels off. Keep her in sight and walk a little closer.', 'Look around. Is anyone else here?'],
+    lit: ['walk', 'look'],
+  },
+  m2: {
+    lines: ["That isn't just a hello. Stay close enough to help.", 'You could film it from where you are: look down and pinch, or press F.'],
+    lit: ['walk', 'film'],
+  },
+  m3: {
+    lines: ['Distract: walk up like you know her. Hold SPACE: "Hey! Sorry I\'m late."','Or get the shopkeeper: at his door, raise an open hand, or press E.'],
+    lit: ['speak', 'help'],
+  },
+  m4: {
+    lines: ['Calm and short. Hold SPACE: "Leave her alone."', "Don't insult him. It can turn on you."],
+    lit: ['speak'],
+  },
+  m5: {
+    lines: ['Check on her. Hold SPACE: "Are you okay?"', 'Offer to walk with her for a bit.'],
+    lit: ['speak'],
+  },
+};
 
 export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const { engine, world, audio, hud } = deps;
@@ -190,6 +229,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
       man.setBehaviour({ type: 'walkAlongside', target: womanPos, targetForward: womanFwd, side: 'left', gap: 1.0 });
     });
     at(5.6, 'alongside', () => void sayScripted(man, 'b_m2'));
+    at(6.8, 'alongside', () => offer('m2'));
     at(9.2, 'deflect', () => void sayScripted(woman, 'b_w1'));
     at(10.8, 'deflect', () => kit.think('s_1', { intensity: 0.15 }));
     at(13.2, 'walk_you_home', () => {
@@ -199,6 +239,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
       woman.human.setEmotion('afraid', 0.55);
       kit.serverFear = 0.2;
     });
+    at(14.6, 'walk_you_home', () => offer('m3'));
     at(15.8, 'walk_you_home', () => herThought('b_t2'));
     at(17.4, 'walk_you_home', () => kit.think('s_2', { intensity: 0.15 }));
     at(19.2, 'blocks', () => {
@@ -210,6 +251,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
       man.human.playGesture('shrug');
       void sayScripted(man, 'b_m4');
     });
+    at(21.8, 'blocks', () => offer('m4'));
     at(24.6, 'pleads', () => {
       woman.setBehaviour({ type: 'backAway', from: manPos, distance: 0.8, speed: 0.9 });
       void sayScripted(woman, 'b_w2');
@@ -236,9 +278,37 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     at(49, 'timeout', () => void finish('no_intervention_she_escaped'));
   }
 
+  /* ------------------------------------------------- teaching moments */
+
+  // At five moments the street slows and two quiet tips fade in, nudging toward something the
+  // player can do with their own body (or the keys). Doing anything, or a few seconds, ends it.
+  let tipping = false;
+  let cancelTip: (() => void) | null = null;
+
+  function offer(id: keyof typeof TIPS): void {
+    if (kit.ended || !first(`moment_${id}`)) return;
+    const tip = TIPS[id];
+    endTip();
+    tipping = true;
+    kit.timeScale = SLOW;
+    hud.tips(tip.lines, tip.lit);
+    cancelTip = kit.after(TIP_SECONDS * SLOW, endTip); // scene time, so a pause does not run it down
+  }
+
+  function endTip(): void {
+    cancelTip?.();
+    cancelTip = null;
+    if (!tipping) return;
+    tipping = false;
+    kit.timeScale = 1;
+    hud.tips(null);
+  }
+
   function takeOver(): void {
     if (dynamic) return;
     dynamic = true;
+    // Speaking up (or any intervention) moves the story off the script: a pending scripted moment no longer fits.
+    endTip();
     for (const c of beatCancels.splice(0)) c();
     beat = 'intervention';
   }
@@ -301,6 +371,8 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     man.human.playGesture('dismiss');
     man.setBehaviour({ type: 'leave', to: P.nearCorner, speed: 1.5 });
     kit.serverFear = Math.min(kit.serverFear, 0.15);
+    // He has gone and she is shaken: what do you say to her?
+    kit.after(1.8, () => !womanGone && !finishing && offer('m5'));
   }
 
   function applyWoman(d: WomanDecision): void {
@@ -393,6 +465,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   kit.onKey = (code) => {
     if (kit.ended || finishing || !started) return;
     if (code === 'KeyF') {
+      endTip();
       filming = !filming;
       player.setPhoneRaised(filming);
       hud.setFilming(filming);
@@ -401,6 +474,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     } else if (code === 'KeyE') {
       if (clerk.distanceTo(player.position) < 4.2 || player.position.distanceTo(P.shopDoor) < 3) {
         hud.prompt(null);
+        endTip();
         kit.event('asked_clerk');
       }
     }
@@ -411,6 +485,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   async function finish(outcome: OutcomeKind): Promise<void> {
     if (finishing) return;
     finishing = true;
+    endTip();
     takeOver();
     cancelSilence?.();
     kit.speechEnabled = false;
@@ -452,7 +527,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
       await sayScripted(man, 'b_m6');
       await kit.wait(2.2);
     } else {
-      // An intervention ended it. Give the moment after some room.
+      // An intervention ended it. Give the moment after some room, and time to answer her if he has just gone.
       await Promise.race([lastSpeech, kit.wait(6)]);
       await kit.wait(2.4);
     }
@@ -469,6 +544,8 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     if (kit.ended || finishing) return;
     player.getEyePosition(eye);
 
+    // Moment 1: he is under the scaffolding, watching her come.
+    if (!started && woman.distanceTo(man.position) < 13) offer('m1');
     if (!started && woman.distanceTo(man.position) < 7) startScript();
     if (!started) return;
 
@@ -540,7 +617,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   player.inputEnabled = true;
   hud.objective(null);
   woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.35 });
-  kit.after(2.5, () => hud.hint('SPACE speak  ·  F film  ·  E interact  ·  or keep walking', 9000));
+  hud.toolkit(TOOLKIT);
 
   kit.after(26, () => {
     if (kit.ended) return;
@@ -550,6 +627,8 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
 
   const outcome = await kit.finished;
   const sessionId = kit.sessionId;
+  endTip();
+  hud.toolkit(null);
   await hud.fade(true, 400);
   player.setPhoneRaised(false);
   unbindHands();

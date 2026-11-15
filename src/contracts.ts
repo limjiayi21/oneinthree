@@ -335,6 +335,15 @@ export interface Mic {
 
 export type MicState = 'hidden' | 'idle' | 'recording' | 'thinking' | 'unavailable' | 'missed';
 
+export type ToolkitIcon = 'walk' | 'look' | 'speak' | 'film' | 'help';
+export interface ToolkitItem {
+  id: string;
+  icon: ToolkitIcon;
+  label: string;
+  /** How to do it, keys written as in hints ("Hold SPACE", "Press F"). */
+  how: string;
+}
+
 export interface Hud {
   setVisible(visible: boolean): void;
   /** Spoken-line subtitle. Auto-clears after `ms` (default scales with length). 'self' is the player's own inner voice, labelled "You think:". */
@@ -342,6 +351,10 @@ export interface Hud {
   clearSubtitle(): void;
   /** Her inner voice. Rendered differently from subtitles: centred, italic, breathing. intensity 0..1 */
   thought(text: string, intensity?: number, ms?: number): void;
+  /** Part 2: the always-open list of what the player can do, top right. null hides it. */
+  toolkit(items: ToolkitItem[] | null): void;
+  /** Part 2: quiet tips near the bottom at a moment that matters; `lit` are toolkit item ids to light up. null clears. */
+  tips(lines: string[] | null, lit?: string[]): void;
   /** Small control hint at the bottom ("Hold SPACE to speak"). null clears. */
   hint(text: string | null, ms?: number): void;
   /** Top-left one-line objective ("Get home."). null clears. */
