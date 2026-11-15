@@ -100,6 +100,10 @@ async function main(): Promise<void> {
   const headLook: EyeLookSource = { read: () => airpods.read() ?? eyes.read() };
   const lookForAirPods = () => void detectAirPods().then((found) => (found || params.get('airpods') === '1') && airpods.start());
   lookForAirPods();
+  // "Straight ahead" for the AirPods is wherever the head is at the next reading. Taken at page load it can be
+  // far off (looking down at the keyboard on the intro) and pins the view to an edge, so take it again as each
+  // scene starts, while the title card is up and the player is facing the screen.
+  const recentreAirPods = () => airpods.recalibrate();
   // Device names only show once microphone permission is granted, and AirPods can connect mid-session: look again then.
   navigator.mediaDevices?.addEventListener?.('devicechange', lookForAirPods);
   window.addEventListener('keydown', (e) => {
@@ -160,6 +164,7 @@ async function main(): Promise<void> {
       await screens.briefing('woman');
       await audio.resume();
       world.setDoorOpen('home', false);
+      recentreAirPods();
       const result = await runWomanWalkHome(deps);
       hud.setVisible(false);
       if (result.outcome === 'exited') exited = true;
@@ -187,6 +192,7 @@ async function main(): Promise<void> {
         offerDetails = false;
         await audio.resume();
         world.setDoorOpen('home', false);
+        recentreAirPods();
         const result = await runBystanderWalkHome(deps);
         hud.setVisible(false);
         part2 = result;
@@ -208,6 +214,7 @@ async function main(): Promise<void> {
       if (params.get('replay') === '1') {
         await audio.resume();
         world.setDoorOpen('home', false);
+        recentreAirPods();
         const guided = await runGuidedWalkHome(deps);
         hud.setVisible(false);
         exited = guided.exited;

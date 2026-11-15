@@ -72,6 +72,71 @@ export interface AirPodsLook extends EyeLookSource {
   onChange(cb: () => void): () => void;
 }
 
+/* ------------------------------------------------------------- indicator */
+
+/** Badge text per state; '' hides the badge. Shown under the webcam and hand badges. */
+export const AIRPODS_LABEL: Record<AirPodsState, string> = {
+  off: '',
+  connecting: 'AirPods: connecting…',
+  nohelper: 'AirPods: helper not running',
+  waiting: 'AirPods: not in your ears',
+  on: 'AirPods head look · Shift+G to recentre',
+  denied: 'AirPods: Motion access denied',
+};
+
+const CSS = `
+.oit-airpods{position:fixed;top:136px;right:14px;z-index:60;display:flex;align-items:center;gap:8px;padding:6px 10px 6px 8px;border-radius:999px;background:rgba(10,12,16,.72);color:#e9edf2;font:500 12px/1.2 system-ui,-apple-system,sans-serif;pointer-events:none;backdrop-filter:blur(6px)}
+.oit-airpods[hidden]{display:none}
+.oit-airpods[data-state=on]{box-shadow:inset 0 0 0 1px rgba(143,211,255,.45)}
+.oit-airpods-pad{position:relative;width:34px;height:22px;border-radius:5px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.oit-airpods-pad::after{content:"";position:absolute;inset:7px 13px;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.oit-airpods-dot{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#8fd3ff;opacity:0;transition:opacity .2s}
+`;
+
+interface Indicator {
+  show(state: AirPodsState): void;
+  dot(g: Gaze | null): void;
+}
+
+function createIndicator(): Indicator {
+  const style = document.createElement('style');
+  style.textContent = CSS;
+  document.head.append(style);
+  const pill = document.createElement('div');
+  pill.className = 'oit-airpods';
+  pill.hidden = true;
+  pill.setAttribute('role', 'status');
+  pill.setAttribute('aria-live', 'polite');
+  pill.title = 'Head motion from your AirPods, via the helper app on this Mac. Nothing leaves this machine.';
+  const pad = document.createElement('div');
+  pad.className = 'oit-airpods-pad';
+  const dotEl = document.createElement('div');
+  dotEl.className = 'oit-airpods-dot';
+  pad.append(dotEl);
+  const label = document.createElement('span');
+  pill.append(pad, label);
+  document.body.append(pill);
+  return {
+    show(state) {
+      pill.hidden = !AIRPODS_LABEL[state];
+      pill.dataset.state = state;
+      label.textContent = AIRPODS_LABEL[state];
+      if (state !== 'on') dotEl.style.opacity = '0';
+    },
+    dot(g) {
+      if (!g) {
+        dotEl.style.opacity = '0';
+        return;
+      }
+      // The same mapping as the webcam badge: the dot sits where her look is pointed.
+      const x = Math.max(-1, Math.min(1, g.x));
+      const y = Math.max(-1, Math.min(1, g.y));
+      dotEl.style.opacity = '1';
+      dotEl.style.transform = `translate(${x * 14}px, ${-y * 8}px)`;
+    },
+  };
+}
+
 export function createAirPodsLook(opts: { flipX?: boolean; flipY?: boolean } = {}): AirPodsLook {
   let state: AirPodsState = 'off';
   let ws: WebSocket | null = null;
@@ -82,10 +147,13 @@ export function createAirPodsLook(opts: { flipX?: boolean; flipY?: boolean } = {
   let lastMotion = 0;
   let lastFrame = performance.now();
   const listeners = new Set<() => void>();
+  let indicator: Indicator | null = null; // created on start(), so nothing touches the page until AirPods are wanted
 
   const set = (s: AirPodsState) => {
     if (s === state) return;
     state = s;
+    indicator?.show(s);
+    console.info(`[airpods] ${s}`);
     for (const cb of [...listeners]) cb();
   };
 
@@ -126,6 +194,7 @@ export function createAirPodsLook(opts: { flipX?: boolean; flipY?: boolean } = {
         gaze = gaze ? { x: damp(gaze.x, target.x, T.smooth, dt), y: damp(gaze.y, target.y, T.smooth, dt) } : target;
         lastMotion = now;
         if (state !== 'on') set('on');
+        indicator?.dot(gaze);
       }
     };
     sock.onclose = () => {
@@ -160,6 +229,7 @@ export function createAirPodsLook(opts: { flipX?: boolean; flipY?: boolean } = {
     start() {
       if (wanted) return;
       wanted = true;
+      indicator ??= typeof document === 'undefined' ? null : createIndicator();
       connect();
     },
     stop() {
