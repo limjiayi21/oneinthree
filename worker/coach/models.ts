@@ -107,19 +107,19 @@ export function pickProvider(env: ModelEnv): Provider | null {
   return null;
 }
 
-export function createModels(env: ModelEnv, provider: Provider): { model: BaseChatModel; embed: Embedder; name: string; middleware: AgentMiddleware[] } {
+export function createModels(env: ModelEnv, provider: Provider): { model: BaseChatModel; embed: Embedder; embedName: string; name: string; middleware: AgentMiddleware[] } {
   if (provider === 'gemini') {
     const name = env.COACH_MODEL || DEFAULTS.gemini.chat;
     const chat = (m: string) => new GeminiChat({ model: m, apiKey: env.GEMINI_API_KEY, temperature: 0.4, maxRetries: 1 });
     const model = chat(name);
     const middleware = name === DEFAULTS.gemini.fallback ? [] : [modelFallbackMiddleware(chat(DEFAULTS.gemini.fallback))];
     const embeddings = new GoogleGenerativeAIEmbeddings({ model: DEFAULTS.gemini.embed, apiKey: env.GEMINI_API_KEY });
-    return { model, name, middleware, embed: (texts) => (texts.length === 1 ? embeddings.embedQuery(texts[0]).then((v) => [v]) : embeddings.embedDocuments(texts)) };
+    return { model, name, middleware, embedName: DEFAULTS.gemini.embed, embed: (texts) => (texts.length === 1 ? embeddings.embedQuery(texts[0]).then((v) => [v]) : embeddings.embedDocuments(texts)) };
   }
   const name = env.COACH_MODEL || DEFAULTS.openai.chat;
   const configuration = env.OPENAI_BASE_URL ? { baseURL: env.OPENAI_BASE_URL } : undefined;
   // The Responses API: reasoning models take tools there with a reasoning effort, not on chat completions.
   const model = new ChatOpenAI({ model: name, apiKey: env.OPENAI_API_KEY, configuration, reasoning: { effort: 'low' }, useResponsesApi: !env.OPENAI_BASE_URL, maxRetries: 2 });
   const embeddings = new OpenAIEmbeddings({ model: DEFAULTS.openai.embed, apiKey: env.OPENAI_API_KEY, configuration });
-  return { model, name, middleware: [], embed: (texts) => (texts.length === 1 ? embeddings.embedQuery(texts[0]).then((v) => [v]) : embeddings.embedDocuments(texts)) };
+  return { model, name, middleware: [], embedName: DEFAULTS.openai.embed, embed: (texts) => (texts.length === 1 ? embeddings.embedQuery(texts[0]).then((v) => [v]) : embeddings.embedDocuments(texts)) };
 }

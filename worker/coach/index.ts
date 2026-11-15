@@ -13,11 +13,13 @@ import { COACH_LIMITS, type CheckSummary, type CoachEvent, type CoachFile, type 
 import type { Env } from '../session';
 import { createCoachAgent } from './agent';
 import { checkText, formatProblems, removeProblems } from './check';
-import { citation } from './knowledge';
+import { citation, type SearchMode } from './knowledge';
 import { createModels, pickProvider, type ModelEnv } from './models';
+import { atlasSearch } from './atlas';
+import { openDb, type MongoEnv } from '../mongo';
 import { toRunPart, type RunPart } from './run';
 
-export type CoachEnv = Env & ModelEnv;
+export type CoachEnv = Env & ModelEnv & MongoEnv;
 
 const SESSION_ID = /^[a-z0-9-]{8,64}$/i;
 const MAX_DEBRIEFS = 2;
@@ -117,13 +119,23 @@ export async function handleCoach(request: Request, env: CoachEnv, ctx: Executio
     void writer.write(enc.encode(`${JSON.stringify(ev)}\n`)).catch(() => (closed = true));
   };
 
-  const { model, embed, middleware } = createModels(env, provider);
+  const { model, embed, embedName, middleware } = createModels(env, provider);
 
   const work = (async () => {
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), RUN_TIMEOUT_MS);
+    // MongoDB, when configured: one connection for the whole run (the research search and saving the result).
+    const mongo = await openDb(env, 'coach');
     try {
-      const { agent, progress } = createCoachAgent({ model, embed, middleware, parts, onEvent: send }, kind === 'question' ? 'followup' : 'debrief');
+      const vector = mongo ? atlasSearch(mongo.db, embed, embedName, (text) => send({ type: 'step', who: 'evidence-researcher', text })) : undefined;
+      // Say so (once) if Atlas could not answer and the in-memory search stood in, e.g. while the index is still building.
+      let toldFallback = false;
+      const onSearch = (mode: SearchMode): void => {
+        if (!vector || mode === 'atlas' || toldFallback) return;
+        toldFallback = true;
+        send({ type: 'step', who: 'evidence-researcher', text: 'Atlas is not ready yet (its index is still building), so this search ran in memory' });
+      };
+      const { agent, progress } = createCoachAgent({ model, embed, vector, onSearch, middleware, parts, onEvent: send }, kind === 'question' ? 'followup' : 'debrief');
       const config = { recursionLimit: 80, callbacks: [progress], signal: abort.signal };
       const target = kind === 'question' ? '/answer.md' : '/debrief.md';
       const ask = kind === 'question' ? `My question: ${req.question}` : 'Write my debrief.';
@@ -158,6 +170,7 @@ export async function handleCoach(request: Request, env: CoachEnv, ctx: Executio
       send({ type: 'error', message: abort.signal.aborted ? 'The coach took too long.' : 'The coach could not finish.' });
     } finally {
       clearTimeout(timer);
+      await mongo?.close();
       closed = true;
       await writer.close().catch(() => {});
     }

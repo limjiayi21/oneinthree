@@ -4,6 +4,7 @@ import { checkText, figures, removeProblems } from './check';
 import { PASSAGES, PASSAGE_BY_ID, citation, keywordSearch, searchPassages } from './knowledge';
 import { momentDetail, overview, toRunPart } from './run';
 import { parseCoachRequest } from './index';
+import { collectionName, indexDefinition, passagesHash } from './atlas';
 
 const stat = PASSAGES.find((p) => p.kind === 'stat' && /%/.test(p.headline ?? ''))!;
 const pct = stat.headline!;
@@ -58,6 +59,33 @@ describe('research base', () => {
     });
     expect(r.mode).toBe('keyword');
     expect(r.hits.length).toBeGreaterThan(0);
+  });
+
+  it('uses Atlas first and blends in keyword hits', async () => {
+    const atlasHit = PASSAGE_BY_ID.get('five_d_delay')!;
+    const r = await searchPassages('ask a shop worker to help', 4, undefined, async () => [atlasHit]);
+    expect(r.mode).toBe('atlas');
+    expect(r.hits[0].id).toBe('five_d_delay');
+    expect(r.hits.map((p) => p.id)).toContain('five_d_delegate');
+    expect(new Set(r.hits.map((p) => p.id)).size).toBe(r.hits.length);
+  });
+
+  it('falls back from Atlas when it has nothing or fails', async () => {
+    expect((await searchPassages('direct intervention risk', 3, undefined, async () => null)).mode).toBe('keyword');
+    const failing = async (): Promise<never> => {
+      throw new Error('down');
+    };
+    expect((await searchPassages('direct intervention risk', 3, undefined, failing)).mode).toBe('keyword');
+  });
+
+  it('names one Atlas collection per embedding model and hashes the research stably', async () => {
+    expect(collectionName('text-embedding-3-small')).toBe('research_text_embedding_3_small');
+    expect(collectionName('gemini-embedding-001')).toBe('research_gemini_embedding_001');
+    const h = await passagesHash();
+    expect(h).toMatch(/^[0-9a-f]{64}$/);
+    expect(await passagesHash()).toBe(h);
+    expect(await passagesHash(PASSAGES.slice(1))).not.toBe(h);
+    expect(indexDefinition(1536).fields[0]).toMatchObject({ type: 'vector', numDimensions: 1536, similarity: 'cosine' });
   });
 
   it('resolves a citation with its source', () => {

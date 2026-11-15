@@ -21,7 +21,7 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 import { z } from 'zod';
 import type { CoachEvent, CoachTodo, CoachWho } from '../../shared/coach';
-import { EVIDENCE, searchPassages, type Embedder } from './knowledge';
+import { EVIDENCE, searchPassages, type Embedder, type SearchMode, type VectorSearch } from './knowledge';
 import { checkText, formatProblems } from './check';
 import { momentDetail, overview, type RunPart } from './run';
 
@@ -30,8 +30,12 @@ export interface CoachDeps {
   /** Extra agent middleware from the model setup (e.g. a fallback model). */
   middleware?: AgentMiddleware[];
   embed?: Embedder;
+  /** Atlas Vector Search for the research (worker/coach/atlas.ts), when MongoDB is configured. */
+  vector?: VectorSearch;
   parts: RunPart[];
   onEvent: (ev: CoachEvent) => void;
+  /** Told which search answered each search_evidence call. */
+  onSearch?: (mode: SearchMode) => void;
 }
 
 const SAFETY = `Safety rules (always):
@@ -108,7 +112,8 @@ function tools(deps: CoachDeps, emit: (who: CoachWho, text: string) => void) {
   });
   const searchEvidence = tool(
     async ({ query }) => {
-      const { hits } = await searchPassages(query, 5, deps.embed);
+      const { hits, mode } = await searchPassages(query, 5, deps.embed, deps.vector);
+      deps.onSearch?.(mode);
       if (!hits.length) return 'No passages matched. Try other words.';
       return hits.map((p) => `[${p.id}] ${p.text}${p.detail ? `\n  (context, do not quote as a figure: ${p.detail})` : ''}`).join('\n');
     },
@@ -142,7 +147,7 @@ function tools(deps: CoachDeps, emit: (who: CoachWho, text: string) => void) {
 class Progress extends BaseCallbackHandler {
   name = 'coach-progress';
   private active = new Map<string, CoachWho>();
-  constructor(private emitStep: (who: CoachWho, text: string) => void, private emitPlan: (todos: CoachTodo[]) => void) {
+  constructor(private emitStep: (who: CoachWho, text: string) => void, private emitPlan: (todos: CoachTodo[]) => void, private where = 'the research') {
     super();
   }
   /** Which helper is running a tool: by the tool where only one helper has it, else by which helpers are active. */
@@ -191,7 +196,7 @@ class Progress extends BaseCallbackHandler {
         this.emitStep(this.who(name), 'Weighing the 5 Ds at that moment');
         break;
       case 'search_evidence':
-        this.emitStep(this.who(name), `Searching the research: "${String(args.query ?? '').slice(0, 70)}"`);
+        this.emitStep(this.who(name), `Searching ${this.where}: "${String(args.query ?? '').slice(0, 70)}"`);
         break;
       case 'write_file':
       case 'edit_file': {
@@ -239,6 +244,6 @@ export function createCoachAgent(deps: CoachDeps, mode: 'debrief' | 'followup') 
       },
     ],
   });
-  const progress = new Progress(emit, (todos) => deps.onEvent({ type: 'plan', todos }));
+  const progress = new Progress(emit, (todos) => deps.onEvent({ type: 'plan', todos }), deps.vector ? 'the research in MongoDB Atlas' : 'the research');
   return { agent, progress };
 }

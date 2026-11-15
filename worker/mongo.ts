@@ -22,8 +22,16 @@ export interface MongoEnv {
 
 export const mongoOn = (env: MongoEnv): boolean => Boolean(env.MONGODB_URI);
 
-/** Run fn with a connected database, then close the client. Returns null if MongoDB is off or fails. */
-export async function withDb<T>(env: MongoEnv, fn: (db: Db) => Promise<T>, label = 'mongo'): Promise<T | null> {
+export interface OpenDb {
+  db: Db;
+  close: () => Promise<void>;
+}
+
+/**
+ * A connected database for the rest of this request (e.g. a whole coach run), or null if MongoDB is
+ * off or unreachable. The caller must close it.
+ */
+export async function openDb(env: MongoEnv, label = 'mongo'): Promise<OpenDb | null> {
   if (!env.MONGODB_URI) return null;
   const client = new MongoClient(env.MONGODB_URI, {
     // Small and quick: one request's worth of work, and give up fast if Atlas is unreachable.
@@ -37,12 +45,25 @@ export async function withDb<T>(env: MongoEnv, fn: (db: Db) => Promise<T>, label
   } as Partial<MongoClientOptions> as MongoClientOptions);
   try {
     await client.connect();
-    return await fn(client.db(env.MONGODB_DB || 'oneinthree'));
+  } catch (err) {
+    console.warn(`[${label}] MongoDB connect failed`, err instanceof Error ? err.message : err);
+    await client.close().catch(() => {});
+    return null;
+  }
+  return { db: client.db(env.MONGODB_DB || 'oneinthree'), close: () => client.close().catch(() => {}) };
+}
+
+/** Run fn with a connected database, then close it. Returns null if MongoDB is off or anything fails. */
+export async function withDb<T>(env: MongoEnv, fn: (db: Db) => Promise<T>, label = 'mongo'): Promise<T | null> {
+  const open = await openDb(env, label);
+  if (!open) return null;
+  try {
+    return await fn(open.db);
   } catch (err) {
     console.warn(`[${label}] MongoDB failed`, err instanceof Error ? err.message : err);
     return null;
   } finally {
-    await client.close().catch(() => {});
+    await open.close();
   }
 }
 

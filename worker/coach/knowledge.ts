@@ -3,9 +3,11 @@
  * content/evidence.json (stats, findings about harassers, bystander findings,
  * the 5 Ds). Nothing else is citable.
  *
- * Search is semantic when an embedder is available (OpenAI embeddings, built
- * once per Worker instance) and falls back to a keyword score (BM25) when it
- * is not, so the coach still works if embeddings fail.
+ * Search, in order of preference:
+ *   1. Atlas Vector Search, when MongoDB is configured (worker/coach/atlas.ts);
+ *   2. in-memory vectors, when an embedder is available (built once per Worker instance);
+ *   3. a keyword score (BM25), so the coach still works if both fail.
+ * The vector ranking leads and keyword hits fill in.
  */
 import type { Evidence } from '../../shared/evidence';
 import type { CoachCitation } from '../../shared/coach';
@@ -99,6 +101,24 @@ export function keywordSearch(query: string, k = 5, passages: Passage[] = PASSAG
 
 export type Embedder = (texts: string[]) => Promise<number[][]>;
 
+/** A vector search outside the Worker (Atlas): the k nearest passages, or null to fall back. */
+export type VectorSearch = (query: string, k: number) => Promise<Passage[] | null>;
+
+export type SearchMode = 'atlas' | 'semantic' | 'keyword';
+
+/** Vector hits lead, keyword hits fill in, no duplicates. */
+function blend(ranked: Passage[], keyword: Passage[], k: number): Passage[] {
+  const seen = new Set<string>();
+  const merged: Passage[] = [];
+  for (const p of [...ranked.slice(0, Math.ceil(k * 0.7)), ...keyword, ...ranked]) {
+    if (merged.length >= k) break;
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    merged.push(p);
+  }
+  return merged;
+}
+
 const cosine = (a: number[], b: number[]): number => {
   let dot = 0;
   let na = 0;
@@ -119,12 +139,16 @@ export function resetIndex(): void {
 }
 
 /**
- * Semantic search blended with BM25: the semantic ranking leads and the keyword
+ * Vector search blended with BM25: the vector ranking leads and the keyword
  * hits fill in, so an exact term ("police", "following") is never lost.
- * Falls back to BM25 alone if the embedder fails.
+ * Tries Atlas first, then in-memory vectors, then BM25 alone.
  */
-export async function searchPassages(query: string, k: number, embed?: Embedder): Promise<{ hits: Passage[]; mode: 'semantic' | 'keyword' }> {
+export async function searchPassages(query: string, k: number, embed?: Embedder, vector?: VectorSearch): Promise<{ hits: Passage[]; mode: SearchMode }> {
   const keyword = keywordSearch(query, k);
+  if (vector) {
+    const ranked = await vector(query, k).catch(() => null);
+    if (ranked?.length) return { hits: blend(ranked, keyword, k), mode: 'atlas' };
+  }
   if (!embed) return { hits: keyword, mode: 'keyword' };
   try {
     index ??= embed(PASSAGES.map((p) => p.text));
@@ -134,15 +158,7 @@ export async function searchPassages(query: string, k: number, embed?: Embedder)
       .sort((a, b) => b.s - a.s)
       .slice(0, k)
       .map((r) => r.p);
-    const seen = new Set<string>();
-    const merged: Passage[] = [];
-    for (const p of [...ranked.slice(0, Math.ceil(k * 0.7)), ...keyword, ...ranked]) {
-      if (merged.length >= k) break;
-      if (seen.has(p.id)) continue;
-      seen.add(p.id);
-      merged.push(p);
-    }
-    return { hits: merged, mode: 'semantic' };
+    return { hits: blend(ranked, keyword, k), mode: 'semantic' };
   } catch (err) {
     console.warn('[coach] embeddings failed, using keyword search', err);
     index = null;
