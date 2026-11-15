@@ -395,13 +395,19 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   /* ------------------------------------------------ street beats */
 
   /** The crash and the cat: she startles before she knows what it was. */
-  function alleyScare(crashAt: THREE.Vector3, catAt: THREE.Vector3): void {
+  /** `reactAfter`: seconds between the crash and her startle (so she reacts to the cat, not before it). */
+  function alleyScare(crashAt: THREE.Vector3, catAt: THREE.Vector3, reactAfter = 0): void {
     audio.play('trash_can_crash', { position: crashAt, volume: 1 });
     kit.after(0.25, () => audio.play('cat_yowl', { position: catAt, volume: 0.9 }));
-    player.startle(0.9);
-    audio.play('gasp', { volume: 0.9 });
-    kit.scare(0.75);
-    kit.after(0.35, () => kit.think('w_alley_1', { intensity: 0.95 }));
+    const react = () => {
+      if (kit.ended) return;
+      player.startle(0.9);
+      audio.play('gasp', { volume: 0.9 });
+      kit.scare(0.75);
+    };
+    if (reactAfter > 0) kit.after(reactAfter, react);
+    else react();
+    kit.after(0.35 + reactAfter, () => kit.think('w_alley_1', { intensity: 0.95 }));
   }
 
   /** He looks up from his phone. That is all. It is enough. */
@@ -416,7 +422,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   function demoCrash(): void {
     if (kit.ended || finishing || !first('alley')) return;
     world.triggerCatDash(DEMO.catDash); // the alley's own cat is ~40 m behind her start
-    alleyScare(DEMO.crashSource, DEMO.crashSource);
+    alleyScare(DEMO.crashSource, DEMO.crashSource, DEMO.reactAfter);
     kit.after(DEMO.noticeDelay, () => {
       if (kit.ended || !first('notice')) return;
       // demo: she is already close, so the encounter starts at once and her first

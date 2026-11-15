@@ -35,6 +35,8 @@ export const DEMO = {
   crashDelay: 4,
   /** If she hurries, the crash comes anyway once she has walked this far (where 4 s at walking pace gets her). */
   crashByZ: -60,
+  /** Her startle lands this long after the crash, just as the cat appears (it bolts 0.12 s in). */
+  reactAfter: 0.1,
   /** Seconds after the crash before he looks up. */
   noticeDelay: 2,
   /** Seconds after the encounter begins before the "shop is still open" nudge. */
