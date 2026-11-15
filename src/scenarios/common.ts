@@ -5,7 +5,7 @@
  * serialised turn pipeline to the Worker.
  */
 import * as THREE from 'three';
-import type { AudioEngine, Engine, Hud, Mic, Npc, Player, Rect, StreetWorld } from '../contracts';
+import type { AudioEngine, Engine, Hud, Mic, Npc, Player, PlayMode, Rect, StreetWorld } from '../contracts';
 import type {
   ClientEventType,
   Emotion,
@@ -51,6 +51,8 @@ export interface SceneDeps {
   hands?: HandGestureSource;
   /** Optional paired phone; adds walking to the keyboard. */
   phone?: PhoneLink;
+  /** Keyboard or body, chosen at the start (default 'analog'). */
+  mode?: PlayMode;
   /** ?demo=1: the short, guided Part 1 (see womanDemo.ts). */
   demo?: boolean;
   /** 'golden': the scripted reference playthrough (docs/golden-run.md). */

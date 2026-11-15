@@ -17,7 +17,7 @@
 
 import './base.css';
 import './hud.css';
-import type { Hud, MicState, ToolkitIcon, ToolkitItem } from '../contracts';
+import type { Hud, MicState, MomentIcon, MomentOption, PlayMode } from '../contracts';
 import type { PhoneLink } from '../net/phoneLink';
 import { add, clamp, clamp01, ensureFonts, h, keycap, nextId, reducedMotion, reflow, splitKeyPrompt, trapFocus, withKeycaps } from './dom';
 
@@ -151,14 +151,11 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     phoneEl.classList.toggle('is-on', lost);
   });
 
-  /** Part 2: what the player can do (top right), and the quiet tips at the moments that matter. */
-  const kitList = h('ul', { class: 'oit-kit-list' });
-  const kitEl = h('aside', { class: 'oit-kit', 'aria-label': 'What you can do' }, h('p', { class: 'oit-kit-title' }, 'What you can do'), kitList);
-  kitEl.hidden = true;
+  /** Part 2: the moments that matter (a tip and the options), above the subtitles. */
   const tipsEl = h('div', { class: 'oit-tips', 'aria-hidden': 'true' });
   const tipsLive = h('div', { class: 'oit-sr', 'aria-live': 'polite', 'aria-atomic': 'true' });
 
-  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, levelEl, reticleEl, promptEl, hintEl, micEl, micStatus, phoneEl, kitEl, tipsEl, tipsLive);
+  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, levelEl, reticleEl, promptEl, hintEl, micEl, micStatus, phoneEl, tipsEl, tipsLive);
 
   /** Guided replay: dims the frozen scene, optionally leaving a pool of light around one person. */
   const freezeEl = h('div', { class: 'oit-freeze', 'aria-hidden': 'true' });
@@ -818,29 +815,41 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     root.classList.toggle('is-hidden', !visible);
   }
 
-  /* ------------------------------------------------------ toolkit and tips */
+  /* ---------------------------------------------------------------- moment */
 
-  function toolkit(items: ToolkitItem[] | null): void {
-    kitList.replaceChildren(
-      ...(items ?? []).map((item) => {
-        const icon = h('span', { class: 'oit-kit-icon', 'aria-hidden': 'true' });
-        icon.innerHTML = KIT_ICONS[item.icon]; // static markup from this file
-        return h(
-          'li',
-          { class: 'oit-kit-item', 'data-id': item.id },
-          icon,
-          h('span', { class: 'oit-kit-body' }, h('span', { class: 'oit-kit-name' }, item.label), h('span', { class: 'oit-kit-how' }, withKeycaps(item.how))),
-        );
-      }),
-    );
-    kitEl.hidden = !items?.length;
+  // Part 2: a shaded tip the size of her thoughts, over one row of up to four options. Each option
+  // leads with what to press (analog) or what to do for real (immersive), then the line, then its 5 Ds name.
+  let momentOpts: HTMLElement[] = [];
+
+  function moment(opts: { tip: string; options: MomentOption[]; mode: PlayMode } | null): void {
+    momentOpts = [];
+    if (!opts) {
+      tipsEl.classList.remove('is-on');
+      tipsLive.textContent = '';
+      return;
+    }
+    const immersive = opts.mode === 'immersive';
+    momentOpts = opts.options.slice(0, 4).map((o, i) => {
+      const icon = h('span', { class: 'oit-opt-icon', 'aria-hidden': 'true' });
+      icon.innerHTML = ICONS[o.icon]; // static markup from this file
+      const cue = immersive ? h('span', { class: 'oit-opt-how' }, o.how) : keycap(String(i + 1));
+      return h(
+        'div',
+        { class: 'oit-opt' },
+        h('span', { class: 'oit-opt-cue' }, cue, icon),
+        h('span', { class: 'oit-opt-text' }, o.text),
+        o.tag ? h('span', { class: 'oit-opt-tag' }, o.tag) : null,
+      );
+    });
+    tipsEl.replaceChildren(h('p', { class: 'oit-tip' }, opts.tip), h('div', { class: 'oit-opts' }, ...momentOpts));
+    reflow(tipsEl);
+    tipsEl.classList.add('is-on');
+    const how = (o: MomentOption, i: number) => (immersive ? `${o.how}: ${o.text}` : `${i + 1}: ${o.text}`);
+    tipsLive.textContent = `${opts.tip} ${opts.options.map(how).join('. ')}.`;
   }
 
-  function tips(lines: string[] | null, lit: string[] = []): void {
-    tipsEl.replaceChildren(...(lines ?? []).map((line) => h('p', { class: 'oit-tip' }, withKeycaps(line))));
-    tipsEl.classList.toggle('is-on', !!lines?.length);
-    tipsLive.textContent = lines?.length ? `Tip: ${lines.join(' ')}` : '';
-    for (const li of Array.from(kitList.children) as HTMLElement[]) li.classList.toggle('is-lit', !!lines?.length && lit.includes(li.dataset.id ?? ''));
+  function momentPicked(index: number): void {
+    momentOpts.forEach((el, i) => el.classList.add(i === index ? 'is-picked' : 'is-dim'));
   }
 
   function dispose(): void {
@@ -884,8 +893,8 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     freeze,
     choice,
     strip,
-    toolkit,
-    tips,
+    moment,
+    momentPicked,
     dispose,
   };
 }
@@ -893,7 +902,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
 /** 20px line icons in the HUD's ink colour. */
 const svg = (body: string) =>
   `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
-const KIT_ICONS: Record<ToolkitIcon, string> = {
+const ICONS: Record<MomentIcon, string> = {
   walk: svg('<circle cx="13" cy="4" r="1.6"/><path d="M8 21l3-6 3 3v3M11 15l1-6-3 2-2 3M12 9l3 3 3 1"/>'),
   look: svg('<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>'),
   speak: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>'),

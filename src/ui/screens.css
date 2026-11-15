@@ -264,6 +264,33 @@
   padding-top: 20px;
   border-top: 1px solid var(--oit-line-2);
 }
+/* How do you want to play? Two big choices. */
+.oit-mode-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 16px;
+}
+.oit-mode-card {
+  display: block;
+  padding: 20px 22px;
+  border: 1px solid var(--oit-line-2);
+  border-radius: 4px;
+  background: rgba(7, 8, 11, 0.4);
+  color: var(--oit-ink);
+  font: 400 15px/1.55 var(--oit-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.oit-mode-card:hover {
+  border-color: var(--oit-accent);
+  background: rgba(19, 22, 29, 0.8);
+}
+.oit-mode-card ul {
+  margin: 0;
+  padding-left: 1.1em;
+  color: var(--oit-ink-2);
+}
 .oit-part-n {
   margin: 0 0 12px;
   color: var(--oit-ink-3);

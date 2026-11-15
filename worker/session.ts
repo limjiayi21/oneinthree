@@ -606,7 +606,8 @@ export class SessionDO extends DurableObject<Env> {
     const t1 = Date.now();
     const out: BystanderOutput = decideBystander(
       state,
-      { event, ctx, strategyProbs: read?.strategyProbs, target: read?.target, signals: read?.signals, reaction: read?.reaction },
+      // The live game always ends in the grab when nobody steps in (see BystanderInput.inactionEnding).
+      { event, ctx, strategyProbs: read?.strategyProbs, target: read?.target, signals: read?.signals, reaction: read?.reaction, inactionEnding: 'physical' },
       rng,
     );
     ms.decide = Date.now() - t1;

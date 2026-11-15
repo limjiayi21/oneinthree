@@ -122,13 +122,15 @@ async function main(): Promise<void> {
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__oit = deps;
 
   screens.loading(null);
+  // Keyboard or body, asked once (?mode=immersive when the intro is skipped).
   if (!skip.has('intro')) {
-    await screens.intro({ voiceAvailable: health.voice, requestMic: () => mic.init() });
+    deps.mode = await screens.intro({ voiceAvailable: health.voice, requestMic: () => mic.init() });
   } else {
     void mic.init();
+    deps.mode = params.get('mode') === 'immersive' ? 'immersive' : 'analog';
   }
-  if (params.get('eyes') === '1') void eyes.enable();
-  if (params.get('hands') === '1') void hands.enable();
+  if (params.get('eyes') === '1' || deps.mode === 'immersive') void eyes.enable();
+  if (params.get('hands') === '1' || deps.mode === 'immersive') void hands.enable();
   await audio.resume();
   await audio.load((f) => screens.loading('Preparing the street…', f));
   screens.loading(null);
