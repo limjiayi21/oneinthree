@@ -136,7 +136,13 @@ export interface TurnRequest {
   /** For 'speech' when sent as JSON (typed fallback). Audio is sent as multipart instead. */
   text?: string;
   data?: Record<string, string | number | boolean>;
+  /** How the words arrived: push-to-talk clip or typed. */
+  source?: SpeechSource;
+  /** She talked over his last line. `heard` is roughly how much of it she let him get out. */
+  interrupted?: { line: string; heard: string };
 }
+
+export type SpeechSource = 'ptt' | 'typed';
 
 export interface ManDecision {
   stance: ManStance;
@@ -146,6 +152,8 @@ export interface ManDecision {
   emotionIntensity: number;
   /** How close he wants to be, in metres (0.6 = in her face, 3 = keeping distance). */
   proximity: number;
+  /** Woman POV: his escalation level, 0 (calm) to 6 (threatening). Drives the on-screen meter. */
+  level?: number;
 }
 
 /** Bystander POV: what the woman NPC does in response. */
@@ -223,6 +231,8 @@ export interface CreateSessionRequest {
   scenario: ScenarioId;
   /** Optional fixed seed for reproducible runs (tests, demos). */
   seed?: number;
+  /** 'golden': the reference playthrough (docs/golden-run.md), his levels held to the script. Woman POV only. */
+  run?: 'golden';
 }
 
 export interface CreateSessionResponse {
