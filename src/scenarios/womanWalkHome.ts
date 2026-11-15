@@ -390,7 +390,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
     // ambient beats on the way
     if (first('start') ) {
-      kit.after(1.6, () => kit.think('w_start_1', { intensity: 0.1 }));
+      // demo: no "Long day" line; the keys thought opens the scene instead (see the run section).
+      if (!deps.demo) kit.after(1.6, () => kit.think('w_start_1', { intensity: 0.1 }));
       kit.after(2.2, () => hud.hint('W A S D to walk  ·  mouse to look  ·  Shift to hurry', 7000));
     }
     if (!deps.demo && pos.z < P.subwayExit.z - 7 && first('keys')) {
@@ -517,14 +518,17 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   audio.startAmbience();
   audio.play('subway_rumble', { volume: 0.8 });
+  if (deps.demo) {
+    // demo: the keys thought plays over the time card, so it has finished before the crash.
+    audio.play('keys_jingle', { volume: 0.5 });
+    kit.think('w_keys', { intensity: 0.12 });
+    once.add('keys');
+  }
   await hud.card('11:42 PM', 'Four blocks from home.', deps.demo ? 2500 : 3800); // demo: shorter
   world.spawnPassingCar(1);
   audio.play('car_pass', { position: new THREE.Vector3(0, 0.5, -20), volume: 0.7 });
   if (deps.demo) {
-    // demo: the street beats she would have walked past, packed into the fade-in.
-    audio.play('keys_jingle', { volume: 0.5 });
-    kit.think('w_keys', { intensity: 0.12 });
-    once.add('keys');
+    // demo: the passer-by she would have seen further up the street, already on his way.
     passer.setPose(new THREE.Vector3(-6.35, 0, DEMO.start.z - 12), Math.PI);
     passer.human.setVisible(true);
     passer.setBehaviour({ type: 'leave', to: P.passerbyA1, speed: 1.5 });
