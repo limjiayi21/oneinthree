@@ -36,8 +36,9 @@ of Part 1's debrief. It is a plain film: no question, no slider, nothing to answ
 - **Narration speed:** 3% faster than recorded (pitch kept), i.e. natural.
 
 **In the game**
-- The film opens with "Contains harassing language. Headphones recommended."
-  for 3 seconds, then starts on Enter or click.
+- The film starts the moment Part 1 ends, with no note or button in between.
+  (The player has been using the page, so the browser lets it play with
+  sound; if it ever refuses, a Play/Resume panel appears.)
 - Full screen on black, no browser controls. Space or Esc pauses and resumes. A
   quiet Skip button is always in the top right.
 - When the film ends or is skipped, the Part 2 intro appears. It has a small
@@ -94,9 +95,10 @@ npm run build && npm test              # both pass (81 tests)
 
 ## Test by hand
 
-1. **Real full screen.** Start the film with Enter, then with a click. It should
-   go full screen. (Automated runs could not grant it, because synthetic key
-   presses do not count as a user gesture.) Press Esc in full screen: the
+1. **Real full screen.** The film now starts on its own, and browsers only
+   allow full screen right after a click or key press, so it plays in the
+   black window rather than true full screen unless the game is already
+   full screen. Press Esc in full screen: the
    browser leaves full screen and the film should pause; Space resumes.
 2. **Sound.** Headphones on: the montage builds and cuts to silence; the
    stats should come one straight after another, every word clear; no dropout
@@ -109,10 +111,10 @@ npm run build && npm test              # both pass (81 tests)
    appear with no debrief first, and the Part 2 intro should show
    "See full details", which opens the Part 1 debrief and returns.
 4. **Skip** in the middle, and **pause** with Space, Esc and a click on the picture.
-5. **Screen reader** (VoiceOver: Cmd+F5): the note, the start button, the stats
+5. **Screen reader** (VoiceOver: Cmd+F5): "Film playing", the stats
    as they appear, and "Skip the film".
 6. **Reduced motion** (System Settings, Accessibility, Display, Reduce motion):
-   no fades on the note or controls.
+   no fades on the controls.
 
 ## Things to know
 

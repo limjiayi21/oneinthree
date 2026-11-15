@@ -4,12 +4,13 @@
  */
 import type { Pov } from '../../shared/types';
 import type { PlayMode } from '../contracts';
+import type { IconName } from './icons';
 
 export interface BriefingControl {
   /** A key, drawn as a key cap (keyboard). */
   key?: string;
-  /** An emoji standing for the movement (body). */
-  icon?: string;
+  /** A line icon for the movement (body), the same set the intro uses. */
+  icon?: IconName;
   label: string;
 }
 
@@ -18,9 +19,9 @@ export function briefingControls(pov: Pov, mode: PlayMode): BriefingControl[] {
   if (pov === 'woman') {
     return body
       ? [
-          { icon: '🚶', label: 'Step in place with your phone to walk (the keys still work)' },
-          { icon: '🙂', label: 'Turn your head to look around' },
-          { icon: '✊', label: 'Hold up a fist and speak to talk' },
+          { icon: 'walk', label: 'Step in place with your phone to walk (the keys still work)' },
+          { icon: 'look', label: 'Turn your head to look around' },
+          { icon: 'talk', label: 'Hold up a fist and speak to talk' },
         ]
       : [
           { key: 'W A S D', label: 'Walk' },
@@ -31,9 +32,9 @@ export function briefingControls(pov: Pov, mode: PlayMode): BriefingControl[] {
   }
   return body
     ? [
-        { icon: '✊', label: 'Hold up a fist and speak, to either of them' },
-        { icon: '🤏', label: 'Pinch to film what is happening' },
-        { icon: '🖐️', label: 'Raise an open hand to ask the shopkeeper for help' },
+        { icon: 'talk', label: 'Hold up a fist and speak, to either of them' },
+        { icon: 'film', label: 'Pinch to film what is happening' },
+        { icon: 'help', label: 'Raise an open hand to ask the shopkeeper for help' },
         { label: 'When options appear, do one for real, or let it pass' },
       ]
     : [

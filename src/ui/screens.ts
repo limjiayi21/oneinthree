@@ -21,6 +21,7 @@ import { bundledEvidence, headlineStat, hostOf, normaliseEvidence, resolveSource
 import { createFilmPlayer, type FilmOptions, type FilmResult } from './film';
 import { phonePairUrl, qrSvg } from './qr';
 import { briefingControls } from './briefingControls';
+import { icon, type IconName } from './icons';
 
 export interface ScreensOptions {
   /**
@@ -204,7 +205,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
       type MicCheck = 'unchecked' | 'asking' | 'granted' | 'denied';
       let mic: MicCheck = 'unchecked';
       let step = 0;
-      let mode: PlayMode = 'analog';
+      let mode: PlayMode = 'immersive'; // the recommended way; the keyboard is one click away
 
       const counter = h('p', { class: 'oit-topbar-step', 'aria-live': 'polite' });
       const topbar = h('header', { class: 'oit-topbar' }, wordmark(), counter);
@@ -219,8 +220,6 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           back ? h('button', { class: 'oit-btn oit-btn--quiet', type: 'button', onclick: () => go(step - 1) }, 'Back') : null,
         );
 
-      const row = (term: string, ...body: Child[]): HTMLElement => h('div', { class: 'oit-dl-row' }, h('dt', null, term), h('dd', null, body));
-
       /* Step 1: the title. */
       const renderTitle = (): HTMLElement => {
         const stat = headlineStat(evidence);
@@ -229,7 +228,6 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               'div',
               { class: 'oit-title-stat oit-rise' },
               h('p', { class: 'oit-title-stat-text' }, h('strong', null, stat.headline), ' ', stat.text),
-              stat.detail ? h('p', { class: 'oit-title-stat-detail' }, stat.detail) : null,
               sourceLine(resolveSources(evidence, [stat.sourceId])),
             )
           : null;
@@ -245,126 +243,61 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
             h(
               'div',
               { class: 'oit-title-about oit-rise' },
-              h('p', null, 'This is a simulation of street harassment, made for respect and bystander training.'),
-              h('p', null, 'You walk home at night as a woman. Then you walk the same street again, as someone who sees it happen.'),
+              h('p', { class: 'oit-title-lede' }, 'Walk home as her.', h('br'), 'Then watch it happen to someone else.'),
               h('div', { class: 'oit-actions' }, h('button', { class: 'oit-btn oit-btn--primary', type: 'button', onclick: () => go(1) }, 'Begin')),
             ),
           ),
         );
       };
 
-      /* Step 2: the content note. There is no route into the simulation that skips it. */
-      const renderNote = (): HTMLElement =>
+      /* Step 2: before you begin. The content note and the two parts; there is no route into the simulation that skips it. */
+      const point = (name: IconName, ...body: Child[]): HTMLElement => h('li', null, icon(name, 'oit-icon oit-before-icon'), h('span', null, body));
+
+      const renderBefore = (): HTMLElement =>
         h(
           'div',
           { class: 'oit-step' },
           h('h1', { class: 'oit-h1 oit-rise', tabindex: -1, 'data-focus': true }, 'Before you begin'),
           h(
-            'dl',
-            { class: 'oit-dl oit-rise' },
-            row('What it contains', h('p', null, 'This simulates verbal street harassment, including crude language and intimidation. Nothing graphic is shown.')),
-            row('You can stop', h('p', null, 'Press ', keycap('Esc'), ' at any moment to pause. From there you can leave.')),
-            row(
-              'If you have lived this',
-              h('p', null, 'If you have experienced harassment or assault, this may be hard. Choosing not to continue is completely fine. You can close this page now.'),
-            ),
-            row(
-              'Who it is for',
-              h('p', null, 'People taking part in respect, consent or bystander training at a university or a workplace. It is a training tool, not a game. There is nothing to win.'),
-            ),
+            'ul',
+            { class: 'oit-before oit-rise' },
+            point('warning', 'Contains street harassment: crude language and intimidation. Nothing graphic.'),
+            point('pause', 'Press ', keycap('Esc'), ' any time to pause or leave.'),
+            point('care', 'If you have lived this, it is okay to stop here.'),
           ),
-          actions('Continue', () => go(2), true),
-        );
-
-      /* Step 3: how it works. */
-      const control = (keys: string[], label: string): HTMLElement =>
-        h('li', { class: 'oit-control' }, h('span', { class: 'oit-control-keys' }, keys.map((k) => keycap(k))), h('span', null, label));
-
-      const renderHow = (): HTMLElement =>
-        h(
-          'div',
-          { class: 'oit-step' },
-          h('h1', { class: 'oit-h1 oit-rise', tabindex: -1, 'data-focus': true }, 'How it works'),
           h(
             'ol',
             { class: 'oit-parts oit-rise' },
-            h(
-              'li',
-              { class: 'oit-part' },
-              h('p', { class: 'oit-part-n' }, 'Part 1'),
-              h('h2', { class: 'oit-part-title' }, 'Her walk home'),
-              h('p', null, 'You are a woman walking home at night. A man starts talking to you. You answer out loud, in your own words, and he reacts to what you say and do.'),
-            ),
-            h(
-              'li',
-              { class: 'oit-part' },
-              h('p', { class: 'oit-part-n' }, 'Part 2'),
-              h('h2', { class: 'oit-part-title' }, 'The same street, as a bystander'),
-              h('p', null, 'You see it happen to someone else. What you do about it is up to you.'),
-            ),
+            h('li', { class: 'oit-part' }, h('p', { class: 'oit-part-n' }, 'Part 1'), h('h2', { class: 'oit-part-title' }, 'Walk home as her'), h('p', null, 'Answer him in your own words.')),
+            h('li', { class: 'oit-part' }, h('p', { class: 'oit-part-n' }, 'Part 2'), h('h2', { class: 'oit-part-title' }, 'See it happen to her'), h('p', null, 'What you do is up to you.')),
           ),
-          h('p', { class: 'oit-how-note oit-rise' }, 'Each part is followed by a debrief: what happened, and the research behind it.'),
-          h(
-            'div',
-            { class: 'oit-controls-wrap oit-rise' },
-            h('h2', { class: 'oit-label' }, 'Controls'),
-            h(
-              'ul',
-              { class: 'oit-controls' },
-              control(['W', 'A', 'S', 'D'], 'Walk'),
-              control(['Mouse'], 'Look around'),
-              control(['Shift'], 'Hurry'),
-              control(['Space'], 'Hold to speak'),
-              control(['T'], 'Type instead of speaking'),
-              control(['Esc'], 'Pause'),
-            ),
-          ),
-          actions('Continue', () => go(3), true),
+          h('div', { class: 'oit-before-actions' }, actions('Continue', () => go(2), true)),
         );
 
-      /* Step 4: keyboard or body. Asked once; everything after it is set up for that way of playing. */
-      const modeCard = (value: PlayMode, title: string, lines: string[]): HTMLElement =>
-        h(
-          'button',
-          {
-            class: 'oit-mode-card',
-            type: 'button',
-            onclick: () => {
-              mode = value;
-              go(4);
-            },
-          },
-          h('span', { class: 'oit-part-title' }, title),
-          h('ul', null, lines.map((line) => h('li', null, line))),
-        );
+      /* Step 3: how to play. Picking a way changes the controls and the setup shown under it. */
+      const chip = (keys: Child[], label: string): HTMLElement => h('li', null, h('span', { class: 'oit-chip-keys' }, keys), h('span', null, label));
 
-      const renderMode = (): HTMLElement =>
-        h(
-          'div',
-          { class: 'oit-step' },
-          h('h1', { class: 'oit-h1 oit-rise', tabindex: -1, 'data-focus': true }, 'How do you want to play?'),
-          h(
-            'div',
-            { class: 'oit-mode-cards oit-rise' },
-            modeCard('analog', 'With the keyboard', [
-              'W A S D to walk, the mouse to look around.',
-              'Hold Space to speak, or press T to type.',
-              'When options appear, press 1 to 4 to pick one.',
-            ]),
-            modeCard('immersive', 'With your body', [
-              'Step in place with your phone to walk. Turn your head to look (webcam).',
-              'Hold up a fist and speak out loud (open your hand to send). Pinch to take out your phone. Raise an open hand to ask for help.',
-              'When options appear, you have to do them for real.',
-            ]),
-          ),
-          h('div', { class: 'oit-actions oit-rise' }, h('button', { class: 'oit-btn oit-btn--quiet', type: 'button', onclick: () => go(2) }, 'Back')),
-        );
+      const CONTROLS: Record<PlayMode, () => HTMLElement[]> = {
+        immersive: () => [
+          chip([icon('walk')], 'Step in place with your phone to walk'),
+          chip([icon('look')], 'Turn your head to look'),
+          chip([icon('talk')], 'Hold up a fist to talk, open your hand to send'),
+          chip([icon('film')], 'Pinch to take out your phone and film'),
+          chip([icon('help')], 'Raise an open hand to ask for help'),
+        ],
+        analog: () => [
+          chip(['W', 'A', 'S', 'D'].map((k) => keycap(k)), 'Walk'),
+          chip([keycap('Mouse')], 'Look'),
+          chip([keycap('Space')], 'Hold to talk'),
+          chip([keycap('T')], 'Type instead'),
+          chip([keycap('1'), '–', keycap('4')], 'Pick an option'),
+        ],
+      };
 
-      /* Step 5: sound, voices, microphone (and, played with the body, the phone). */
-      const renderSound = (): HTMLElement => {
+      /** The microphone check (kept across re-renders: `mic` lives in the intro's scope). */
+      const micCheck = (): HTMLElement => {
         const status = h('p', { class: 'oit-mic-status', role: 'status', tabindex: -1 });
         const button = h('button', { class: 'oit-btn oit-btn--ghost', type: 'button' }, 'Allow microphone');
-
         const paint = (): void => {
           status.replaceChildren();
           status.dataset.state = mic;
@@ -376,13 +309,12 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           else button.removeAttribute('aria-disabled');
           if (hadFocus && button.hidden) status.focus({ preventScroll: true });
           button.textContent = mic === 'denied' ? 'Try again' : 'Allow microphone';
+          const fallback = mode === 'immersive' ? 'Without it, you can still act with your keyboard.' : ['Without it, press ', keycap('T'), ' to type.'];
           if (mic === 'asking') add(status, 'Waiting for your browser…');
           else if (mic === 'granted') add(status, h('i', { 'aria-hidden': 'true' }), 'Microphone ready.');
-          else if (mic === 'denied') {
-            add(status, 'The microphone is not available. That is fine: during the simulation, press ', keycap('T'), ' and type what you would say.');
-          } else add(status, 'Optional. Without it, press ', keycap('T'), ' and type what you would say.');
+          else if (mic === 'denied') add(status, 'Not available. ', ...([] as Child[]).concat(fallback));
+          else add(status, 'Optional. ', ...([] as Child[]).concat(fallback));
         };
-
         button.addEventListener('click', () => {
           if (mic === 'asking') return;
           mic = 'asking';
@@ -402,84 +334,112 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
             });
         });
         paint();
+        return h('div', { class: 'oit-mic-check' }, button, status);
+      };
 
-        /* Optional phone pairing: never blocks Continue. */
+      /** Optional phone pairing, played with the body only. Never blocks Begin. */
+      const phonePairing = (): HTMLElement | null => {
         const phone = mode === 'immersive' ? options.phone : undefined;
-        let phoneRow: HTMLElement | null = null;
-        if (phone) {
-          const phoneBtn = h('button', { class: 'oit-btn oit-btn--ghost', type: 'button' }, 'Pair your phone');
-          const phoneBox = h('div', { class: 'oit-phone-pair' });
-          const paintPhone = (): void => {
-            phoneBox.replaceChildren();
-            if (phone.status === 'off') {
-              phoneBtn.hidden = false;
-              return;
-            }
-            phoneBtn.hidden = true;
-            const label = { waiting: 'Waiting for your phone', connected: 'Phone connected', lost: 'Phone lost, reconnecting' }[phone.status];
-            const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-            const url = phonePairUrl(location.origin, phone.code);
-            // Scan to pair: the phone's camera opens the phone page with the code filled in.
-            let qr: HTMLElement | null = null;
-            if (phone.status !== 'connected' && phone.code) {
-              qr = h('div', { class: 'oit-phone-qr', role: 'img', 'aria-label': 'QR code: scan it with your phone to pair' });
-              qr.innerHTML = qrSvg(url);
-            }
-            add(
-              phoneBox,
-              qr,
-              h('p', { class: 'oit-phone-code', 'aria-label': `Code ${phone.code.split('').join(' ')}` }, phone.code),
-              h('p', { class: 'oit-mic-status' }, qr ? `Scan the code with your phone's camera, or open ${url}` : `On your phone, open ${url}`),
-              local
-                ? h('p', { class: 'oit-mic-status' }, 'A phone cannot reach localhost. Open the game from the dev server’s tunnel address (press t then Enter in the dev server terminal).')
-                : null,
-              h('p', { class: 'oit-mic-status', role: 'status', 'data-state': phone.status }, label),
-            );
-          };
-          phoneBtn.addEventListener('click', () => void phone.pair());
-          // Stop listening once this step is replaced (the old element leaves the page).
-          const off = phone.onChange(() => (phoneBox.isConnected || phoneBtn.isConnected ? paintPhone() : off()));
-          paintPhone();
-          phoneRow = h('div', { class: 'oit-mic-check' }, phoneBtn, phoneBox);
-        }
+        if (!phone) return null;
+        const phoneBtn = h('button', { class: 'oit-btn oit-btn--ghost', type: 'button' }, 'Pair your phone');
+        const phoneBox = h('div', { class: 'oit-phone-pair' });
+        const paintPhone = (): void => {
+          phoneBox.replaceChildren();
+          if (phone.status === 'off') {
+            phoneBtn.hidden = false;
+            return;
+          }
+          phoneBtn.hidden = true;
+          const label = { waiting: 'Waiting for your phone', connected: 'Phone connected', lost: 'Phone lost, reconnecting' }[phone.status];
+          const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+          const url = phonePairUrl(location.origin, phone.code);
+          // Scan to pair: the phone's camera opens the phone page with the code filled in.
+          let qr: HTMLElement | null = null;
+          if (phone.status !== 'connected' && phone.code) {
+            qr = h('div', { class: 'oit-phone-qr', role: 'img', 'aria-label': 'QR code: scan it with your phone to pair' });
+            qr.innerHTML = qrSvg(url);
+          }
+          add(
+            phoneBox,
+            qr,
+            h('p', { class: 'oit-phone-code', 'aria-label': `Code ${phone.code.split('').join(' ')}` }, phone.code),
+            h('p', { class: 'oit-mic-status' }, qr ? `Scan with your phone's camera, or open ${url}` : `On your phone, open ${url}`),
+            local ? h('p', { class: 'oit-mic-status' }, 'A phone cannot reach localhost. Open the game from the dev server’s tunnel address (press t then Enter in the dev server terminal).') : null,
+            h('p', { class: 'oit-mic-status', role: 'status', 'data-state': phone.status }, label),
+          );
+        };
+        phoneBtn.addEventListener('click', () => void phone.pair());
+        // Stop listening once this step is replaced (the old element leaves the page).
+        const off = phone.onChange(() => (phoneBox.isConnected || phoneBtn.isConnected ? paintPhone() : off()));
+        paintPhone();
+        return h('div', { class: 'oit-mic-check' }, phoneBtn, phoneBox);
+      };
 
+      const modeCard = (value: PlayMode, title: string, summary: string, recommended: boolean): HTMLElement =>
+        h(
+          'button',
+          {
+            class: `oit-mode-card${mode === value ? ' is-selected' : ''}${recommended ? ' is-recommended' : ''}`,
+            type: 'button',
+            role: 'radio',
+            'aria-checked': mode === value ? 'true' : 'false',
+            'data-mode': value,
+            onclick: () => {
+              if (mode === value) return;
+              mode = value;
+              go(2, `[data-mode="${value}"]`);
+            },
+          },
+          recommended ? h('span', { class: 'oit-mode-badge' }, 'Recommended · full immersion') : null,
+          h('span', { class: 'oit-part-title' }, title),
+          h('span', { class: 'oit-mode-summary' }, summary),
+        );
+
+      const renderPlay = (): HTMLElement => {
+        const phoneRow = phonePairing();
         return h(
           'div',
           { class: 'oit-step' },
-          h('h1', { class: 'oit-h1 oit-rise', tabindex: -1, 'data-focus': true }, 'Sound and voice'),
+          h('h1', { class: 'oit-h1 oit-rise', tabindex: -1, 'data-focus': true }, 'How do you want to play?'),
           h(
-            'dl',
-            { class: 'oit-dl oit-rise' },
-            row('Headphones', h('p', null, 'Wear headphones if you can. The street is all around you, and where a sound comes from matters.')),
-            row(
-              'Voices',
-              opts.voiceAvailable
-                ? h('p', null, 'The voices you hear are generated by AI. No real person is speaking to you.')
-                : h('p', null, 'Voices are off for this session. What people say will appear as text on the screen.'),
+            'div',
+            { class: 'oit-mode-cards oit-rise', role: 'radiogroup', 'aria-label': 'How do you want to play?' },
+            modeCard('immersive', 'Your body', 'Phone, webcam and hands', true),
+            modeCard('analog', 'Keyboard', 'Keys and mouse', false),
+          ),
+          h('ul', { class: 'oit-chips oit-rise', 'aria-label': mode === 'immersive' ? 'Controls with your body' : 'Keyboard controls' }, CONTROLS[mode]()),
+          h(
+            'div',
+            { class: 'oit-setup oit-rise' },
+            h('p', { class: 'oit-setup-line' }, icon('headphones'), 'Headphones on: the street is all around you.'),
+            phoneRow,
+            micCheck(),
+            h(
+              'p',
+              { class: 'oit-setup-small' },
+              mode === 'immersive' ? 'The webcam turns on when you begin; nothing leaves your computer. ' : '',
+              'What you say is sent to our server to be understood. ',
+              opts.voiceAvailable ? 'The voices you hear are AI.' : 'Voices are off: what people say appears as text.',
             ),
-            row(
-              'Microphone',
-              h('p', null, 'You answer by holding ', keycap('Space'), ' and speaking. What you say is sent to the simulation’s server so that it can be understood and answered.'),
-              h('div', { class: 'oit-mic-check' }, button, status),
-            ),
-            phoneRow ? row('Phone', h('p', null, 'You walk by stepping in place, with your phone in your pocket. The keys still work if it drops.'), phoneRow) : null,
-            mode === 'immersive'
-              ? row('Webcam', h('p', null, 'The webcam turns on when you begin: turn your head to look around, and use your hands to act. Nothing leaves your computer.'))
-              : null,
           ),
           actions('Begin Part 1', finish, true),
         );
       };
 
-      const steps = [renderTitle, renderNote, renderHow, renderMode, renderSound];
+      const steps = [renderTitle, renderBefore, renderPlay];
 
-      function go(next: number): void {
+      /** Show a step. `focus` keeps focus on a control when a step re-renders itself (picking a way to play). */
+      function go(next: number, focus?: string): void {
+        const same = next === step;
         step = Math.min(steps.length - 1, Math.max(0, next));
         el.dataset.step = String(step);
         counter.textContent = step === 0 ? '' : `Step ${step} of ${steps.length - 1}`;
         stage.replaceChildren(steps[step]!());
-        el.scrollTop = 0;
-        focusStart(stage);
+        if (same) stage.querySelectorAll('.oit-rise').forEach((n) => n.classList.remove('oit-rise'));
+        else el.scrollTop = 0;
+        const target = focus ? stage.querySelector<HTMLElement>(focus) : null;
+        if (target) target.focus({ preventScroll: true });
+        else focusStart(stage);
       }
 
       function finish(): void {
@@ -550,7 +510,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
                 h(
                   'span',
                   { class: 'oit-afford-key' },
-                  c.key ? (c.key === 'W A S D' ? withKeycaps(c.key) : keycap(c.key)) : c.icon ? h('span', { class: 'oit-afford-icon', 'aria-hidden': 'true' }, c.icon) : null,
+                  c.key ? (c.key === 'W A S D' ? withKeycaps(c.key) : keycap(c.key)) : c.icon ? icon(c.icon, 'oit-icon oit-afford-icon') : null,
                 ),
                 h('span', null, c.label),
               ),
