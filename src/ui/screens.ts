@@ -20,6 +20,7 @@ import { add, clamp01, ensureFonts, focusables, h, keycap, nextId, reflow, type 
 import { bundledEvidence, headlineStat, hostOf, normaliseEvidence, resolveSources, resolveStats, safeUrl } from './evidence';
 import { createFilmPlayer, type FilmOptions, type FilmResult } from './film';
 import { phonePairUrl, qrSvg } from './qr';
+import { icon, type IconName } from './icons';
 
 export interface ScreensOptions {
   /**
@@ -249,8 +250,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
       };
 
       /* Step 2: before you begin. The content note and the two parts; there is no route into the simulation that skips it. */
-      const point = (icon: string, ...body: Child[]): HTMLElement =>
-        h('li', null, h('span', { class: 'oit-before-icon', 'aria-hidden': 'true' }, icon), h('span', null, body));
+      const point = (name: IconName, ...body: Child[]): HTMLElement => h('li', null, icon(name, 'oit-icon oit-before-icon'), h('span', null, body));
 
       const renderBefore = (): HTMLElement =>
         h(
@@ -260,9 +260,9 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           h(
             'ul',
             { class: 'oit-before oit-rise' },
-            point('!', 'Contains street harassment: crude language and intimidation. Nothing graphic.'),
-            point('‖', 'Press ', keycap('Esc'), ' any time to pause or leave.'),
-            point('♡', 'If you have lived this, it is okay to stop here.'),
+            point('warning', 'Contains street harassment: crude language and intimidation. Nothing graphic.'),
+            point('pause', 'Press ', keycap('Esc'), ' any time to pause or leave.'),
+            point('care', 'If you have lived this, it is okay to stop here.'),
           ),
           h(
             'ol',
@@ -270,20 +270,19 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
             h('li', { class: 'oit-part' }, h('p', { class: 'oit-part-n' }, 'Part 1'), h('h2', { class: 'oit-part-title' }, 'Walk home as her'), h('p', null, 'Answer him in your own words.')),
             h('li', { class: 'oit-part' }, h('p', { class: 'oit-part-n' }, 'Part 2'), h('h2', { class: 'oit-part-title' }, 'See it happen to her'), h('p', null, 'What you do is up to you.')),
           ),
-          actions('Continue', () => go(2), true),
+          h('div', { class: 'oit-before-actions' }, actions('Continue', () => go(2), true)),
         );
 
       /* Step 3: how to play. Picking a way changes the controls and the setup shown under it. */
       const chip = (keys: Child[], label: string): HTMLElement => h('li', null, h('span', { class: 'oit-chip-keys' }, keys), h('span', null, label));
-      const sign = (glyph: string): HTMLElement => h('span', { class: 'oit-glyph', 'aria-hidden': 'true' }, glyph);
 
       const CONTROLS: Record<PlayMode, () => HTMLElement[]> = {
         immersive: () => [
-          chip([sign('👣')], 'Step in place with your phone to walk'),
-          chip([sign('↻')], 'Turn your head to look'),
-          chip([sign('✊')], 'Hold up a fist to talk, open your hand to send'),
-          chip([sign('🤏')], 'Look down and pinch to film'),
-          chip([sign('✋')], 'Raise an open hand to ask for help'),
+          chip([icon('walk')], 'Step in place with your phone to walk'),
+          chip([icon('look')], 'Turn your head to look'),
+          chip([icon('talk')], 'Hold up a fist to talk, open your hand to send'),
+          chip([icon('film')], 'Pinch to take out your phone and film'),
+          chip([icon('help')], 'Raise an open hand to ask for help'),
         ],
         analog: () => [
           chip(['W', 'A', 'S', 'D'].map((k) => keycap(k)), 'Walk'),
@@ -309,7 +308,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           else button.removeAttribute('aria-disabled');
           if (hadFocus && button.hidden) status.focus({ preventScroll: true });
           button.textContent = mic === 'denied' ? 'Try again' : 'Allow microphone';
-          const fallback = mode === 'immersive' ? 'Without it, you can still act with your hands.' : ['Without it, press ', keycap('T'), ' to type.'];
+          const fallback = mode === 'immersive' ? 'Without it, you can still act with your keyboard.' : ['Without it, press ', keycap('T'), ' to type.'];
           if (mic === 'asking') add(status, 'Waiting for your browser…');
           else if (mic === 'granted') add(status, h('i', { 'aria-hidden': 'true' }), 'Microphone ready.');
           else if (mic === 'denied') add(status, 'Not available. ', ...([] as Child[]).concat(fallback));
@@ -411,7 +410,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           h(
             'div',
             { class: 'oit-setup oit-rise' },
-            h('p', { class: 'oit-setup-line' }, sign('🎧'), ' Headphones on: the street is all around you.'),
+            h('p', { class: 'oit-setup-line' }, icon('headphones'), 'Headphones on: the street is all around you.'),
             phoneRow,
             micCheck(),
             h(

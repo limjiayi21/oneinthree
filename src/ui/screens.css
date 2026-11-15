@@ -304,9 +304,14 @@
 .oit-mode-summary {
   color: var(--oit-ink-2);
 }
+.oit-mode-card.is-recommended {
+  position: relative;
+}
+/* Top-right corner of the card. */
 .oit-mode-badge {
-  display: inline-block;
-  margin-bottom: 12px;
+  position: absolute;
+  top: 14px;
+  right: 14px;
   padding: 4px 10px;
   border: 1px solid var(--oit-you);
   border-radius: 999px;
@@ -336,11 +341,22 @@
   gap: 16px;
   align-items: baseline;
 }
+.oit-before li {
+  align-items: center;
+}
 .oit-before-icon {
   flex: none;
-  width: 1.2em;
   color: var(--oit-you);
-  text-align: center;
+}
+/* Continue and Back sit centred, lower down the page. */
+.oit-before-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(40px, 9vh, 110px);
+}
+.oit-before-actions .oit-actions {
+  justify-content: center;
+  margin-top: 0;
 }
 
 /* Intro: how to play */
@@ -363,9 +379,18 @@
   display: inline-flex;
   gap: 4px;
 }
-.oit-glyph {
-  font-size: 1.15em;
-  line-height: 1;
+.oit-icon {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+}
+.oit-chips .oit-icon {
+  color: var(--oit-you);
+}
+.oit-setup-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .oit-setup {
   display: flex;
@@ -1823,4 +1848,12 @@
 .oit-full-hint {
   color: var(--oit-ink-3);
   font: 400 14px/1.4 var(--oit-sans);
+}
+/* Narrow cards: the badge sits above the title instead of over it. */
+@media (max-width: 640px) {
+  .oit-mode-badge {
+    position: static;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
 }
