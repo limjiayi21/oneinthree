@@ -15,7 +15,7 @@ import { SceneKit, clamp01, inRect, pick, pickSide, type SceneDeps, type SceneRe
 import { bindEchoSteps, laggedTarget } from './echoSteps';
 import { LINE, walkCorridor } from '../world/layout';
 import { runKeyTutorial } from './keyTutorial';
-import { LOOK_GATE_TIMEOUT, LookGate, turnHint } from './lookGate';
+import { DOT_SECONDS, LOOK_GATE_TIMEOUT, LookGate, turnHint } from './lookGate';
 import { createLookPrompt } from '../ui/lookPrompt';
 import { SAFE_LIGHT_TRIGGER, createSafeLight } from '../world/safeLight';
 import { createWayfinder, wayfinderLevel } from '../ui/wayfinder';
@@ -717,16 +717,26 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   hud.objective('Walk home.');
   tutorialEnds = runKeyTutorial(kit, hud, 'woman', { mode: deps.mode, phoneWalks: deps.phone?.status === 'connected' });
 
-  // Look left and right before walking: she can look around at once, and walks once she has looked both
-  // ways (or after LOOK_GATE_TIMEOUT, so it can never stall). The demo's beats start from then.
-  const gate = new LookGate(player.viewYaw);
-  // One instruction at a time, top middle: look left, then look right, then walk.
+  // Before walking, one instruction at a time, top middle: look at the dot (head look takes "straight
+  // ahead" from there), then look left, then right, then walk. Walking unlocks anyway after
+  // LOOK_GATE_TIMEOUT, so it can never stall. The demo's beats start from then.
   const lookPrompt = createLookPrompt();
-  let gateShown = '';
+  lookPrompt.show('dot');
+  let gate: LookGate | null = null;
+  let gateShown = 'dot';
+  let unlockAt = Infinity;
   player.walkLocked = true;
-  const unlockAt = kit.time + LOOK_GATE_TIMEOUT;
+  kit.after(DOT_SECONDS, () => {
+    if (kit.ended) return;
+    deps.recentreLook?.();
+    // A moment for the head look to settle on its new centre before measuring the turns from it.
+    kit.after(0.25, () => {
+      gate = new LookGate(player.viewYaw);
+      unlockAt = kit.time + LOOK_GATE_TIMEOUT;
+    });
+  });
   const offGate = kit.onFrame(() => {
-    if (!player.walkLocked || kit.ended) return;
+    if (!player.walkLocked || kit.ended || !gate) return;
     const g = gate.update(player.viewYaw);
     if (gate.next !== gateShown) {
       gateShown = gate.next;

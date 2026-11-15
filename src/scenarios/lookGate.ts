@@ -7,6 +7,8 @@ import { DEG, wrapAngle } from '../player/mathx';
 
 /** How far (radians) the view has to turn from where it started to count as a look that way. */
 export const LOOK_TURN = 25 * DEG;
+/** Seconds the player looks at the dot while head look takes its centre. */
+export const DOT_SECONDS = 1.5;
 /** Seconds after which walking unlocks anyway. */
 export const LOOK_GATE_TIMEOUT = 6;
 
