@@ -17,7 +17,7 @@
 
 import './base.css';
 import './hud.css';
-import type { Hud, MicState } from '../contracts';
+import type { Hud, MicState, MomentIcon, MomentOption, PlayMode } from '../contracts';
 import type { PhoneLink } from '../net/phoneLink';
 import { add, clamp, clamp01, ensureFonts, h, keycap, nextId, reducedMotion, reflow, splitKeyPrompt, trapFocus, withKeycaps } from './dom';
 
@@ -151,7 +151,11 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     phoneEl.classList.toggle('is-on', lost);
   });
 
-  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, levelEl, reticleEl, promptEl, hintEl, micEl, micStatus, phoneEl);
+  /** Part 2: the moments that matter (a tip and the options), above the subtitles. */
+  const tipsEl = h('div', { class: 'oit-tips', 'aria-hidden': 'true' });
+  const tipsLive = h('div', { class: 'oit-sr', 'aria-live': 'polite', 'aria-atomic': 'true' });
+
+  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, levelEl, reticleEl, promptEl, hintEl, micEl, micStatus, phoneEl, tipsEl, tipsLive);
 
   /** Guided replay: dims the frozen scene, optionally leaving a pool of light around one person. */
   const freezeEl = h('div', { class: 'oit-freeze', 'aria-hidden': 'true' });
@@ -779,6 +783,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     overlayLayer.appendChild(el);
     reflow(el);
     el.classList.add('is-on');
+    tipsEl.classList.add('is-held'); // a moment's timer stops while paused
     const release = trapFocus(el);
     resumeBtn.focus({ preventScroll: true });
 
@@ -790,6 +795,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
         release();
         pausePromise = null;
         pauseEnd = null;
+        tipsEl.classList.remove('is-held');
         el.classList.remove('is-on');
         el.setAttribute('inert', '');
         later(() => el.remove(), 320);
@@ -809,6 +815,48 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
 
   function setVisible(visible: boolean): void {
     root.classList.toggle('is-hidden', !visible);
+  }
+
+  /* ---------------------------------------------------------------- moment */
+
+  // Part 2: a shaded tip the size of her thoughts, over one row of up to four options. Each option
+  // leads with what to press (analog) or what to do for real (immersive), then the line, then its 5 Ds name.
+  let momentOpts: HTMLElement[] = [];
+
+  function moment(opts: { tip: string; options: MomentOption[]; mode: PlayMode; seconds: number } | null): void {
+    momentOpts = [];
+    if (!opts) {
+      tipsEl.classList.remove('is-on');
+      tipsLive.textContent = '';
+      return;
+    }
+    const immersive = opts.mode === 'immersive';
+    momentOpts = opts.options.slice(0, 4).map((o, i) => {
+      const icon = h('span', { class: 'oit-opt-icon', 'aria-hidden': 'true' });
+      icon.innerHTML = ICONS[o.icon]; // static markup from this file
+      const cue = immersive ? h('span', { class: 'oit-opt-how' }, o.how) : keycap(String(i + 1));
+      return h(
+        'div',
+        { class: 'oit-opt' },
+        h('span', { class: 'oit-opt-cue' }, cue, icon),
+        h('span', { class: 'oit-opt-text' }, o.text),
+        o.tag ? h('span', { class: 'oit-opt-tag' }, o.tag) : null,
+      );
+    });
+    // The timer under the options drains over the moment and turns red for its last two seconds.
+    const timer = h('div', { class: 'oit-opt-timer', 'aria-hidden': 'true' }, h('i'));
+    timer.style.setProperty('--secs', `${opts.seconds}s`);
+    timer.style.setProperty('--warn', `${Math.max(0, opts.seconds - 2)}s`);
+    tipsEl.replaceChildren(h('p', { class: 'oit-tip' }, opts.tip), h('div', { class: 'oit-opts' }, ...momentOpts), timer);
+    reflow(tipsEl);
+    tipsEl.classList.add('is-on');
+    const how = (o: MomentOption, i: number) => (immersive ? `${o.how}: ${o.text}` : `${i + 1}: ${o.text}`);
+    tipsLive.textContent = `${opts.tip} ${opts.options.map(how).join('. ')}.`;
+  }
+
+  function momentPicked(index: number): void {
+    momentOpts.forEach((el, i) => el.classList.add(i === index ? 'is-picked' : 'is-dim'));
+    tipsEl.querySelector('.oit-opt-timer')?.classList.add('is-done');
   }
 
   function dispose(): void {
@@ -852,6 +900,19 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     freeze,
     choice,
     strip,
+    moment,
+    momentPicked,
     dispose,
   };
 }
+
+/** 20px line icons in the HUD's ink colour. */
+const svg = (body: string) =>
+  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+const ICONS: Record<MomentIcon, string> = {
+  walk: svg('<circle cx="13" cy="4" r="1.6"/><path d="M8 21l3-6 3 3v3M11 15l1-6-3 2-2 3M12 9l3 3 3 1"/>'),
+  look: svg('<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>'),
+  speak: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>'),
+  film: svg('<rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 11l6-3v8l-6-3"/>'),
+  help: svg('<path d="M7 11V6a1.5 1.5 0 013 0v5M10 10V4.5a1.5 1.5 0 013 0V10M13 10V5.5a1.5 1.5 0 013 0V12M16 9.5a1.5 1.5 0 013 0V14a7 7 0 01-7 7h-1a6 6 0 01-5-2.7L4 15a1.5 1.5 0 012.5-1.6L7 14"/>'),
+};

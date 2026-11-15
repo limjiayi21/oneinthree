@@ -12,7 +12,7 @@
 
 import './base.css';
 import './screens.css';
-import type { Screens } from '../contracts';
+import type { PlayMode, Screens } from '../contracts';
 import type { PhoneLink } from '../net/phoneLink';
 import type { FiveDResult, Insight, Pov, Rationale, SummaryData, TimelineEntry } from '../../shared/types';
 import type { CaseStudy, Evidence, EvidenceSource, EvidenceStat, SupportResource } from '../../shared/evidence';
@@ -197,11 +197,12 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
 
   /* ------------------------------------------------------------------ intro */
 
-  function intro(opts: { voiceAvailable: boolean; requestMic: () => Promise<boolean> }): Promise<void> {
-    return new Promise<void>((resolve) => {
+  function intro(opts: { voiceAvailable: boolean; requestMic: () => Promise<boolean> }): Promise<PlayMode> {
+    return new Promise<PlayMode>((resolve) => {
       type MicCheck = 'unchecked' | 'asking' | 'granted' | 'denied';
       let mic: MicCheck = 'unchecked';
       let step = 0;
+      let mode: PlayMode = 'analog';
 
       const counter = h('p', { class: 'oit-topbar-step', 'aria-live': 'polite' });
       const topbar = h('header', { class: 'oit-topbar' }, wordmark(), counter);
@@ -319,7 +320,45 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
           actions('Continue', () => go(3), true),
         );
 
-      /* Step 4: sound, voices, microphone. */
+      /* Step 4: keyboard or body. Asked once; everything after it is set up for that way of playing. */
+      const modeCard = (value: PlayMode, title: string, lines: string[]): HTMLElement =>
+        h(
+          'button',
+          {
+            class: 'oit-mode-card',
+            type: 'button',
+            onclick: () => {
+              mode = value;
+              go(4);
+            },
+          },
+          h('span', { class: 'oit-part-title' }, title),
+          h('ul', null, lines.map((line) => h('li', null, line))),
+        );
+
+      const renderMode = (): HTMLElement =>
+        h(
+          'div',
+          { class: 'oit-step' },
+          h('h1', { class: 'oit-h1 oit-rise', tabindex: -1, 'data-focus': true }, 'How do you want to play?'),
+          h(
+            'div',
+            { class: 'oit-mode-cards oit-rise' },
+            modeCard('analog', 'With the keyboard', [
+              'W A S D to walk, the mouse to look around.',
+              'Hold Space to speak, or press T to type.',
+              'When options appear, press 1 to 4 to pick one.',
+            ]),
+            modeCard('immersive', 'With your body', [
+              'Step in place with your phone to walk. Turn your head to look (webcam).',
+              'Say things out loud. Look down and pinch to take out your phone. Raise an open hand to ask for help.',
+              'When options appear, you have to do them for real.',
+            ]),
+          ),
+          h('div', { class: 'oit-actions oit-rise' }, h('button', { class: 'oit-btn oit-btn--quiet', type: 'button', onclick: () => go(2) }, 'Back')),
+        );
+
+      /* Step 5: sound, voices, microphone (and, played with the body, the phone). */
       const renderSound = (): HTMLElement => {
         const status = h('p', { class: 'oit-mic-status', role: 'status', tabindex: -1 });
         const button = h('button', { class: 'oit-btn oit-btn--ghost', type: 'button' }, 'Allow microphone');
@@ -363,10 +402,10 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
         paint();
 
         /* Optional phone pairing: never blocks Continue. */
-        const phone = options.phone;
+        const phone = mode === 'immersive' ? options.phone : undefined;
         let phoneRow: HTMLElement | null = null;
         if (phone) {
-          const phoneBtn = h('button', { class: 'oit-btn oit-btn--quiet', type: 'button' }, 'Walk with your phone (optional)');
+          const phoneBtn = h('button', { class: 'oit-btn oit-btn--ghost', type: 'button' }, 'Pair your phone');
           const phoneBox = h('div', { class: 'oit-phone-pair' });
           const paintPhone = (): void => {
             phoneBox.replaceChildren();
@@ -413,13 +452,16 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               h('p', null, 'You answer by holding ', keycap('Space'), ' and speaking. What you say is sent to the simulation’s server so that it can be understood and answered.'),
               h('div', { class: 'oit-mic-check' }, button, status),
             ),
-            phoneRow ? row('Phone', h('p', null, 'You can also walk by stepping in place, with your phone in your pocket.'), phoneRow) : null,
+            phoneRow ? row('Phone', h('p', null, 'You walk by stepping in place, with your phone in your pocket. The keys still work if it drops.'), phoneRow) : null,
+            mode === 'immersive'
+              ? row('Webcam', h('p', null, 'The webcam turns on when you begin: turn your head to look around, and use your hands to act. Nothing leaves your computer.'))
+              : null,
           ),
           actions('Begin Part 1', finish, true),
         );
       };
 
-      const steps = [renderTitle, renderNote, renderHow, renderSound];
+      const steps = [renderTitle, renderNote, renderHow, renderMode, renderSound];
 
       function go(next: number): void {
         step = Math.min(steps.length - 1, Math.max(0, next));
@@ -432,7 +474,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
 
       function finish(): void {
         close(el);
-        resolve();
+        resolve(mode);
       }
 
       go(0);
@@ -492,7 +534,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
               'h1',
               { class: 'oit-brief-lines oit-rise', id: titleId, tabindex: -1, 'data-focus': true },
               h('span', null, 'Same street. Same night.'),
-              h('span', null, 'This time you are twenty metres behind her.'),
+              h('span', null, 'This time you are a few steps behind her.'),
             ),
             h(
               'div',
@@ -504,7 +546,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
                 affordance('Space', 'Hold to speak, to either of them'),
                 affordance('F', 'Film what is happening'),
                 affordance('E', 'Ask the shopkeeper for help'),
-                affordance(null, 'Or keep walking'),
+                affordance(null, 'When options appear, pick one, or let it pass'),
               ),
             ),
           ]

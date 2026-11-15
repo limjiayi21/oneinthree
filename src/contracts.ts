@@ -338,6 +338,25 @@ export interface Mic {
 
 export type MicState = 'hidden' | 'idle' | 'recording' | 'thinking' | 'unavailable' | 'missed';
 
+/**
+ * How the player plays, chosen once at the start. 'analog': keyboard and mouse, and the options
+ * at Part 2's moments are picked with 1 to 4. 'immersive': webcam head look and hands, the phone
+ * to walk, the voice to speak, and an option only counts when the player does it for real.
+ */
+export type PlayMode = 'analog' | 'immersive';
+
+export type MomentIcon = 'walk' | 'look' | 'speak' | 'film' | 'help';
+
+/** One option at a Part 2 moment. */
+export interface MomentOption {
+  icon: MomentIcon;
+  text: string;
+  /** The 5 Ds name, shown in brackets after it. */
+  tag?: string;
+  /** Immersive mode: what to do for real ("Say it", "Pinch"). */
+  how: string;
+}
+
 export interface Hud {
   setVisible(visible: boolean): void;
   /** Spoken-line subtitle. Auto-clears after `ms` (default scales with length). 'self' is the player's own inner voice, labelled "You think:". */
@@ -345,6 +364,13 @@ export interface Hud {
   clearSubtitle(): void;
   /** Her inner voice. Rendered differently from subtitles: centred, italic, breathing. intensity 0..1 */
   thought(text: string, intensity?: number, ms?: number): void;
+  /**
+   * Part 2: a moment that matters. A shaded tip, and one row of up to four options (numbered in
+   * analog mode, "what to do" in immersive). null clears.
+   */
+  moment(opts: { tip: string; options: MomentOption[]; mode: PlayMode; /** Real seconds the timer under the options takes to drain. */ seconds: number } | null): void;
+  /** Highlights the option that was picked or done, and dims the rest. */
+  momentPicked(index: number): void;
   /** Small control hint at the bottom ("Hold SPACE to speak"). null clears. */
   hint(text: string | null, ms?: number): void;
   /** Top-left one-line objective ("Get home."). null clears. */
@@ -403,7 +429,8 @@ export interface Hud {
 
 export interface Screens {
   /** Landing + content note + how it works + headphone/mic check. Resolves when the user starts. */
-  intro(opts: { voiceAvailable: boolean; requestMic: () => Promise<boolean> }): Promise<void>;
+  /** Resolves with how the player chose to play (asked once, before Part 1). */
+  intro(opts: { voiceAvailable: boolean; requestMic: () => Promise<boolean> }): Promise<PlayMode>;
   /**
    * Short brief before a part. With `details`, the brief also offers a small
    * "See full details" link to the previous part's debrief and resolves

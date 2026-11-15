@@ -5,7 +5,7 @@
  * serialised turn pipeline to the Worker.
  */
 import * as THREE from 'three';
-import type { AudioEngine, Engine, Hud, Mic, Npc, Player, Rect, StreetWorld } from '../contracts';
+import type { AudioEngine, Engine, Hud, Mic, Npc, Player, PlayMode, Rect, StreetWorld } from '../contracts';
 import type {
   ClientEventType,
   Emotion,
@@ -51,6 +51,8 @@ export interface SceneDeps {
   hands?: HandGestureSource;
   /** Optional paired phone; adds walking to the keyboard. */
   phone?: PhoneLink;
+  /** Keyboard or body, chosen at the start (default 'analog'). */
+  mode?: PlayMode;
   /** ?demo=1: the short, guided Part 1 (see womanDemo.ts). */
   demo?: boolean;
   /** 'golden': the scripted reference playthrough (docs/golden-run.md). */
@@ -72,6 +74,8 @@ export class SceneKit {
   /** Scene time in seconds. Stops while paused. */
   time = 0;
   paused = false;
+  /** Slow motion: 1 is real time. Scales the scene clock, bodies and the player (mouse look is not slowed). */
+  timeScale = 1;
   ended = false;
   sessionId = '';
 
@@ -163,6 +167,7 @@ export class SceneKit {
     // The world and bodies keep moving even when paused would look frozen; but
     // a paused scene must not advance the encounter.
     if (this.paused) return;
+    dt *= this.timeScale;
     this.time += dt;
 
     world.update(dt, elapsed);
