@@ -171,7 +171,19 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         kit.after(0.45, () => involuntaryStepBack(0.5));
         break;
       case 'block_path':
+        // demo: he gets in her way, but never seals her off. By the shop he walks beside her instead, and a
+        // block lasts a couple of seconds before he falls back beside her, so the way in always opens again.
+        if (deps.demo && player.position.distanceTo(P.shopDoor) < 7) {
+          man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, near(0.9)), gap: near(0.9) });
+          break;
+        }
         man.setBehaviour({ type: 'block', target: toward, targetForward: towardFwd, gap: Math.max(near(1.0), gap) });
+        if (deps.demo) {
+          kit.after(2.2, () => {
+            if (kit.ended || finishing || man.behaviour !== 'block') return;
+            man.setBehaviour({ type: 'walkAlongside', target: toward, targetForward: towardFwd, side: pickSide(player, near(0.9)), gap: near(0.9) });
+          });
+        }
         kit.after(1.4, () => {
           if (stance === 'block' && !kit.ended && man.distanceTo(player.position) < 2.2) {
             player.freeze(0.5);
@@ -210,7 +222,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     kit.after(2.2, () => !kit.ended && kit.think('w_left_1'));
     kit.after(7, () => !kit.ended && kit.think('w_left_2'));
     kit.after(4, () => (kit.serverFear = Math.min(kit.serverFear, 0.3)));
-    hud.objective(deps.demo ? 'Get to the shop.' : 'Get home.'); // demo: the shop is the end of her street
+    hud.objective(deps.demo ? 'Get into the shop. It’s safe in there.' : 'Get home.'); // demo: the shop is the end of her street
   }
 
   function involuntaryStepBack(distance: number): void {
@@ -468,11 +480,27 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     if (wayDist >= 0) wayApproach = damp(wayApproach, (wayDist - dist) / dt, 4, dt);
     wayDist = dist;
     const relYaw = wrapAngle(yawOf(dx, dz) - player.yaw);
-    wayLevel = damp(wayLevel, wayfinderLevel(relYaw, wayApproach), 3, dt);
-    way.update(relYaw, wayLevel);
+    // demo: once he has engaged, the way to safety is unmissable (strong, amber, labelled), not a subtle hint.
+    const urgent = !!deps.demo && encounter;
+    const wanted = Math.max(wayfinderLevel(relYaw, wayApproach), urgent ? 0.8 : 0);
+    wayLevel = damp(wayLevel, wanted, 3, dt);
+    way.update(relYaw, wayLevel, urgent ? 'Shop' : '');
   }
 
   let tutorialEnds = 0; // scene time the controls tutorial finishes (set when she gains control)
+
+  /** demo: how close to the shop door she has to get before she walks in by herself, and how long that takes. */
+  const AUTO_ENTER_RADIUS = 2.3;
+  const AUTO_ENTER_SECONDS = 1.1;
+  let autoEnter: { from: THREE.Vector3; t: number } | null = null;
+  // Its own frame step, so the walk in finishes even after the shop ending has begun (at the threshold).
+  kit.onFrame((dt) => {
+    if (!autoEnter || autoEnter.t >= 1 || kit.ended) return;
+    autoEnter.t = Math.min(1, autoEnter.t + dt / AUTO_ENTER_SECONDS);
+    const k = autoEnter.t * autoEnter.t * (3 - 2 * autoEnter.t);
+    const to = P.shopInside;
+    player.setPose(autoEnter.from.clone().lerp(to, k), yawOf(to.x - autoEnter.from.x, to.z - autoEnter.from.z));
+  });
 
   kit.onFrame((dt) => {
     if (kit.ended || finishing) {
@@ -515,10 +543,12 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         encounter = true;
         kit.speechEnabled = true;
         kit.refreshMic();
-        hud.objective(deps.demo ? 'Get to the shop.' : 'Get home.');
+        hud.objective(deps.demo ? 'Get into the shop. It’s safe in there.' : 'Get home.');
+        // demo: say it plainly once, after his first words have landed.
+        if (deps.demo) kit.after(2.5, () => !kit.ended && !finishing && hud.hint('Get into the shop. It’s safe in there.', 5000));
         kit.event('begin');
         // After the controls tutorial if it is still running, so the two do not talk over each other.
-        kit.after(Math.max(3.5, tutorialEnds - kit.time + 0.3), () => !kit.ended && hud.hint(deps.hands?.active ? 'Hold SPACE or hold up a fist to speak.  Or say nothing.' : 'Hold SPACE to speak.  Or say nothing.', 8000));
+        kit.after(Math.max(deps.demo ? 8 : 3.5, tutorialEnds - kit.time + 0.3), () => !kit.ended && hud.hint(deps.hands?.active ? 'Hold SPACE or hold up a fist to speak.  Or say nothing.' : 'Hold SPACE to speak.  Or say nothing.', 8000));
         // demo: if she stops to deal with him, point her at the way out once, so the demo cannot stall.
         if (deps.demo) kit.after(DEMO.nudgeAfter, () => !kit.ended && !finishing && hud.hint('The shop is still open.', 5000));
       }
@@ -595,6 +625,11 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
       void kit.turn({ event: 'reached_home', ctx: kit.context() });
       // If the server is unreachable, still end the scene.
       kit.after(4, () => !finishing && void finish(manGone || !encounter ? 'reached_home_alone' : 'reached_home_followed'));
+    }
+    // demo: at the door she goes in by herself, a short walk the player does not have to steer.
+    if (deps.demo && encounter && !autoEnter && pos.distanceTo(P.shopDoor) < AUTO_ENTER_RADIUS) {
+      autoEnter = { from: pos.clone(), t: 0 };
+      player.inputEnabled = false;
     }
     if (encounter && inRect(pos, Z.shopEntrance) && first('shop')) {
       void kit.turn({ event: 'entered_shop', ctx: kit.context() });

@@ -9,6 +9,11 @@
 import './coach.css';
 import { h, nextId, type Child } from './dom';
 import { streamCoach } from '../net/coach';
+import { EXAMPLE_DEBRIEF, exampleCitations } from './coachExample';
+import { bundledEvidence } from './evidence';
+
+/** If the live debrief has not arrived by then (it usually takes 25-35 s), show the example instead. */
+const DEBRIEF_TIMEOUT_MS = 75_000;
 import { COACH_LIMITS, type CoachCitation, type CoachEvent, type CoachFile, type CoachTodo, type CoachWho } from '../../shared/coach';
 
 export interface CoachOptions {
@@ -229,9 +234,35 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
     return `${parts.join(', ')}.`;
   }
 
+  /** The live coach could not finish: show what it writes, plainly marked as an example. */
+  function showExample(): void {
+    for (const c of exampleCitations(bundledEvidence)) citeData.set(c.id, c);
+    status.remove();
+    debrief.replaceChildren(...renderMarkdown(EXAMPLE_DEBRIEF, citeChip));
+    debrief.hidden = false;
+    checkedLine.textContent = 'An example of the coach’s debrief. The live coach could not finish yours this time.';
+    checkedLine.hidden = false;
+    work.hidden = true;
+    form.hidden = true; // no follow-up questions on an example: there is no run behind it
+    live.textContent = 'Showing an example debrief.';
+  }
+
   async function run(question?: string): Promise<void> {
     busy = true;
     setLeft();
+    // The first debrief gets a time limit; past it, the example is shown instead of waiting on.
+    const local = new AbortController();
+    const stop = (): void => local.abort();
+    abort.signal.addEventListener('abort', stop);
+    let timedOut = false;
+    let gotResult = false;
+    const timer = question
+      ? 0
+      : window.setTimeout(() => {
+          if (gotResult) return;
+          timedOut = true;
+          local.abort();
+        }, DEBRIEF_TIMEOUT_MS);
     let block: HTMLElement | null = null;
     if (question) {
       block = h('div', { class: 'oit-coach-qa' }, h('p', { class: 'oit-coach-q' }, h('span', { class: 'oit-sr' }, 'You asked: '), question), h('p', { class: 'oit-coach-status' }, h('span', { class: 'oit-coach-dots', 'aria-hidden': 'true' }), 'Thinking…'));
@@ -240,10 +271,11 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
       feed.appendChild(h('li', { class: 'oit-coach-sep' }, question));
     }
     try {
-      for await (const ev of streamCoach({ ...opts, question, files: question ? files : undefined }, abort.signal) as AsyncGenerator<CoachEvent>) {
+      for await (const ev of streamCoach({ ...opts, question, files: question ? files : undefined }, local.signal) as AsyncGenerator<CoachEvent>) {
         if (ev.type === 'plan') showPlan(ev.todos);
         else if (ev.type === 'step') addStep(ev.who, ev.text);
         else if (ev.type === 'result') {
+          gotResult = true;
           for (const c of ev.citations) citeData.set(c.id, c);
           const body = renderMarkdown(ev.markdown, citeChip);
           if (ev.kind === 'debrief') {
@@ -266,8 +298,15 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
           throw new Error(ev.message);
         }
       }
+      // The stream ended without a debrief (cut off mid-run): the example rather than a spinner forever.
+      if (!question && !gotResult && !abort.signal.aborted) showExample();
     } catch (err) {
       if (abort.signal.aborted) return;
+      // The debrief itself failed or timed out: the example, not an error.
+      if (!question && (timedOut || !gotResult)) {
+        showExample();
+        return;
+      }
       const message = err instanceof Error && err.message ? err.message : 'The coach is not available right now.';
       if (question && block) block.lastElementChild?.replaceWith(h('p', { class: 'oit-coach-error' }, message));
       else {
@@ -276,6 +315,8 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
       }
       live.textContent = message;
     } finally {
+      window.clearTimeout(timer);
+      abort.signal.removeEventListener('abort', stop);
       busy = false;
       setLeft();
     }
