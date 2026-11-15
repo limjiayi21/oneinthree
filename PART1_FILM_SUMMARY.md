@@ -1,6 +1,6 @@
 # Part 1 film: summary
 
-Branch `part1-film` (local only, not pushed or deployed), rebased onto `main` at
+Branch `part1-film` (pushed to GitHub, not deployed), rebased onto `main` at
 `93d06d3`. Worktree: `/Users/aishwaryagoyal/oneinthree-part1-film`.
 
 ## What was built
