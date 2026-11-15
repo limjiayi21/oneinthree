@@ -384,6 +384,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   /** demo: the crash, then he looks up. Once, from the timer or from how far she has walked. */
   function demoCrash(): void {
     if (kit.ended || finishing || !first('alley')) return;
+    world.triggerCatDash(DEMO.catDash); // the alley's own cat is ~40 m behind her start
     alleyScare(DEMO.crashSource, DEMO.crashSource);
     kit.after(DEMO.noticeDelay, () => {
       if (kit.ended || !first('notice')) return;

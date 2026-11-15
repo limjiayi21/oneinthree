@@ -18,6 +18,18 @@ export const DEMO = {
   manSpot: new THREE.Vector3(8.08, 0, -65.5),
   /** The trash-can crash plays from just ahead on her right (the real alley is behind her). */
   crashSource: new THREE.Vector3(8.3, 1, -63),
+  /**
+   * The cat bolts out from the wall where the crash is, across the sidewalk a couple of metres
+   * ahead of her, and under the parked cars at the curb (road surface is at y = -0.08).
+   */
+  catDash: [
+    new THREE.Vector3(8.35, 0, -63.2),
+    new THREE.Vector3(7.4, 0, -63.0),
+    new THREE.Vector3(6.2, 0, -63.4),
+    new THREE.Vector3(5.0, 0, -64.3),
+    new THREE.Vector3(4.0, -0.08, -65.4),
+    new THREE.Vector3(3.5, -0.08, -66.6),
+  ],
   /** A calm start: seconds after she can move before her keys thought, and before the crash. */
   keysDelay: 1,
   crashDelay: 5,

@@ -59,7 +59,9 @@ for now.
   - During the fade-in: the passer-by is already on the far sidewalk, headphones on, walking the other way.
   - 1 s after she can move: keys jingle and her keys thought (`w_keys`).
   - 5 s after she can move (or once she reaches z = −61 if she hurries): the trash-can crash and
-    cat yowl from just ahead on her right, with the startle, gasp and `w_alley_1`. `w_alley_2` is dropped.
+    cat yowl from just ahead on her right, and the cat bolts across the sidewalk ~2 m ahead of her
+    to the curb (a cat-only dash, `world.triggerCatDash`, since the alley's cat is ~40 m behind her),
+    with the startle, gasp and `w_alley_1`. `w_alley_2` is dropped.
   - 2 s after the crash he looks up, silently: she is close by then, so the encounter starts at once
     and her first thought comes from the model. `w_start_1` is dropped in demo.
 
