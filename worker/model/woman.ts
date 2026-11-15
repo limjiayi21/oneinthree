@@ -166,7 +166,18 @@ export interface WomanState {
   /** Golden run (worker/model/golden.ts): levels held to the reference script. */
   golden?: boolean;
   goldenPath?: GoldenPath | null;
+  /** Demo (?demo=1): he opens pushy, climbs at every response, blocks from 4, and stays (see DEMO_* below). */
+  demo?: boolean;
 }
+
+/*
+ * Demo only: a short demo needs him aggressive and in her face fast. He opens at "pushy", every response
+ * moves him up (a "stay", "down" or "leave" becomes "up"), he blocks her path from level 4 whenever a block
+ * is allowed, and he tops out at 5: level 6 ends the scene before she can reach the shop. The full
+ * version's tuned odds are untouched.
+ */
+const DEMO_OPENING_LEVEL = 2;
+const DEMO_MAX_LEVEL = 5;
 
 export interface WomanInput {
   event: ClientEventType;
@@ -221,9 +232,10 @@ export function dispositionWeights(params: Params = PARAMS): Record<Disposition,
   return normalise<Disposition>({ mild: Math.max(0, 1 - volatile - persistent), persistent, volatile });
 }
 
-export function initialWomanState(disposition: Disposition, opts: { golden?: boolean } = {}): WomanState {
+export function initialWomanState(disposition: Disposition, opts: { golden?: boolean; demo?: boolean } = {}): WomanState {
   return {
     ...(opts.golden ? { golden: true, goldenPath: null } : {}),
+    ...(opts.demo && !opts.golden ? { demo: true } : {}),
     disposition,
     stance: 'idle',
     turn: 0,
@@ -653,7 +665,7 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
     state.stance = 'opening';
     state.turn = 1;
     state.startedAt = elapsed;
-    state.level = state.golden ? GOLDEN_OPENING_LEVEL : openingLevel(state.disposition);
+    state.level = state.golden ? GOLDEN_OPENING_LEVEL : state.demo ? DEMO_OPENING_LEVEL : openingLevel(state.disposition);
     state.peakLevel = state.level;
     state.fear = Math.max(state.fear, STANCE_FEAR.opening);
     state.tension = STANCE_TENSION.opening;
@@ -769,7 +781,9 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
         params,
       );
   let step = rng.sample<Step>(stepProbs);
+  if (state.demo && !forced && (step === 'stay' || step === 'down' || step === 'leave')) step = 'up';
   let level = applyStep(state.level, step);
+  if (state.demo) level = Math.min(level, DEMO_MAX_LEVEL);
   if (state.golden) {
     // Held to the script: he never leaves on his own, and the level comes from docs/golden-run.md.
     const g = goldenNext({ level: state.level, exchanges: state.exchanges + 1, path: state.goldenPath ?? null, event, strategy });
@@ -785,7 +799,9 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
   if (floored) level = Math.min(REFUSAL_FLOOR, levelFrom + 2);
   const canBlock =
     state.blocks < val(params, 'model.persist.block_max') && state.stance !== 'block' && !ph.across && ph.distance < 7 && event !== 'pushed_past';
-  const next: ManStance = step === 'leave' ? 'back_off' : stanceForLevel(level, ph, canBlock);
+  let next: ManStance = step === 'leave' ? 'back_off' : stanceForLevel(level, ph, canBlock);
+  // Demo: in her face sooner. From 4, he steps into her path whenever a block is allowed.
+  if (state.demo && level >= 4 && canBlock && (next === 'hostile' || next === 'follow' || next === 'intimidate')) next = 'block';
 
   /* ---- bookkeeping -------------------------------------------------------- */
   let gain = 0;

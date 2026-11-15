@@ -76,7 +76,7 @@ export default {
         new Request(`https://session/api/session/${id}/init`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ pov: body.pov, scenario: 'walk-home', seed: body.seed, ...(body.run === 'golden' ? { run: 'golden' } : {}) }),
+          body: JSON.stringify({ pov: body.pov, scenario: 'walk-home', seed: body.seed, ...(body.run === 'golden' ? { run: 'golden' } : {}), ...(body.demo === true ? { demo: true } : {}) }),
         }),
       );
     }
