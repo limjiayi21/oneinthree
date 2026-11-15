@@ -352,7 +352,7 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
             ]),
             modeCard('immersive', 'With your body', [
               'Step in place with your phone to walk. Turn your head to look (webcam).',
-              'Say things out loud. Look down and pinch to take out your phone. Raise an open hand to ask for help.',
+              'Hold up a fist and speak out loud (open your hand to send). Look down and pinch to take out your phone. Raise an open hand to ask for help.',
               'When options appear, you have to do them for real.',
             ]),
           ),

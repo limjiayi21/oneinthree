@@ -371,6 +371,8 @@ export interface Hud {
   moment(opts: { tip: string; options: MomentOption[]; mode: PlayMode; /** Real seconds the timer under the options takes to drain. */ seconds: number } | null): void;
   /** Highlights the option that was picked or done, and dims the rest. */
   momentPicked(index: number): void;
+  /** Stop (true) or restart (false) the open moment's timer bar, e.g. while what she said is being understood. */
+  holdMoment(on: boolean): void;
   /** Small control hint at the bottom ("Hold SPACE to speak"). null clears. */
   hint(text: string | null, ms?: number): void;
   /** Top-left one-line objective ("Get home."). null clears. */

@@ -73,6 +73,13 @@
   background: #000;
   display: block;
 }
+.oit-reel-video {
+  opacity: 0;
+  transition: opacity 1.4s var(--oit-ease);
+}
+.oit-reel-player.is-playing .oit-reel-video {
+  opacity: 1;
+}
 .oit-reel-video::-webkit-media-controls {
   display: none !important;
 }

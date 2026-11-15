@@ -62,10 +62,11 @@ describe('GestureDetector', () => {
     expect(run(d, hand('open'), 1)).toEqual([]);
   });
 
-  it('does not read a fist as a palm or a pinch', () => {
+  it('does not read a fist as a palm or a pinch (it is its own gesture: hold to talk)', () => {
     const d = new GestureDetector();
-    expect(run(d, hand('fist'), 1)).toEqual([]);
+    expect(run(d, hand('fist'), 1)).toEqual(['fist']);
     expect(d.state.palm).toBe(false);
+    expect(d.state.pinching).toBe(false);
   });
 
   it('resets when the hand leaves the frame', () => {
@@ -74,5 +75,62 @@ describe('GestureDetector', () => {
     run(d, null, 0.5);
     expect(d.state.present).toBe(false);
     expect(d.state.pinching).toBe(false);
+  });
+});
+
+describe('fist to talk', () => {
+  /** A fist with the thumb tucked across, its tip against the curled index. */
+  const tucked = (): HandPoint[] => {
+    const p = hand('fist');
+    p[4] = { ...p[8] };
+    return p;
+  };
+
+  it('starts once a fist has been held for a moment, and ends when the hand opens', () => {
+    const d = new GestureDetector();
+    run(d, hand('open'), 0.2);
+    expect(run(d, hand('fist'), GESTURE_TUNING.fistHold + 0.2)).toEqual(['fist']);
+    expect(d.state.fistHeld).toBe(true);
+    // Holding it longer does not fire again.
+    expect(run(d, hand('fist'), 2)).toEqual([]);
+    expect(run(d, hand('open'), GESTURE_TUNING.fistRelease + 0.1)).toEqual(['fistEnd']);
+    expect(d.state.fistHeld).toBe(false);
+  });
+
+  it('ignores a fist that only flashes past', () => {
+    const d = new GestureDetector();
+    run(d, hand('open'), 0.2);
+    const events = [...run(d, hand('fist'), GESTURE_TUNING.fistHold / 2), ...run(d, hand('open'), 0.3)];
+    expect(events).not.toContain('fist');
+    expect(events).not.toContain('fistEnd');
+  });
+
+  it('does not end on a one-frame tracking flicker mid-sentence', () => {
+    const d = new GestureDetector();
+    run(d, hand('fist'), GESTURE_TUNING.fistHold + 0.1);
+    const events = [...d.push(hand('open'), DT), ...run(d, hand('fist'), 1)];
+    expect(events).toEqual([]);
+    expect(d.state.fistHeld).toBe(true);
+  });
+
+  it('ends when the hand leaves the camera', () => {
+    const d = new GestureDetector();
+    run(d, hand('fist'), GESTURE_TUNING.fistHold + 0.1);
+    expect(run(d, null, GESTURE_TUNING.lostAfter + 0.1)).toContain('fistEnd');
+  });
+
+  it('a fist with the thumb tucked is not a pinch (that would take out the phone)', () => {
+    const d = new GestureDetector();
+    run(d, hand('open'), 0.2);
+    expect(run(d, tucked(), 1)).toEqual(['fist']);
+  });
+
+  it('opening the hand after a fist is not taken as a raised palm straight away', () => {
+    const d = new GestureDetector();
+    run(d, hand('fist'), GESTURE_TUNING.fistHold + 0.1);
+    const events = run(d, hand('open'), GESTURE_TUNING.palmHold + 0.3);
+    expect(events).toEqual(['fistEnd']);
+    // A palm held up well after the fist still counts.
+    expect(run(d, hand('open'), GESTURE_TUNING.palmAfterFist + GESTURE_TUNING.palmHold)).toEqual(['palm']);
   });
 });

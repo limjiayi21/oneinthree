@@ -19,6 +19,7 @@ import type { MomentOption } from '../contracts';
 import { LEVELS } from '../../shared/levels';
 import { reducedMotion } from '../ui/dom';
 import { runKeyTutorial } from './keyTutorial';
+import { matchSpoken, type SpokenChoice } from './speechMatch';
 
 /** How long a moment stays open, in real seconds, if the player does nothing. */
 const TIP_SECONDS = 15;
@@ -328,6 +329,57 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   let open: { options: Option[] } | null = null;
   let cancelMoment: (() => void) | null = null;
   let lookFor = 0;
+  /** Scene time the open moment runs out (letting it pass is the walk option). */
+  let momentEnds = 0;
+  /** Immersive: she spoke at the open moment and we are waiting to hear what she said; the timer is held. */
+  let awaitingWords = false;
+  let heldLeft = 0;
+  let awaitingSince = 0;
+
+  function armMomentTimer(seconds: number): void {
+    cancelMoment?.();
+    momentEnds = kit.time + seconds;
+    cancelMoment = kit.after(seconds, () => did('walk'));
+  }
+  /** Stop the moment running out while what she said is transcribed; picking happens once it is heard. */
+  function holdForWords(): void {
+    if (awaitingWords || !open) return;
+    awaitingWords = true;
+    awaitingSince = performance.now();
+    heldLeft = Math.max(0.5, momentEnds - kit.time);
+    cancelMoment?.();
+    cancelMoment = null;
+    hud.holdMoment(true);
+  }
+  /** Nothing she said matched (or it was not caught): the moment carries on where it was. */
+  function releaseWords(): void {
+    if (!awaitingWords) return;
+    awaitingWords = false;
+    hud.holdMoment(false);
+    if (open) armMomentTimer(heldLeft);
+  }
+  /** What she said, matched to the open moment's spoken options (and calling the shopkeeper). */
+  function pickFromWords(text: string): void {
+    if (!awaitingWords || !open) return;
+    const choices: SpokenChoice[] = [];
+    open.options.forEach((o, index) => {
+      if (o.act.kind === 'say') choices.push({ index, line: o.act.line, tag: o.tag ?? '' });
+      else if (o.act.kind === 'help') choices.push({ index, line: HELP_LINE, tag: o.tag ?? 'Delegate' });
+    });
+    let index = text ? matchSpoken(text, choices) : -1;
+    // Spoken towards the shop with no clearer match: that is calling the shopkeeper.
+    if (index < 0 && text && lookingAt() === 'clerk') index = open.options.findIndex((o) => o.act.kind === 'help');
+    if (index < 0) {
+      releaseWords();
+      return;
+    }
+    awaitingWords = false;
+    hud.holdMoment(false);
+    if (open.options[index]!.act.kind === 'help') {
+      did('help');
+      callShopkeeper();
+    } else endTip(index);
+  }
 
   function offer(id: MomentId): void {
     if (kit.ended || finishing || !first(`moment_${id}`)) return;
@@ -339,13 +391,17 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     if (!reducedMotion()) player.setZoom(ZOOM_DEG);
     hud.moment({ tip: m.tip, options: m.options, mode, seconds: TIP_SECONDS });
     // Scene time, so a pause does not run it down. Letting it pass is the walk option.
-    cancelMoment = kit.after(TIP_SECONDS * SLOW, () => did('walk'));
+    armMomentTimer(TIP_SECONDS * SLOW);
   }
 
   /** Close the moment; with `picked`, that option lights up for a moment first. */
   function endTip(picked?: number): void {
     cancelMoment?.();
     cancelMoment = null;
+    if (awaitingWords) {
+      awaitingWords = false;
+      hud.holdMoment(false);
+    }
     if (!open) return;
     open = null;
     kit.timeScale = 1;
@@ -528,6 +584,9 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   kit.onEvent = (ev: TurnEvent) => {
     if (ev.type === 'line' || ev.type === 'decision') heard++;
     switch (ev.type) {
+      case 'heard':
+        pickFromWords(ev.text);
+        break;
       case 'decision':
         takeOver();
         applyMan(ev.man);
@@ -688,11 +747,11 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     if (open && mode === 'immersive') {
       const offers = (kind: Act['kind']) => open!.options.some((o) => o.act.kind === kind);
       if (deps.mic.recording) {
-        // Speaking towards the shop calls the shopkeeper; anything else is one of the lines.
-        if (offers('help') && lookingAt() === 'clerk') {
-          did('help');
-          callShopkeeper();
-        } else did('say');
+        // Speaking: nothing is picked yet. Wait to hear what she said, then pick the option that matches.
+        if (offers('say') || offers('help')) holdForWords();
+      } else if (awaitingWords) {
+        // The server never answered with what it heard: let the moment carry on.
+        if (performance.now() - awaitingSince > 10000) releaseWords();
       } else if (offers('look') && player.isLookingAt(woman.human.getHeadPosition(womanHead), 15)) {
         lookFor += dt;
         if (lookFor > 0.5) {

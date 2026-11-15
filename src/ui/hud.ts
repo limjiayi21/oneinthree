@@ -854,6 +854,10 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     tipsLive.textContent = `${opts.tip} ${opts.options.map(how).join('. ')}.`;
   }
 
+  function holdMoment(on: boolean): void {
+    tipsEl.classList.toggle('is-held', on);
+  }
+
   function momentPicked(index: number): void {
     momentOpts.forEach((el, i) => el.classList.add(i === index ? 'is-picked' : 'is-dim'));
     tipsEl.querySelector('.oit-opt-timer')?.classList.add('is-done');
@@ -902,6 +906,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     strip,
     moment,
     momentPicked,
+    holdMoment,
     dispose,
   };
 }

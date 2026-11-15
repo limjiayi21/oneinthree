@@ -489,8 +489,21 @@ export class SceneKit {
     };
 
     const blur = () => {
-      if (this.talkHeld) this.endTalk();
+      // Releasing Space in another window never reaches us; a held fist is still seen by the camera.
+      if (this.talkHeld && this.talkOrigin === 'ptt') this.endTalk();
     };
+
+    // A fist held up to the camera talks, like holding Space: it starts when the fist has held for a
+    // moment and sends when the hand opens or leaves the camera (needs hand tracking: body mode or H).
+    const offFist = this.deps.hands?.onGesture((g) => {
+      if (this.ended || this.paused) return;
+      if (g === 'fist') {
+        if (this.speechEnabled && mic.available) this.beginTalk('fist');
+      } else if (g === 'fistEnd' && this.talkHeld && this.talkOrigin === 'fist') {
+        this.endTalk();
+      }
+    });
+    if (offFist) this.cleanups.push(offFist);
 
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
