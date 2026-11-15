@@ -79,4 +79,4 @@ npm run dev:local
 - Locally against `mongodb-atlas-local`, in the dev server and in the production build (`vite preview`): ping, research sync (101 passages, 1,536 dimensions), `$vectorSearch` answering the coach's searches, run and coach-run records, and the `/api/stats` insights.
 - With MongoDB stopped: the session summary still answers straight away (14 ms), and `/api/health?deep=1` reports `"mongoPing": false` after the 5-second timeout.
 - `worker/coach/coach.test.ts`: Atlas first, blending, fallback, collection naming and the content hash. `worker/runlog.test.ts`: the run record holds no words.
-- **Not yet tested against a real Atlas cluster.** The connection over `mongodb+srv` with TLS uses the same pieces that were checked separately in workerd (SRV and TXT lookups, a TLS connection).
+- Against a real Atlas M0 cluster (AWS) over `mongodb+srv` with TLS: connecting takes about 0.15 to 0.3 s per request. The first debrief stored the research and created the index; after about a minute, every coach search ran on Atlas Vector Search, and runs, coach runs and `/api/stats` worked the same as locally.
