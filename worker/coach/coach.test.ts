@@ -183,6 +183,15 @@ describe('model setup', () => {
     expect(pickProvider({ OPENAI_API_KEY: 'o' })).toBe('openai');
     expect(pickProvider({})).toBeNull();
   });
+
+  it('tries Gemini first, then OpenAI as the fallback', async () => {
+    const { pickProviders } = await import('./models');
+    expect(pickProviders({ GEMINI_API_KEY: 'g', OPENAI_API_KEY: 'o' })).toEqual(['gemini', 'openai']);
+    expect(pickProviders({ GEMINI_API_KEY: 'g', OPENAI_API_KEY: 'o', COACH_PROVIDER: 'gemini' })).toEqual(['gemini', 'openai']);
+    expect(pickProviders({ GEMINI_API_KEY: 'g', OPENAI_API_KEY: 'o', COACH_PROVIDER: 'openai' })).toEqual(['openai', 'gemini']);
+    expect(pickProviders({ GEMINI_API_KEY: 'g' })).toEqual(['gemini']);
+    expect(pickProviders({})).toEqual([]);
+  });
 });
 
 describe('the plan the player sees', () => {

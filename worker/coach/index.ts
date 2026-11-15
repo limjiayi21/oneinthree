@@ -4,17 +4,18 @@
  * changes nothing in the game.
  *
  * Off (503) unless GEMINI_API_KEY or OPENAI_API_KEY is set (worker/coach/models.ts
- * picks the model; Gemini by default). Each Part 2 session may ask for its debrief twice
+ * picks the model). Gemini first; if it fails or stalls, the run starts again with OpenAI; if that
+ * fails too, the client shows an example debrief (src/ui/coachExample.ts). Each Part 2 session may ask for its debrief twice
  * and up to COACH_LIMITS.questionsPerRun follow-up questions.
  */
 import { HumanMessage, type BaseMessage } from '@langchain/core/messages';
 import type { SummaryData } from '../../shared/types';
-import { COACH_LIMITS, type CheckSummary, type CoachEvent, type CoachFile, type CoachRequest, type CoachTodo } from '../../shared/coach';
+import { COACH_BACKUP_STEP, COACH_LIMITS, type CheckSummary, type CoachEvent, type CoachFile, type CoachRequest, type CoachTodo } from '../../shared/coach';
 import type { Env } from '../session';
 import { createCoachAgent, plainPlanText } from './agent';
 import { checkText, formatProblems, removeProblems } from './check';
 import { citation, type SearchMode } from './knowledge';
-import { createModels, pickProvider, type ModelEnv } from './models';
+import { createModels, pickProviders, type ModelEnv, type Provider } from './models';
 import { atlasSearch } from './atlas';
 import { openDb, type MongoEnv } from '../mongo';
 import { saveCoachRun, type CoachRunDoc } from '../runlog';
@@ -25,6 +26,8 @@ export type CoachEnv = Env & ModelEnv & MongoEnv;
 const SESSION_ID = /^[a-z0-9-]{8,64}$/i;
 const MAX_DEBRIEFS = 2;
 const RUN_TIMEOUT_MS = 150_000;
+/** How long the first provider (Gemini) gets before the backup (OpenAI) takes over. */
+const FIRST_TRY_MS = 45_000;
 const MAX_REVISIONS = 2;
 
 const json = (body: unknown, status = 200): Response =>
@@ -96,8 +99,8 @@ const lastText = (messages: BaseMessage[]): string => {
 
 export async function handleCoach(request: Request, env: CoachEnv, ctx: ExecutionContext): Promise<Response> {
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
-  const provider = pickProvider(env);
-  if (!provider) return json({ error: 'The coach is not switched on' }, 503);
+  const providers = pickProviders(env);
+  if (!providers.length) return json({ error: 'The coach is not switched on' }, 503);
   const req = parseCoachRequest(await request.json().catch(() => null));
   if (typeof req === 'string') return json({ error: req }, 400);
 
@@ -120,13 +123,11 @@ export async function handleCoach(request: Request, env: CoachEnv, ctx: Executio
     void writer.write(enc.encode(`${JSON.stringify(ev)}\n`)).catch(() => (closed = true));
   };
 
-  const { model, embed, embedName, name: modelName, middleware } = createModels(env, provider);
-
-  const work = (async () => {
+  /** One full run with one provider. Returns true when it sent its result. Sends the error only when it is the last try. */
+  const attempt = async (provider: Provider, budget: number, last: boolean, mongo: Awaited<ReturnType<typeof openDb>>): Promise<boolean> => {
+    const { model, embed, embedName, name: modelName, middleware } = createModels(env, provider);
     const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), RUN_TIMEOUT_MS);
-    // MongoDB, when configured: one connection for the whole run (the research search and saving the result).
-    const mongo = await openDb(env, 'coach');
+    const timer = setTimeout(() => abort.abort(), Math.max(1_000, budget));
     const started = Date.now();
     const searches: Record<string, number> = {};
     let outcome: Pick<CoachRunDoc, 'ok' | 'cited' | 'checked'> = { ok: false, cited: [] };
@@ -172,21 +173,42 @@ export async function handleCoach(request: Request, env: CoachEnv, ctx: Executio
       send({ type: 'result', kind: kind === 'question' ? 'answer' : 'debrief', markdown: text, citations: final.cited.map((id) => citation(id)).filter((c) => c !== null), checked });
       outcome = { ok: true, cited: final.cited, checked };
       send({ type: 'done', files: fromFileMap(state.files), questionsLeft });
+      return true;
     } catch (err) {
-      console.error('[coach] failed', err);
-      send({ type: 'error', message: abort.signal.aborted ? 'The coach took too long.' : 'The coach could not finish.' });
+      console.error(`[coach] ${provider} failed`, err);
+      if (last) send({ type: 'error', message: abort.signal.aborted ? 'The coach took too long.' : 'The coach could not finish.' });
+      return false;
     } finally {
       clearTimeout(timer);
       if (mongo) {
         // What the coach did, never what it wrote (worker/runlog.ts).
         const doc: CoachRunDoc = { session: req.bystander, kind: kind === 'question' ? 'answer' : 'debrief', model: modelName, embedModel: embedName, searches, ...outcome, ms: Date.now() - started, at: new Date() };
         await saveCoachRun(mongo.db, doc).catch((err) => console.warn('[coach] could not log the run', err instanceof Error ? err.message : err));
-        await mongo.close();
       }
+    }
+  };
+
+  const work = (async () => {
+    // MongoDB, when configured: one connection for the whole run (the research search and saving the result).
+    const mongo = await openDb(env, 'coach');
+    const deadline = Date.now() + RUN_TIMEOUT_MS;
+    try {
+      // Gemini first, then OpenAI (worker/coach/models.ts). If both fail, the client shows the example debrief.
+      for (let i = 0; i < providers.length; i++) {
+        const last = i === providers.length - 1;
+        // The first try gets a share of the time so a stalled provider leaves the next one enough.
+        const budget = last ? deadline - Date.now() : Math.min(FIRST_TRY_MS, deadline - Date.now());
+        if (i > 0) send({ type: 'step', who: 'coach', text: COACH_BACKUP_STEP });
+        const ok = await attempt(providers[i]!, budget, last, mongo);
+        if (ok) return;
+      }
+    } finally {
+      if (mongo) await mongo.close();
       closed = true;
       await writer.close().catch(() => {});
     }
   })();
+
   ctx.waitUntil(work);
   return new Response(readable, { headers: { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
 }

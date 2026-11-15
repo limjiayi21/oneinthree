@@ -6,7 +6,7 @@
  *                 gemini-flash-lite-latest when a call fails or takes over 30 s
  *                 (busy models answer 503 or hang)
  *     embeddings: gemini-embedding-001
- *   openai (when only OPENAI_API_KEY is set, or COACH_PROVIDER=openai)
+ *   openai (the fallback when Gemini fails; first when only OPENAI_API_KEY is set, or COACH_PROVIDER=openai)
  *     chat:       COACH_MODEL or gpt-5.4-mini
  *     embeddings: text-embedding-3-small
  *     OPENAI_BASE_URL points it at any OpenAI-compatible service instead
@@ -97,14 +97,22 @@ export const DEFAULTS = {
   openai: { chat: 'gpt-5.4-mini', embed: 'text-embedding-3-small' },
 } as const;
 
-/** The provider to use, or null when no key is set (the coach is then off). */
-export function pickProvider(env: ModelEnv): Provider | null {
+/**
+ * The providers to try, in order: Gemini first, then OpenAI as the fallback (each only when its key is
+ * set). COACH_PROVIDER moves one to the front. Empty when no key is set (the coach is then off).
+ */
+export function pickProviders(env: ModelEnv): Provider[] {
+  const order: Provider[] = [];
   const want = env.COACH_PROVIDER?.toLowerCase();
-  if (want === 'openai' && env.OPENAI_API_KEY) return 'openai';
-  if (want === 'gemini' && env.GEMINI_API_KEY) return 'gemini';
-  if (env.GEMINI_API_KEY) return 'gemini';
-  if (env.OPENAI_API_KEY) return 'openai';
-  return null;
+  if (want === 'openai' && env.OPENAI_API_KEY) order.push('openai');
+  if (env.GEMINI_API_KEY) order.push('gemini');
+  if (env.OPENAI_API_KEY && !order.includes('openai')) order.push('openai');
+  return order;
+}
+
+/** The first provider to try, or null when no key is set. */
+export function pickProvider(env: ModelEnv): Provider | null {
+  return pickProviders(env)[0] ?? null;
 }
 
 export function createModels(env: ModelEnv, provider: Provider): { model: BaseChatModel; embed: Embedder; embedName: string; name: string; middleware: AgentMiddleware[] } {
