@@ -41,18 +41,18 @@ export interface EyeLook {
 
 export const GAZE_TUNING = {
   /** Head turn: nose offset from the face centre, as a share of face width. */
-  headXGain: 5.2,
+  headXGain: 3.6,
   /** Head pitch: change in nose height between the eye line and the chin. */
-  headYGain: 13,
+  headYGain: 9,
   /** Smoothing rate, 1/s. Higher follows faster but jitters more. */
-  smoothRate: 12,
+  smoothRate: 9,
   /** Seconds without a face before the gaze is dropped. */
   lostAfter: 0.3,
   /** Faces narrower than this share of the frame are too noisy to use. */
   minFaceWidth: 0.06,
-  deadZone: 0.14,
+  deadZone: 0.18,
   /** Vertical dead zone: smaller, since up/down movements are smaller than left/right. */
-  deadZoneY: 0.1,
+  deadZoneY: 0.13,
   /** Share of the live range past which the body starts turning. */
   edge: 0.7,
   maxGlanceYaw: 50 * DEG,
