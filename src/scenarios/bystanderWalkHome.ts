@@ -20,6 +20,7 @@ import { LEVELS } from '../../shared/levels';
 import { reducedMotion } from '../ui/dom';
 import { runKeyTutorial } from './keyTutorial';
 import { matchSpoken, type SpokenChoice } from './speechMatch';
+import { wrapAngle, yawOf } from '../player/mathx';
 
 /** How long a moment stays open, in real seconds, if the player does nothing. */
 const TIP_SECONDS = 15;
@@ -38,7 +39,7 @@ type Option = MomentOption & { act: Act };
 type MomentId = 'm1' | 'm2' | 'm3' | 'm4' | 'm5';
 
 const say = (text: string, to: 'man' | 'woman', tag: string): Option => ({ icon: 'speak', text: `"${text}"`, tag, how: 'Say it', act: { kind: 'say', line: text, to } });
-const FILM: Option = { icon: 'film', text: 'Film him', tag: 'Document', how: 'Pinch', act: { kind: 'film' } };
+const FILM: Option = { icon: 'film', text: 'Film him', tag: 'Document', how: 'Pinch, left hand', act: { kind: 'film' } };
 /** Called out from where you stand: the shop is a few metres past them. */
 const HELP_LINE = "Hey! Can you come out here? He won't leave her alone.";
 const HELP: Option = { icon: 'help', text: 'Call the shopkeeper', tag: 'Delegate', how: 'Look at the shop, say it', act: { kind: 'help' } };
@@ -560,9 +561,46 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     man.human.playGesture('dismiss');
     man.setBehaviour({ type: 'leave', to: P.nearCorner, speed: 1.5 });
     kit.serverFear = Math.min(kit.serverFear, 0.15);
-    // He has gone and she is shaken: what do you say to her?
-    kit.after(1.8, () => !womanGone && !finishing && offer('m5'));
+    // He has gone and she is shaken: what do you say to her? You turn to her, and stay on her.
+    kit.after(1.8, () => {
+      if (womanGone || finishing) return;
+      offer('m5');
+      lockOnHer();
+    });
   }
+
+  /* ------------------------------------------------- facing her at the end */
+
+  // For the last exchange the view turns to her face and holds there until the scene ends (or she goes).
+  // Real time, not scene time, so the slow motion of the open question does not make the turn sluggish.
+  let lockedOnHer = false;
+  let lockAt = 0;
+  let lockPitch = 0;
+  const lockEye = new THREE.Vector3();
+  const lockHead = new THREE.Vector3();
+  function lockOnHer(): void {
+    if (lockedOnHer) return;
+    lockedOnHer = true;
+    lockAt = performance.now();
+    lockPitch = player.viewPitch;
+  }
+  kit.onFrame(() => {
+    if (!lockedOnHer || kit.ended) return;
+    if (womanGone) {
+      lockedOnHer = false;
+      return;
+    }
+    const now = performance.now();
+    const k = 1 - Math.exp(-5 * Math.min(0.1, (now - lockAt) / 1000));
+    lockAt = now;
+    player.getEyePosition(lockEye);
+    woman.human.getHeadPosition(lockHead);
+    const dx = lockHead.x - lockEye.x;
+    const dz = lockHead.z - lockEye.z;
+    const pitchTo = Math.atan2(lockHead.y - lockEye.y, Math.hypot(dx, dz));
+    lockPitch += (pitchTo - lockPitch) * k;
+    player.setLook(player.yaw + wrapAngle(yawOf(dx, dz) - player.yaw) * k, lockPitch);
+  });
 
   function applyWoman(d: WomanDecision): void {
     if (womanGone) return;
@@ -828,7 +866,8 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   // Webcam hands: pinch for the phone (F); raise an open palm to ask the shopkeeper (E). Wherever you look.
   // The pinch hint only shows while filming: "take out your phone" up all scene would be in the way.
   const unbindHands = bindHandActions(deps, player, kit, {
-    pinch: { key: 'KeyF', hint: () => (filming ? 'Pinch to put your phone away' : null) },
+    // Hidden while a question's options are up, so it never sits on them.
+    pinch: { key: 'KeyF', hint: () => (filming && !open ? 'Pinch with your left hand to put your phone away' : null) },
     // No separate hint: the shopkeeper prompt above already says to raise an open hand.
     palm: { key: 'KeyE', hint: () => null },
   });

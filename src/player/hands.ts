@@ -3,11 +3,14 @@
  *
  * MediaPipe Hand Landmarker runs in the browser on the webcam frames shared
  * with eye look (vision.ts); nothing is uploaded. gestures.ts turns the hand
- * into events (pinch, palm, fist) that scenes map onto actions, e.g. pinch to
- * take out the phone. The keyboard keeps working.
+ * into events (pinch, palm, fist) that scenes map onto actions. Both hands are
+ * tracked, each with its own detector: the LEFT hand pinches (the phone), the
+ * RIGHT hand holds a fist (talking), and an open palm from either asks for
+ * help. The keyboard keeps working. ?handswap=1 flips left and right, for a
+ * camera whose image comes through the other way round.
  */
 
-import type { HandLandmarker } from '@mediapipe/tasks-vision';
+import type { HandLandmarker, NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { GestureDetector, type GestureEvent, type GestureState } from './gestures';
 import { VISION_FILESET, cameraErrorMessage, modelUrl, subscribeFrames } from './vision';
 
@@ -36,7 +39,7 @@ async function loadHandLandmarker(): Promise<HandLandmarker> {
   const { HandLandmarker } = await import('@mediapipe/tasks-vision');
   const options = {
     runningMode: 'VIDEO' as const,
-    numHands: 1,
+    numHands: 2,
     minHandDetectionConfidence: 0.5,
     minHandPresenceConfidence: 0.5,
     minTrackingConfidence: 0.5,
@@ -49,8 +52,41 @@ async function loadHandLandmarker(): Promise<HandLandmarker> {
   }
 }
 
+export type HandSide = 'left' | 'right';
+
+/**
+ * The player's hand from the model's label. MediaPipe labels handedness as if the image were mirrored
+ * (a selfie view); webcam frames are not, so its 'Left' is the player's right hand. `swap` undoes that
+ * for a camera that delivers a mirrored image.
+ */
+export function sideFromLabel(label: string | undefined, swap: boolean): HandSide | null {
+  if (label !== 'Left' && label !== 'Right') return null;
+  const side: HandSide = label === 'Left' ? 'right' : 'left';
+  return swap ? (side === 'left' ? 'right' : 'left') : side;
+}
+
+/** Which hand each gesture belongs to: pinch is the left hand's, the fist is the right hand's, a palm either. */
+export function gestureAllowed(side: HandSide, g: GestureEvent): boolean {
+  if (g === 'pinch') return side === 'left';
+  if (g === 'fist' || g === 'fistEnd') return side === 'right';
+  return true;
+}
+
+/** One state for the badge from both hands: the right hand's fist, the left hand's pinch, either's palm. */
+export function mergeHands(left: GestureState, right: GestureState): GestureState {
+  return {
+    present: left.present || right.present,
+    pinching: left.pinching,
+    pinchRatio: left.pinchRatio,
+    palm: left.palm || right.palm,
+    fist: right.fist,
+    fistHeld: right.fistHeld,
+  };
+}
+
 export function createHandTracker(): HandTracker {
-  const detector = new GestureDetector();
+  const detectors: Record<HandSide, GestureDetector> = { left: new GestureDetector(), right: new GestureDetector() };
+  const swap = typeof location !== 'undefined' && new URLSearchParams(location.search).get('handswap') === '1';
   const listeners = new Set<(g: GestureEvent) => void>();
   const ui = createIndicator();
 
@@ -70,17 +106,24 @@ export function createHandTracker(): HandTracker {
 
   function frame(video: HTMLVideoElement, now: number, dt: number): void {
     if (!landmarker) return;
-    let points = null;
+    const seen: Record<HandSide, NormalizedLandmark[] | null> = { left: null, right: null };
     try {
-      points = landmarker.detectForVideo(video, now).landmarks[0] ?? null;
+      const res = landmarker.detectForVideo(video, now);
+      res.landmarks.forEach((points, i) => {
+        const side = sideFromLabel(res.handedness?.[i]?.[0]?.categoryName, swap);
+        if (side && !seen[side]) seen[side] = points;
+      });
     } catch (err) {
       console.warn('hands: detection failed', err);
     }
-    const events = detector.push(points, dt);
-    const present = detector.state.present;
-    if (present && state === 'nohand') setState('on');
-    if (!present && state === 'on') setState('nohand');
-    ui.pose(detector.state);
+    const events: GestureEvent[] = [];
+    for (const side of ['left', 'right'] as const) {
+      for (const e of detectors[side].push(seen[side], dt)) if (gestureAllowed(side, e)) events.push(e);
+    }
+    const merged = mergeHands(detectors.left.state, detectors.right.state);
+    if (merged.present && state === 'nohand') setState('on');
+    if (!merged.present && state === 'on') setState('nohand');
+    ui.pose(merged);
     for (const e of events) {
       ui.flash(e);
       for (const cb of [...listeners]) cb(e);
@@ -103,7 +146,8 @@ export function createHandTracker(): HandTracker {
         return;
       }
       unsubscribe = unsub;
-      detector.reset();
+      detectors.left.reset();
+      detectors.right.reset();
       setState('nohand');
     } catch (err) {
       if (gen !== generation) return;
@@ -119,7 +163,8 @@ export function createHandTracker(): HandTracker {
     generation++;
     unsubscribe?.();
     unsubscribe = null;
-    detector.reset();
+    detectors.left.reset();
+    detectors.right.reset();
     setState('off');
   }
 
@@ -182,7 +227,7 @@ const CSS = `
 .oit-hands-icon{width:22px;text-align:center;font-size:15px;line-height:1;opacity:.45;transition:opacity .15s,transform .15s}
 .oit-hands-icon[data-seen]{opacity:1}
 .oit-hands-icon[data-flash]{transform:scale(1.35)}
-.oit-hands-hint{position:fixed;left:50%;bottom:17%;z-index:58;transform:translateX(-50%);padding:8px 14px;border-radius:999px;background:rgba(10,12,16,.62);color:#fff;font:500 14px/1.2 system-ui,-apple-system,sans-serif;pointer-events:none;white-space:nowrap}
+.oit-hands-hint{position:fixed;left:50%;bottom:26%;z-index:58;transform:translateX(-50%);padding:8px 14px;border-radius:999px;background:rgba(10,12,16,.62);color:#fff;font:500 14px/1.2 system-ui,-apple-system,sans-serif;pointer-events:none;white-space:nowrap}
 `;
 
 const LABEL: Record<HandState, string> = {
