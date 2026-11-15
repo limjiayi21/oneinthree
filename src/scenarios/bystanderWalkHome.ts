@@ -158,6 +158,29 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   const once = new Set<string>();
   const first = (key: string) => (once.has(key) ? false : (once.add(key), true));
 
+  /*
+   * Demo (?demo=1): until the third question ("She can't get past him"), speaking up goes unheard.
+   * Nothing reaches the AI, so nobody reacts and the scripted scene carries on to the next question;
+   * a thought says why. From the third question on, everything works as in the full version.
+   */
+  const UNHEARD = ["Maybe she didn't hear me.", "Maybe she doesn't need help."];
+  let unheardCount = 0;
+  const unheard = () => !!deps.demo && !once.has('moment_m3');
+  kit.gate = (req) => {
+    if (!unheard()) return true;
+    if (req.event === 'speech') brushOff(UNHEARD[Math.min(unheardCount++, UNHEARD.length - 1)]!);
+    else if (req.event === 'asked_clerk') {
+      once.delete('clerkAsked'); // so he can still be asked once it counts
+      brushOff("Maybe he didn't hear me.");
+    }
+    return false;
+  };
+  /** The open question counts as answered, then the thought, and the scene goes on. */
+  function brushOff(text: string): void {
+    if (open) endTip();
+    kit.after(0.9, () => !kit.ended && kit.thinkText(text, '', 0.4));
+  }
+
   const eye = new THREE.Vector3();
   const manHead = new THREE.Vector3();
   const womanHead = new THREE.Vector3();
