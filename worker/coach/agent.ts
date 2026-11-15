@@ -77,7 +77,7 @@ ${SAFETY}`;
 export const FOLLOWUP_PROMPT = `You are the debrief coach for "One in Three", a first-person simulation about street harassment (Part 1: the player was the woman walking home; Part 2: a bystander who could use the 5 Ds). You already wrote this player's debrief; your notes are in /notes.md and the debrief in /debrief.md.
 
 Answer the player's question about their run.
-1. Call write_todos with a 2 or 3 item plan for answering.
+1. Call write_todos with a 2 or 3 item plan for answering, written for the player to read: plain words, no file or tool names (e.g. "Reread my notes on your run", "Check the research on asking for help").
 2. Read /notes.md and /debrief.md. Use get_my_run, get_moment or the helpers if you need more.
 3. Write your answer to /answer.md: under 150 words, plain, specific to their run, then call check_draft with it and fix any problems.
 4. Finish with the answer text as your final message.
@@ -144,6 +144,20 @@ function tools(deps: CoachDeps, emit: (who: CoachWho, text: string) => void) {
 }
 
 /** Turns the agent's tool calls into progress events the player can read. */
+/** The plan is shown to the player: keep the agent's file and tool names out of it. */
+export function plainPlanText(text: string): string {
+  return text
+    .replace(/\s+(?:to|in|into) \/(?:answer|debrief|notes)\.md\b/g, '')
+    .replace(/\/answer\.md/g, 'the answer')
+    .replace(/\/debrief\.md/g, 'the debrief')
+    .replace(/\/notes\.md/g, 'the notes')
+    .replace(/\b(?:and )?(?:verify|check) it with check_draft\b/g, 'and check it against the research')
+    .replace(/\bcheck_draft\b/g, 'the research check')
+    .replace(/\b(get_my_run|get_moment|search_evidence|five_ds_guide|write_todos|read_file|write_file|edit_file)\b/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 class Progress extends BaseCallbackHandler {
   name = 'coach-progress';
   private active = new Map<string, CoachWho>();
@@ -175,7 +189,7 @@ class Progress extends BaseCallbackHandler {
     switch (name) {
       case 'write_todos': {
         const todos = Array.isArray(args.todos) ? (args.todos as CoachTodo[]) : [];
-        if (todos.length) this.emitPlan(todos.map((t) => ({ content: String(t.content), status: t.status })));
+        if (todos.length) this.emitPlan(todos.map((t) => ({ content: plainPlanText(String(t.content)), status: t.status })));
         break;
       }
       case 'task': {

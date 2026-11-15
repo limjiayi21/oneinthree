@@ -11,7 +11,7 @@ import { HumanMessage, type BaseMessage } from '@langchain/core/messages';
 import type { SummaryData } from '../../shared/types';
 import { COACH_LIMITS, type CheckSummary, type CoachEvent, type CoachFile, type CoachRequest, type CoachTodo } from '../../shared/coach';
 import type { Env } from '../session';
-import { createCoachAgent } from './agent';
+import { createCoachAgent, plainPlanText } from './agent';
 import { checkText, formatProblems, removeProblems } from './check';
 import { citation, type SearchMode } from './knowledge';
 import { createModels, pickProvider, type ModelEnv } from './models';
@@ -166,7 +166,8 @@ export async function handleCoach(request: Request, env: CoachEnv, ctx: Executio
       if (!check.ok) ({ markdown: text, removed } = removeProblems(text, check.problems));
       if (!text) throw new Error('the coach did not produce any text');
       const final = checkText(text);
-      if (Array.isArray(state.todos) && state.todos.length && revisions + removed > 0) send({ type: 'plan', todos: (state.todos as CoachTodo[]).map((t) => ({ content: String(t.content), status: t.status })) });
+      // The work is done: tick off the whole plan (the agent does not always mark its last items itself).
+      if (Array.isArray(state.todos) && state.todos.length) send({ type: 'plan', todos: (state.todos as CoachTodo[]).map((t) => ({ content: plainPlanText(String(t.content)), status: 'completed' as const })) });
       const checked: CheckSummary = { claims: final.claims, revisions, removed };
       send({ type: 'result', kind: kind === 'question' ? 'answer' : 'debrief', markdown: text, citations: final.cited.map((id) => citation(id)).filter((c) => c !== null), checked });
       outcome = { ok: true, cited: final.cited, checked };

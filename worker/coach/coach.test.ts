@@ -4,6 +4,7 @@ import { checkText, figures, removeProblems } from './check';
 import { PASSAGES, PASSAGE_BY_ID, citation, keywordSearch, searchPassages } from './knowledge';
 import { momentDetail, overview, toRunPart } from './run';
 import { parseCoachRequest } from './index';
+import { plainPlanText } from './agent';
 import { collectionName, indexDefinition, passagesHash } from './atlas';
 
 const stat = PASSAGES.find((p) => p.kind === 'stat' && /%/.test(p.headline ?? ''))!;
@@ -181,5 +182,13 @@ describe('model setup', () => {
     expect(pickProvider({ GEMINI_API_KEY: 'g', OPENAI_API_KEY: 'o', COACH_PROVIDER: 'openai' })).toBe('openai');
     expect(pickProvider({ OPENAI_API_KEY: 'o' })).toBe('openai');
     expect(pickProvider({})).toBeNull();
+  });
+});
+
+describe('the plan the player sees', () => {
+  it('keeps file and tool names out of it', () => {
+    expect(plainPlanText('Write a concise answer to /answer.md and verify it with check_draft')).toBe('Write a concise answer and check it against the research');
+    expect(plainPlanText('Read the existing notes and debrief for this run')).toBe('Read the existing notes and debrief for this run');
+    expect(plainPlanText('Use get_moment for moment 2')).toBe('Use for moment 2');
   });
 });
