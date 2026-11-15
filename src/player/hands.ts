@@ -3,8 +3,8 @@
  *
  * MediaPipe Hand Landmarker runs in the browser on the webcam frames shared
  * with eye look (vision.ts); nothing is uploaded. gestures.ts turns the hand
- * into events (pinch, palm) that scenes map onto actions, e.g. look down and
- * pinch to take out the phone. The keyboard keeps working.
+ * into events (pinch, palm, fist) that scenes map onto actions, e.g. pinch to
+ * take out the phone. The keyboard keeps working.
  */
 
 import type { HandLandmarker } from '@mediapipe/tasks-vision';

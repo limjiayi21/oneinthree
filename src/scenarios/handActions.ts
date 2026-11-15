@@ -2,19 +2,17 @@
  * Maps webcam hand gestures onto a scene's existing key actions, so a gesture
  * and its key always do exactly the same thing.
  *
- *   look down + pinch  -> lookDownPinch.key (e.g. F: take out the phone)
- *   open palm held up  -> palm.key (e.g. E: ask for help)
+ *   pinch              -> pinch.key (e.g. F: take out / put away the phone)
+ *   open palm held up  -> palm.key  (e.g. E: ask for help)
  *
+ * Wherever the player is looking: the two gestures are different enough not to
+ * need it. (A fist is neither: it is for talking, see SceneKit.)
  * Gestures only count while the player could press the key: not paused, not
  * in a cutscene, scene not over. Hints show only while hands are tracked.
  */
 
-import { DEG } from '../player/mathx';
 import type { PlayerController } from '../player/player';
 import type { SceneDeps, SceneKit } from './common';
-
-/** Looking this far below the horizon counts as looking down at your hands. */
-export const LOOK_DOWN_PITCH = -28 * DEG;
 
 interface GestureAction {
   key: string;
@@ -23,7 +21,7 @@ interface GestureAction {
 }
 
 export interface HandActionMap {
-  lookDownPinch?: GestureAction;
+  pinch?: GestureAction;
   palm?: GestureAction;
 }
 
@@ -32,12 +30,11 @@ export function bindHandActions(deps: SceneDeps, player: PlayerController, kit: 
   if (!hands) return () => {};
 
   const live = () => !kit.ended && !kit.paused && player.inputEnabled && player.isLocked;
-  const lookingDown = () => player.viewPitch < LOOK_DOWN_PITCH;
 
   const offGesture = hands.onGesture((g) => {
     if (!live()) return;
-    if (g === 'pinch' && map.lookDownPinch && lookingDown()) kit.onKey(map.lookDownPinch.key);
-    else if (g === 'palm' && map.palm && !lookingDown()) kit.onKey(map.palm.key);
+    if (g === 'pinch' && map.pinch) kit.onKey(map.pinch.key);
+    else if (g === 'palm' && map.palm) kit.onKey(map.palm.key);
   });
 
   const offUpdate = deps.engine.onUpdate(() => {
@@ -45,8 +42,8 @@ export function bindHandActions(deps: SceneDeps, player: PlayerController, kit: 
       hands.setHint(null);
       return;
     }
-    if (lookingDown()) hands.setHint(map.lookDownPinch?.hint() ?? null);
-    else hands.setHint(map.palm?.hint() ?? null);
+    // The palm's hint only shows where it applies (by the shop); otherwise the pinch's, if it has one.
+    hands.setHint(map.palm?.hint() ?? map.pinch?.hint() ?? null);
   });
 
   return () => {
