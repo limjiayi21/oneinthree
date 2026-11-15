@@ -67,6 +67,9 @@ export interface CheckSummary {
 }
 
 /** Limits, shared so the client can say how many questions are left. */
+/** The step the server sends when the first model failed and the backup takes over (the client gives it more time). */
+export const COACH_BACKUP_STEP = 'The first model could not finish. Trying the backup';
+
 export const COACH_LIMITS = {
   questionChars: 300,
   questionsPerRun: 6,

@@ -14,7 +14,9 @@ import { bundledEvidence } from './evidence';
 
 /** If the live debrief has not arrived by then (it usually takes 25-35 s), show the example instead. */
 const DEBRIEF_TIMEOUT_MS = 75_000;
-import { COACH_LIMITS, type CoachCitation, type CoachEvent, type CoachFile, type CoachTodo, type CoachWho } from '../../shared/coach';
+/** When the server switches to the backup model, the debrief gets this long again from then. */
+const BACKUP_TIMEOUT_MS = 70_000;
+import { COACH_BACKUP_STEP, COACH_LIMITS, type CoachCitation, type CoachEvent, type CoachFile, type CoachTodo, type CoachWho } from '../../shared/coach';
 
 export interface CoachOptions {
   /** Part 2 session id. */
@@ -256,13 +258,12 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
     abort.signal.addEventListener('abort', stop);
     let timedOut = false;
     let gotResult = false;
-    const timer = question
-      ? 0
-      : window.setTimeout(() => {
-          if (gotResult) return;
-          timedOut = true;
-          local.abort();
-        }, DEBRIEF_TIMEOUT_MS);
+    const giveUp = (): void => {
+      if (gotResult) return;
+      timedOut = true;
+      local.abort();
+    };
+    let timer = question ? 0 : window.setTimeout(giveUp, DEBRIEF_TIMEOUT_MS);
     let block: HTMLElement | null = null;
     if (question) {
       block = h('div', { class: 'oit-coach-qa' }, h('p', { class: 'oit-coach-q' }, h('span', { class: 'oit-sr' }, 'You asked: '), question), h('p', { class: 'oit-coach-status' }, h('span', { class: 'oit-coach-dots', 'aria-hidden': 'true' }), 'Thinking…'));
@@ -273,7 +274,13 @@ export function createCoachScreen(opts: CoachOptions, brand: HTMLElement, onDone
     try {
       for await (const ev of streamCoach({ ...opts, question, files: question ? files : undefined }, local.signal) as AsyncGenerator<CoachEvent>) {
         if (ev.type === 'plan') showPlan(ev.todos);
-        else if (ev.type === 'step') addStep(ev.who, ev.text);
+        else if (ev.type === 'step') {
+          addStep(ev.who, ev.text);
+          if (timer && ev.text === COACH_BACKUP_STEP) {
+            window.clearTimeout(timer);
+            timer = window.setTimeout(giveUp, BACKUP_TIMEOUT_MS);
+          }
+        }
         else if (ev.type === 'result') {
           gotResult = true;
           for (const c of ev.citations) citeData.set(c.id, c);
