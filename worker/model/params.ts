@@ -56,6 +56,13 @@ const M = (key: string, value: number, rationale: string, sourceIds: string[] = 
 
 const NO_RATE = 'No study measures how a street harasser reacts to a specific response, so this is a placeholder.';
 
+
+/** One ladder row: [down, stay, up, jump, leave] for a kind of response, as five model.* parameters. */
+function ladderRow(strategy: string, p: [number, number, number, number, number], rationale: string, sourceIds: string[] = []): Def[] {
+  const steps = ['down', 'stay', 'up', 'jump', 'leave'];
+  return steps.map((step, i) => M(`model.ladder.${strategy}.${step}`, p[i], `${NO_RATE} ${rationale}`, sourceIds));
+}
+
 const DEFS: Def[] = [
   /* ------------------------------------------------------------------ evidence.json keys (woman POV) */
   E('man.disposition.wants_friendly_response', 0.85, [0.73, 0.85]),
@@ -180,6 +187,40 @@ const DEFS: Def[] = [
   M('model.escalation.mild_factor', 0.35, 'Multiplier for the mild disposition. A guess.'),
   M('model.dynamics.far_factor', 0.2, 'Odds multiplier on close-range moves (quiet menace, becoming physical) when she is more than a few metres away or across the street. A guess that follows from the geometry.'),
   M('model.escalation.cap', 0.12, 'Upper limit on the per-turn chance of physical escalation whatever has happened. A design bound that keeps it rare.'),
+
+  /* ------------------------------------------------------------------ escalation ladder (worker/model/ladder.ts) */
+  // One row per kind of response: the odds that he drops a level, stays, rises one, rises two, or leaves.
+  // Rows sum to 1. Directions follow the cited research; magnitudes are assumptions tuned so the Monte Carlo
+  // outcome rates sit inside the researched ranges (base.encounter_stays_verbal_only, base.incident_involves_following,
+  // base.physical_escalation_per_run).
+  ...ladderRow('engage', [0.25, 0.62, 0.1, 0, 0.03], 'A friendly answer is what most catcallers say they want (a smile 85%, a conversation 78%), and women report that being pleasant leads to more approaches: he warms up or keeps going, he almost never walks off, and he never jumps two levels.', ['psypost_walton_2021', 'ssh_2014']),
+  ...ladderRow('unclear', [0.1, 0.65, 0.2, 0, 0.05], 'He could not tell what she meant: mostly he carries on as he was.'),
+  ...ladderRow('polite_deflect', [0.07, 0.42, 0.38, 0.07, 0.06], 'A soft no rarely ends it: 60% of young women who said they were not interested were still contacted again (online), and practitioner guidance warns soft or apologetic refusals get argued with. Most often he stays or pushes a little harder.', ['pew_2020', 'ssh_assertive']),
+  ...ladderRow('firm_boundary', [0.05, 0.24, 0.38, 0.25, 0.08], 'In the lab, 25 of 77 men (32%) reacted aggressively to a clear sexual refusal, and rejected men show more hostility toward the woman; narrative studies also describe men walking off or going quiet. So a firm no is the answer most likely to make him jump two levels short of an insult, and also one of the few that sometimes ends it.', ['woerner_2018', 'andrighetto_2019', 'fleetwood_2019']),
+  ...ladderRow('ignore', [0.03, 0.47, 0.37, 0.05, 0.08], 'Ignoring or walking on is the most common response (41% of NYC reports) and much harassment happens in passing, but focus groups describe men reacting to being ignored with anger, insults or following: he keeps trying or slowly gets pushier.', ['bastomski_2011', 'ssh_2014', 'nbc_10hours_2014']),
+  ...ladderRow('excuse', [0.08, 0.45, 0.32, 0.05, 0.1], 'An excuse ("I have a boyfriend") is a deflection he can argue with; men with strong honor beliefs read a deceptive rejection as a bigger slight.', ['stratmoen_2020']),
+  ...ladderRow('hostile', [0.02, 0.13, 0.35, 0.45, 0.05], 'Swearing at him or losing her temper is the response practitioners rate most likely to provoke anger, and honor-belief research links a perceived insult to endorsing aggression: the riskiest answer, most likely to make him jump two levels.', ['ssh_assertive', 'stratmoen_2018_pt']),
+  ...ladderRow('threaten_attention', [0.1, 0.2, 0.27, 0.13, 0.3], 'Threatening to call the police or draw attention makes him weigh being seen; narrative studies describe men backing off after a public challenge, while a public threat is also a status challenge for some.', ['fleetwood_2019', 'stratmoen_2018_pt']),
+  ...ladderRow('seek_help', [0.1, 0.15, 0.15, 0.05, 0.55], 'Turning to other people is the most reliable way these encounters end in focus-group accounts (shops, bouncers), though some men wait or follow.', ['ssh_2014', 'fleetwood_2019']),
+  ...ladderRow('plead', [0.05, 0.4, 0.4, 0.07, 0.08], 'No research covers pleading; treated like a soft refusal that shows fear, which he may push on.'),
+  M('model.ladder.disposition.mild.up', 0.7, 'A mild man (most men in the model) climbs more slowly. Size is a guess; the hostile minority is from lab work on rejection.', ['woerner_2018']),
+  M('model.ladder.disposition.mild.jump', 0.4, 'A mild man rarely jumps two levels. A guess.', ['woerner_2018']),
+  M('model.ladder.disposition.mild.down', 1.4, 'A mild man calms down more easily. A guess.'),
+  M('model.ladder.disposition.mild.leave', 1.4, 'A mild man drops it more easily. A guess.', ['rtb_5ds']),
+  M('model.ladder.disposition.persistent.up', 1, 'The persistent, entitled man is the reference row.'),
+  M('model.ladder.disposition.persistent.jump', 1, 'The persistent, entitled man is the reference row.'),
+  M('model.ladder.disposition.persistent.down', 0.8, 'He is slower to let it go. A guess.'),
+  M('model.ladder.disposition.persistent.leave', 0.6, 'He does not take no for an answer: less likely to walk off. A guess consistent with persistence after refusal.', ['pew_2020']),
+  M('model.ladder.disposition.volatile.up', 1.25, 'The volatile minority climbs faster. Lab work finds aggression concentrated in men high in hostility toward women; the size is a guess.', ['woerner_2018', 'andrighetto_2019']),
+  M('model.ladder.disposition.volatile.jump', 1.8, 'The volatile minority is likelier to jump two levels. A guess.', ['woerner_2018']),
+  M('model.ladder.disposition.volatile.down', 0.6, 'He holds on to his anger. A guess.'),
+  M('model.ladder.disposition.volatile.leave', 0.5, 'He is less likely to walk off. A guess.'),
+  M('model.ladder.cross_non_insult_factor', 0.5, 'When what pushed him toward level 6 was not an insult, only this fraction of the usual share crosses. Practitioner guidance identifies swearing at him as the response most likely to provoke violence and recommends calm, firm statements; the lab aggression after refusal (32%) is mostly verbal.', ['ssh_assertive', 'woerner_2018']),
+  M('model.ladder.pressure_gain', 0.45, 'At full pressure, the share of "he carries on as he was" that becomes "he pushes harder" after a friendly, polite or evasive answer, below level 3. Direction from focus groups (being pleasant leads to more approaches, so women act stern on purpose) and from what catcallers say they want (a conversation, flirting back), which a short friendly answer does not give him; the size is a guess tuned in the Monte Carlo.', ['ssh_2014', 'psypost_walton_2021']),
+  M('model.ladder.pressure_exchanges', 8, 'Exchanges it takes for that pressure to build to full strength. A design choice: a long chat should drift toward pressure within a walk home.'),
+  M('model.ladder.invested_leave_factor', 0.7, 'From level 3 up, each level multiplies his chance of simply walking off by this (0.7 at 3, 0.49 at 4, 0.34 at 5). Direction from honor-belief vignette studies: people expect a man who feels insulted to react rather than simply walk away. The size is a guess tuned in the Monte Carlo.', ['stratmoen_2018_pt']),
+  M('model.ladder.angry_calm_factor', 0.5, 'Once he is angry (level 4 or more) he is half as likely to calm down a level. A guess; honor-belief research links a perceived slight to lasting hostility.', ['stratmoen_2018_pt']),
+  M('model.ladder.cross_to_threat', 0.028, 'Of the steps that would take him to level 6 (reaching for her), the share that do; the rest hold at 5. Tuned so physical escalation stays inside base.physical_escalation_per_run for a realistic mix of responses. A design bound: physical escalation must stay rare and never follow from one choice.', ['bastomski_2011', 'cornell_nyc_2012']),
 
   /* ------------------------------------------------------------------ blending in Clef's reading of her words */
   M('model.blend.clef_weight', 0.35, "Exponent on Clef's distribution over his next move when it is multiplied into the evidence-based prior. Modest by design: her exact words matter, but less than his disposition."),

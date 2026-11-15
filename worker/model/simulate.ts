@@ -28,6 +28,9 @@ export interface WomanRun {
   escalationTurn: number | null;
   firstReaction: ManStance | null;
   stances: ManStance[];
+  /** His ladder level after each decision, and the highest he reached. */
+  levels: number[];
+  peakLevel: number;
 }
 
 /** A plausible mix of what women actually do, used only to draw a per-turn strategy for the 'mixed' policy. */
@@ -81,6 +84,8 @@ export function simulateWoman(policy: WomanPolicy, seed: number, params: Params 
     escalationTurn: null,
     firstReaction: null,
     stances: [],
+    levels: [],
+    peakLevel: 0,
   };
   const shopAt = 2 + Math.floor(player.next() * 2);
 
@@ -98,6 +103,8 @@ export function simulateWoman(policy: WomanPolicy, seed: number, params: Params 
     state = out.state;
     if (out.decision) {
       run.stances.push(out.decision.stance);
+      run.levels.push(out.level);
+      run.peakLevel = Math.max(run.peakLevel, out.level);
       distance = out.decision.stance === 'gone' ? 99 : out.decision.proximity;
       if (out.decision.stance === 'hostile') run.everHostile = true;
       if (out.decision.stance === 'intimidate') run.everIntimidate = true;
@@ -172,6 +179,9 @@ export interface Tally {
   meanSeconds: number;
   maxSeconds: number;
   earliestEscalationTurn: number | null;
+  /** Share of runs whose highest level was 0..6. */
+  peakLevels: number[];
+  meanPeakLevel: number;
 }
 
 export function tallyWoman(policy: WomanPolicy, n: number, seed: number, params: Params = PARAMS): Tally {
@@ -188,6 +198,8 @@ export function tallyWoman(policy: WomanPolicy, n: number, seed: number, params:
     meanSeconds: 0,
     maxSeconds: 0,
     earliestEscalationTurn: null,
+    peakLevels: [0, 0, 0, 0, 0, 0, 0],
+    meanPeakLevel: 0,
   };
   for (let i = 0; i < n; i++) {
     const r = simulateWoman(policy, (seed + i * 7919) >>> 0, params);
@@ -201,6 +213,8 @@ export function tallyWoman(policy: WomanPolicy, n: number, seed: number, params:
     t.meanExchanges += r.exchanges / n;
     t.meanSeconds += r.encounterSeconds / n;
     t.maxSeconds = Math.max(t.maxSeconds, r.encounterSeconds);
+    t.peakLevels[r.peakLevel] += 1 / n;
+    t.meanPeakLevel += r.peakLevel / n;
     if (r.escalationTurn !== null) t.earliestEscalationTurn = Math.min(t.earliestEscalationTurn ?? Infinity, r.escalationTurn);
   }
   return t;

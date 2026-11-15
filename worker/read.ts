@@ -83,12 +83,12 @@ const WOMAN_CRITERIA: Record<WomanStrategy, string> = {
   polite_deflect: 'Politely declines or brushes him off, for example "no thanks", "I\'m good", "have a good night", "sorry, I\'m in a hurry"',
   firm_boundary: 'Tells him clearly and firmly to stop or leave her alone, without insulting him, for example "leave me alone", "stop following me", "I said no"',
   hostile: 'Insults him, swears at him or attacks him personally, for example calling him a creep, a loser or disgusting',
-  excuse: 'Gives a reason or excuse instead of a refusal: a boyfriend or husband, being on the phone, someone waiting for her',
+  excuse: 'Gives a reason or excuse instead of a refusal: a boyfriend, girlfriend or husband, being on the phone, someone waiting for or picking her up, a train, a shift or something she is late for',
   threaten_attention: 'Threatens consequences or draws attention: says she will call the police, shouts for help, says she will scream or that people are watching',
-  seek_help: 'Speaks to somebody other than the man, such as a passer-by or shopkeeper ("excuse me, sir, can you help me?"), or announces that she is going to other people or into a shop or store',
-  engage: 'Answers him or makes conversation in a friendly or neutral way: says hi, gives her name, says where she is going or coming from, thanks him for the compliment, laughs along',
+  seek_help: 'Calls out to or speaks to somebody other than the man, such as a passer-by or shopkeeper ("sir! can you help me?", "is anyone there?"), or announces that she is going to other people or into a shop or store',
+  engage: 'Answers him or makes conversation in a friendly or neutral way, however short: any greeting ("hi", "hey", "yo", "hello?", "hey yourself", "evening"), giving her name ("I\'m Jess"), saying where she is going or coming from ("coming back from work"), small talk ("not bad, you?"), asking what he wants, thanking him or laughing along. A greeting alone is never a refusal',
   plead: 'Frightened and begging, for example "please just let me go", "please don\'t hurt me"',
-  unclear: 'Real words that have nothing to do with him or the situation, or that cannot be understood',
+  unclear: 'She did not hear or understand him ("huh?", "what?", "sorry?", "pardon?"), or real words that have nothing to do with him or the situation',
 };
 
 const REACTION_CRITERIA: Record<string, string> = {
@@ -160,7 +160,8 @@ export function buildWomanRead(input: WomanReadInput): ClefRequest {
   return {
     model: CLEF_PRIMARY.selector,
     state: {
-      scene: 'Late at night on a quiet New York street. A woman in her twenties is walking home alone. A man in his thirties whom she does not know called out to her and will not leave her alone.',
+      // Neutral framing on purpose: "he will not leave her alone" made Clef read greetings as refusals.
+      scene: 'Late at night on a quiet New York street. A woman in her twenties is walking home alone. A man in his thirties whom she does not know has started talking to her. Judge only what her words do, not what she might be feeling.',
       him: `He thinks he is being charming and takes rejection as disrespect. Right now he ${STANCE_NOW[input.stance] ?? 'is beside her'}.`,
       physical: physicalNote(input.ctx),
       recent_lines: input.recent.slice(-4),
@@ -346,7 +347,9 @@ export async function runClef(ai: Ai, request: ClefRequest, budgetMs = CLEF_PRIM
   const wait = <T>(ms: number, value: T) => new Promise<T>((resolve) => setTimeout(() => resolve(value), ms));
   const primary = once(ai, CLEF_PRIMARY, request).then(
     (answers) => ({ answers, selector: CLEF_PRIMARY.selector }) as ClefResult,
-    () => null,
+    // Never silent: when Workers AI refuses (e.g. 4006, the daily free allocation is used up) the game falls back
+    // to keyword reading and pre-written lines, which ignore what she said. Say so in the server log.
+    (err) => (console.warn('[ai] Clef read failed, using keyword fallback:', String(err?.message ?? err).slice(0, 300)), null),
   );
   const fast = once(ai, CLEF_FAST, request).then(
     (answers) => ({ answers, selector: CLEF_FAST.selector }) as ClefResult,
@@ -384,6 +387,76 @@ const RX = {
   engage: /\b(thanks|thank you|hi|hello|hey|my name|i'?m (just )?(heading|going|walking)|just (heading|going)|nice to meet|how are you|what'?s your name)\b/i,
   seek: /\b(store|shop|bodega|sir|ma'?am|can (you|someone) help|somebody|anyone)\b/i,
 };
+
+/**
+ * High-precision rules for short, unambiguous replies, applied on top of
+ * Clef. Measured on a labelled set of 59 replies (2026-11-14): Clef alone got
+ * 75%, and misread 8 of 12 friendly replies, reading "Hey." as a firm
+ * boundary and "Hello." as a brush-off, which made him react as if rejected.
+ * A rule only fires on a short reply with nothing that contradicts it (no
+ * insult, threat, refusal or plea), so it never overrides a mixed message.
+ */
+const RULE = {
+  greeting: /^(?:(?:oh|um+|uh+|well|yeah),? )?(?:hi|hey|hello|hiya|howdy|evening|good (?:evening|night|morning|afternoon))(?: there| to you)?[.!?,]*(?: ?(?:how(?:'s| is) it going|how are you(?: doing)?|what'?s up|how'?s your (?:night|evening))[.!?]*)?$/i,
+  // "I'm going home" is left to Clef on purpose: answering "where you headed?" it is friendly, but in the middle
+  // of an argument it means "I'm leaving". Clef sees the recent lines and can tell which.
+  smallTalk: /\b(?:how are you|how(?:'s| is) it going|my name(?:'s| is)|(?:long|good|rough) day|nice to meet|haha|lol|that'?s (?:funny|sweet|nice))\b/i,
+  // Did not hear him. Filler sounds ("um", "mm", "ugh") are left to Clef: the project counts those as ignoring him.
+  filler: /^(?:huh|what|pardon|sorry\?|what did you say|sorry,? what(?: did you say)?|huh,? what|wait,? what|excuse me\?)[.?!]*$/i,
+  shoutHelp: /^(?:hey!? )?(?:help|somebody help|someone help|can (?:somebody|someone|anyone) help)\b|\b(?:over here|somebody|someone|anyone)\b.*\bhelp\b|\bhelp\b.*\b(?:somebody|someone|anyone|over here)\b/i,
+  lateExcuse: /\b(?:i'?m|i am) (?:late|running late)\b|\blate for\b/i,
+  askToLeave: /^(?:(?:can|could|would|will) you|please,?|just)\s+(?:please\s+)?(?:just\s+)?(?:go|leave|go away|leave me alone|back off|get away(?: from me)?|get lost|stop(?: following me| talking to me)?|move)\b(?:,?\s*please)?[.?!]*$/i,
+  softNotInterested: /\b(?:sorry|thanks|thank you)\b.*\bnot interested\b|\bnot interested\b.*\b(?:sorry|thanks|thank you)\b/i,
+};
+
+/** The one category a short reply unambiguously belongs to, or null to leave it to Clef. */
+export function ruleWomanStrategy(text: string): WomanStrategy | null {
+  const t = text.trim().replace(/[’]/g, "'");
+  if (!t) return null;
+  const words = t.split(/\s+/).length;
+  const refusal = RX.firm.test(t) || /\bno\b|\bnope\b|\bnot\b/i.test(t);
+  if (RX.insult.test(t) || /\b(police|cops?|911|scream|record(ing)?|camera)\b/i.test(t)) return null;
+  // "Can you go?", "Could you please leave me alone?": asking him to leave is a clear boundary, however politely put
+  // (checked before pleading, which also matches "please ... leave").
+  if (words <= 9 && RULE.askToLeave.test(t)) return 'firm_boundary';
+  if (RX.plead.test(t)) return null;
+  if (RULE.shoutHelp.test(t)) return 'seek_help';
+  if (refusal) return RULE.softNotInterested.test(t) ? 'polite_deflect' : null;
+  if (words <= 8 && RULE.greeting.test(t)) return 'engage';
+  if (words <= 6 && RULE.filler.test(t)) return 'unclear';
+  if (words <= 10 && RULE.lateExcuse.test(t)) return 'excuse';
+  if (words <= 12 && RULE.smallTalk.test(t) && !RX.excuse.test(t)) return 'engage';
+  return null;
+}
+
+/**
+ * Clef sometimes carries an earlier insult over to a reply that has none: after "Get lost, creep.",
+ * "I want to go home." came back 85% hostile. A reply only counts as an insult if it has insulting
+ * words in it or Clef's own insult check says so; otherwise that weight goes to a firm no.
+ */
+const INSULT_WORDS =
+  /\b(hell|damn|bitch|bastard|idiot|moron|stupid|dumb|jerk|shit|crap|screw you|go to hell|drop dead|piss off|get lost|gross|nasty|sick|sicko|scumbag|prick|cunt|twat|wanker|tosser|douche|skeeze|sleaze|sleazy|rapist|predator|stalker|fat|old man|get a life)\b/i;
+
+export function withoutPhantomInsult(text: string, read: WomanRead): WomanRead {
+  const hostile = read.strategyProbs.hostile ?? 0;
+  // Only the words themselves count: Clef's own insult check is coloured by the earlier lines too.
+  if (hostile <= 0 || RX.insult.test(text) || INSULT_WORDS.test(text)) return read;
+  const probs = { ...read.strategyProbs, hostile: 0, firm_boundary: (read.strategyProbs.firm_boundary ?? 0) + hostile };
+  const [strategy, p] = top(probs);
+  return { ...read, strategy, confidence: p, strategyProbs: probs };
+}
+
+/** Put a rule's answer on top of a reading: the rule's category carries most of the weight, the reading keeps the rest. */
+export function applyWomanRules(text: string, read0: WomanRead): WomanRead {
+  const read = withoutPhantomInsult(text, read0);
+  const rule = ruleWomanStrategy(text);
+  if (!rule) return read;
+  const RULE_WEIGHT = 0.85;
+  const probs = {} as Record<WomanStrategy, number>;
+  for (const k of WOMAN_STRATEGIES) probs[k] = (1 - RULE_WEIGHT) * (read.strategyProbs[k] ?? 0) + (k === rule ? RULE_WEIGHT : 0);
+  const [strategy, p] = top(probs);
+  return { ...read, strategy, confidence: p, strategyProbs: probs, source: read.source };
+}
 
 export function heuristicWomanRead(text: string): WomanRead {
   const t = text.toLowerCase();

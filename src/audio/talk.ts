@@ -35,3 +35,11 @@ export function vadEdge(opts: { holding: boolean; level: number; loudMs: number;
 export function bargeOnTalkStart(npcAudible: boolean): boolean {
   return npcAudible;
 }
+
+/** Roughly the words of his line she let him get out before she cut in, from how long it had been playing. */
+export function heardPortion(line: string, playedSec: number, totalSec: number): string {
+  const all = line.trim().split(/\s+/).filter(Boolean);
+  if (!all.length || totalSec <= 0) return '';
+  const n = Math.max(0, Math.min(all.length, Math.round((playedSec / totalSec) * all.length)));
+  return all.slice(0, n).join(' ');
+}

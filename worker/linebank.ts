@@ -44,11 +44,14 @@ export function bankEntries(pov: 'woman' | 'bystander', key: string): BankEntry[
 }
 
 /** Pick a line for a stance or situation, avoiding ones this session has already used where possible. */
-export function pickBank(pov: 'woman' | 'bystander', key: string, rng: Rng, used: string[]): BankEntry {
+export function pickBank(pov: 'woman' | 'bystander', key: string, rng: Rng, used: string[], reject?: (text: string) => boolean): BankEntry {
   const all = bankEntries(pov, key);
   if (!all.length) return { ...GENERIC };
-  const fresh = all.filter((e) => !used.includes(e.id));
-  return rng.pick(fresh.length ? fresh : all);
+  // Prefer lines not used yet and that do not contradict the story (e.g. asking her name again).
+  const fits = reject ? all.filter((e) => !reject(e.text)) : all;
+  const pool = fits.length ? fits : all;
+  const fresh = pool.filter((e) => !used.includes(e.id));
+  return rng.pick(fresh.length ? fresh : pool);
 }
 
 export function scriptLine(id: string): ScriptLine | null {

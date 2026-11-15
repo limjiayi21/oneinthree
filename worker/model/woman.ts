@@ -24,6 +24,8 @@ import { addressOf } from './address';
 import { decideExpression, type ExpressionDecision } from './expression';
 import { PARAMS, param, val, weakestBasis, type Param, type Params } from './params';
 import { Rng, clamp01, normalise, round3 } from './rng';
+import { LEVELS, MAX_LEVEL, applyStep, ladderKey, openingLevel, stanceForLevel, stepDistribution, type Step } from './ladder';
+import { GOLDEN_OPENING_LEVEL, goldenNext, type GoldenPath } from './golden';
 
 export type Disposition = 'mild' | 'persistent' | 'volatile';
 export type ReactionClass = 'back_off' | 'persist' | 'hostile' | 'intimidate';
@@ -158,6 +160,12 @@ export interface WomanState {
   /** Parameter that drove the most recent change of stance (for the "he left" rationale). */
   lastDriver: string | null;
   ended: OutcomeKind | null;
+  /** His escalation ladder level, 0 (calm) to 6 (threatening). See worker/model/ladder.ts. */
+  level: number;
+  peakLevel: number;
+  /** Golden run (worker/model/golden.ts): levels held to the reference script. */
+  golden?: boolean;
+  goldenPath?: GoldenPath | null;
 }
 
 export interface WomanInput {
@@ -191,6 +199,12 @@ export interface WomanOutput {
   delivery: 'normal' | 'call_out' | 'low' | 'shout';
   /** Keys of the parameters that mattered most for this decision. */
   drivers: string[];
+  /** His ladder level after this decision, and before it. */
+  level: number;
+  levelFrom: number;
+  /** The ladder step taken and the distribution it was drawn from (reactions to her only). */
+  step?: Step;
+  stepProbs?: Record<Step, number>;
 }
 
 export function drawDisposition(rng: Rng, params: Params = PARAMS): Disposition {
@@ -207,8 +221,9 @@ export function dispositionWeights(params: Params = PARAMS): Record<Disposition,
   return normalise<Disposition>({ mild: Math.max(0, 1 - volatile - persistent), persistent, volatile });
 }
 
-export function initialWomanState(disposition: Disposition): WomanState {
+export function initialWomanState(disposition: Disposition, opts: { golden?: boolean } = {}): WomanState {
   return {
+    ...(opts.golden ? { golden: true, goldenPath: null } : {}),
     disposition,
     stance: 'idle',
     turn: 0,
@@ -225,6 +240,8 @@ export function initialWomanState(disposition: Disposition): WomanState {
     tension: 0.1,
     lastDriver: null,
     ended: null,
+    level: 0,
+    peakLevel: 0,
   };
 }
 
@@ -457,7 +474,8 @@ function actionFor(stance: ManStance, ph: Physical, rng: Rng): { action: ManActi
     case 'block':
       return { action: 'block_path', proximity: 1.1, delivery: 'normal' };
     case 'hostile':
-      if (ph.far || ph.across) return { action: 'stay', proximity: 3, delivery: 'shout' };
+      // Angry and far away: he comes after her (shouting as he goes) rather than standing and yelling across the street.
+      if (ph.far || ph.across) return { action: ph.moving ? 'follow_behind' : 'approach', proximity: 2.4, delivery: 'shout' };
       if (ph.hurrying) return { action: 'follow_behind', proximity: 2.4, delivery: 'shout' };
       return { action: rng.chance(0.35) ? 'step_closer' : 'stay', proximity: 1.4, delivery: 'normal' };
     case 'intimidate':
@@ -581,6 +599,8 @@ function noChange(state: WomanState, strategy: WomanStrategy = 'unclear'): Woman
     speak: false,
     delivery: 'normal',
     drivers: [],
+    level: state.level,
+    levelFrom: state.level,
   };
 }
 
@@ -617,7 +637,7 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
     const out = noChange(state, 'seek_help');
     if (present) {
       state.stance = 'back_off';
-      out.decision = { stance: 'back_off', action: 'stay', emotion: 'annoyed', emotionIntensity: 0.5, proximity: 4 };
+      out.decision = { stance: 'back_off', action: 'stay', emotion: 'annoyed', emotionIntensity: 0.5, proximity: 4, level: state.level };
       out.rationale = rationaleFrom(
         'When she went into the shop he hung back: reaching other people is the most reliable way these encounters end.',
         [p],
@@ -633,6 +653,8 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
     state.stance = 'opening';
     state.turn = 1;
     state.startedAt = elapsed;
+    state.level = state.golden ? GOLDEN_OPENING_LEVEL : openingLevel(state.disposition);
+    state.peakLevel = state.level;
     state.fear = Math.max(state.fear, STANCE_FEAR.opening);
     state.tension = STANCE_TENSION.opening;
     const { action, proximity, delivery } = actionFor('opening', ph, rng);
@@ -640,7 +662,7 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
     const wants = param(params, 'man.disposition.wants_friendly_response');
     return {
       state,
-      decision: { stance: 'opening', action, emotion: face.emotion, emotionIntensity: face.intensity, proximity },
+      decision: { stance: 'opening', action, emotion: face.emotion, emotionIntensity: face.intensity, proximity, level: state.level },
       fear: state.fear,
       tension: state.tension,
       rationale: rationaleFrom(
@@ -654,6 +676,8 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
       speak: true,
       delivery,
       drivers: [wants.key],
+      level: state.level,
+      levelFrom: 0,
     };
   }
   if (event === 'begin') return noChange(state);
@@ -675,23 +699,27 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
     const reengage = param(params, 'model.dynamics.reengage_after_insult');
     const scale = state.disposition === 'mild' ? 0.5 : 1;
     if (insulted && !ph.across && rng.chance(reengage.value * scale)) {
-      state.stance = 'hostile';
+      // Turning back is an ordinary two-level jump from where he was, never more.
+      const levelFrom = state.level;
+      state.level = Math.min(MAX_LEVEL - 1, state.level + 2);
+      state.stance = state.level >= 4 ? 'hostile' : 'guilt';
+      state.peakLevel = Math.max(state.peakLevel, state.level);
       state.turn += 1;
       state.exchanges += 1;
       state.insults += 1;
       state.rejections += 1;
       state.hostileTurns = 1;
       state.frustration = clamp01(state.frustration + val(params, FRUSTRATION_KEY.hostile));
-      state.tension = clamp01(STANCE_TENSION.hostile + 0.4 * state.frustration);
-      state.fear = clamp01(Math.max(state.fear, STANCE_FEAR.hostile));
+      state.tension = clamp01(state.level / MAX_LEVEL);
+      state.fear = clamp01(Math.max(state.fear, LEVEL_FEAR[state.level]));
       state.lastDriver = reengage.key;
-      const face = pickEmotion('hostile', strategy, state, rng);
+      const face = pickEmotion(state.stance, strategy, state, rng);
       return {
         state,
-        decision: { stance: 'hostile', action: 'stay', emotion: face.emotion, emotionIntensity: face.intensity, proximity: 3 },
+        decision: { stance: state.stance, action: 'stay', emotion: face.emotion, emotionIntensity: face.intensity, proximity: 3, level: state.level },
         fear: state.fear,
         tension: state.tension,
-        rationale: rationaleFrom('He was walking away, heard the insult and turned back to throw one of his own.', [reengage]),
+        rationale: rationaleFrom(`He was walking away, heard the insult and turned back to throw one of his own (level ${levelFrom} → ${state.level}).`, [reengage]),
         strategy,
         strategyProbs,
         stanceProbs: { hostile: round3(reengage.value * scale), gone: round3(1 - reengage.value * scale) },
@@ -699,6 +727,8 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
         speak: true,
         delivery: 'shout',
         drivers: [reengage.key],
+        level: state.level,
+        levelFrom,
       };
     }
     state.stance = 'gone';
@@ -709,7 +739,7 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
     const driver = state.lastDriver ? params.get(state.lastDriver) : undefined;
     return {
       state,
-      decision: { stance: 'gone', action: 'leave', emotion: 'neutral', emotionIntensity: 0.3, proximity: 3 },
+      decision: { stance: 'gone', action: 'leave', emotion: 'neutral', emotionIntensity: 0.3, proximity: 3, level: state.level },
       fear: state.fear,
       tension: 0,
       rationale: rationaleFrom('He has given up and is walking back the way she came.', driver ? [driver] : []),
@@ -720,91 +750,42 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
       speak: false,
       delivery: 'normal',
       drivers: driver ? [driver.key] : [],
+      level: state.level,
+      levelFrom: state.level,
     };
   }
 
-  /* ---- the reaction ------------------------------------------------------- */
+  /* ---- the reaction: one step on his escalation ladder -------------------- */
   const maxSeconds = val(params, 'model.session.max_seconds');
-  const forced = encounterSeconds >= maxSeconds || state.turn >= 40;
+  // The golden run is rehearsed at the player's pace: no time limit.
+  const forced = !state.golden && (encounterSeconds >= maxSeconds || state.turn >= 40);
+  const levelFrom = state.level;
 
-  const cls = classDistribution(
-    strategyProbs,
-    {
-      disposition: state.disposition,
-      exchanges: state.exchanges,
-      frustration: state.frustration,
-      stance: state.stance,
-      encounterSeconds,
-      across: ph.across,
-      far: ph.far,
-    },
-    params,
-  );
-
-  // how "keeps going" looks this time
-  const pEngage = strategyProbs.engage;
-  const pRefusal = strategyProbs.polite_deflect + strategyProbs.firm_boundary;
-  const followBase = val(params, 'base.incident_involves_following');
-  const blockBase = val(params, 'model.persist.share_block');
-  const guiltBase = val(params, 'model.persist.share_guilt');
+  const stepProbs: Record<Step, number> = forced
+    ? { down: 0, stay: 0, up: 0, jump: 0, leave: 1 }
+    : stepDistribution(
+        strategyProbs,
+        { level: state.level, disposition: state.disposition, turn: state.turn, encounterSeconds, distant: ph.across || ph.far, exchanges: state.exchanges },
+        params,
+      );
+  let step = rng.sample<Step>(stepProbs);
+  let level = applyStep(state.level, step);
+  if (state.golden) {
+    // Held to the script: he never leaves on his own, and the level comes from docs/golden-run.md.
+    const g = goldenNext({ level: state.level, exchanges: state.exchanges + 1, path: state.goldenPath ?? null, event, strategy });
+    state.goldenPath = g.path;
+    level = g.level;
+    const delta = level - state.level;
+    step = delta >= 2 ? 'jump' : delta === 1 ? 'up' : delta < 0 ? 'down' : 'stay';
+  }
+  // Carrying on after she has said no is, by definition, at least level 2 ("pushy: ignores the hint"),
+  // whatever the step: a man who keeps chatting after "leave me alone" is not calm. Still never more than +2.
+  const refused = refusalShare(strategyProbs) > 0.5;
+  const floored = !state.golden && refused && step !== 'leave' && level < REFUSAL_FLOOR;
+  if (floored) level = Math.min(REFUSAL_FLOOR, levelFrom + 2);
   const canBlock =
     state.blocks < val(params, 'model.persist.block_max') && state.stance !== 'block' && !ph.across && ph.distance < 7 && event !== 'pushed_past';
-  const sub = normalise<'persist' | 'guilt' | 'follow' | 'block'>({
-    follow:
-      followBase *
-      (ph.moving || ph.evading ? val(params, 'model.persist.moving_follow_boost') : 1) *
-      (ph.stopped ? 0.2 : 1) *
-      (1 - 0.6 * pEngage),
-    block: canBlock
-      ? blockBase * (ph.evading ? val(params, 'model.persist.evade_block_boost') : 1) * (ph.stopped ? 0.3 : 1) * (1 - 0.7 * pEngage) * (state.exchanges < 1 ? 0.5 : 1)
-      : 0,
-    guilt: guiltBase * (1 + (val(params, 'model.persist.refusal_guilt_boost') - 1) * pRefusal) * (1 - 0.85 * pEngage),
-    persist:
-      Math.max(0.05, 1 - followBase - blockBase - guiltBase) *
-      (1 + (val(params, 'model.persist.engage_talk_boost') - 1) * pEngage) *
-      (ph.stopped ? 1.3 : 1) *
-      (ph.across ? 0.6 : 1),
-  });
-
-  let prior: Partial<Record<ManStance, number>> = {
-    back_off: cls.back_off,
-    persist: cls.persist * sub.persist,
-    guilt: cls.persist * sub.guilt,
-    follow: cls.persist * sub.follow,
-    block: cls.persist * sub.block,
-    hostile: cls.hostile,
-    intimidate: cls.intimidate,
-  };
-
-  // physical escalation: rare, never early, only from a man who is already hostile
-  const wasHostile = state.stance === 'hostile' || state.stance === 'intimidate';
-  let pEscalate = 0;
-  if (wasHostile && state.turn + 1 >= val(params, 'model.escalation.min_turn')) {
-    const dispFactor =
-      state.disposition === 'volatile'
-        ? val(params, 'model.escalation.volatile_factor')
-        : state.disposition === 'mild'
-          ? val(params, 'model.escalation.mild_factor')
-          : 1;
-    pEscalate = Math.min(
-      val(params, 'model.escalation.cap'),
-      val(params, 'model.escalation.hazard') *
-        dispFactor *
-        (1 + val(params, 'model.escalation.insult_gain') * Math.min(3, state.insults + (insulted ? 1 : 0))) *
-        (state.stance === 'intimidate' ? val(params, 'model.escalation.intimidate_factor') : 1) *
-        (ph.across || ph.distance > 4 ? val(params, 'model.dynamics.far_factor') : 1),
-    );
-  }
-  if (forced) {
-    prior = { back_off: 1 };
-    pEscalate = 0;
-  } else if (pEscalate > 0) {
-    for (const k of Object.keys(prior) as ManStance[]) prior[k] = (prior[k] ?? 0) * (1 - pEscalate);
-    prior.escalate = pEscalate;
-  }
-
-  const posterior = forced ? prior : blendWithReading(prior, event === 'speech' ? input.reaction : undefined, strategy, params);
-  const next = rng.sample<ManStance>(posterior as Record<ManStance, number>);
+  const next: ManStance = step === 'leave' ? 'back_off' : stanceForLevel(level, ph, canBlock);
 
   /* ---- bookkeeping -------------------------------------------------------- */
   let gain = 0;
@@ -822,10 +803,16 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
   }
   state.hostileTurns = next === 'hostile' || next === 'intimidate' ? state.hostileTurns + 1 : 0;
   state.stance = next;
+  state.level = level;
+  state.peakLevel = Math.max(state.peakLevel, level);
 
   const { action, proximity, delivery } = actionFor(next, ph, rng);
-  state.tension = next === 'escalate' ? 1 : clamp01(STANCE_TENSION[next] + 0.4 * state.frustration);
-  const face = pickEmotion(next, strategy, state, rng);
+  state.tension = next === 'escalate' ? 1 : next === 'back_off' ? STANCE_TENSION.back_off : clamp01(level / MAX_LEVEL);
+  let face = pickEmotion(next, strategy, state, rng);
+  // After she says no and he carries on (or walks off), his face shows that he minded: not a smile.
+  if ((refused || (next === 'back_off' && levelFrom >= 3)) && next !== 'escalate' && ['friendly', 'smirk', 'leer', 'neutral', 'sheepish'].includes(face.emotion)) {
+    face = { ...face, emotion: 'annoyed', intensity: Math.max(face.intensity, 0.45 + 0.08 * level) };
+  }
   const closeBonus = ph.distance < 1.6 && next !== 'back_off' ? 0.06 : 0;
   const wear = Math.min(0.12, 0.025 * state.exchanges) + (state.hasFollowed ? 0.04 : 0);
   state.fear =
@@ -833,16 +820,15 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
       ? 1
       : next === 'back_off'
         ? clamp01(Math.max(STANCE_FEAR.back_off, state.fear - 0.2))
-        : clamp01(Math.max(state.fear - 0.08, STANCE_FEAR[next] + closeBonus + wear));
+        : clamp01(Math.max(state.fear - 0.08, LEVEL_FEAR[level] + closeBonus + wear));
 
   /* ---- why --------------------------------------------------------------- */
   let rationale: Rationale;
   let drivers: string[];
   if (next === 'escalate') {
-    const list = [param(params, 'base.physical_escalation_per_run'), param(params, 'model.escalation.hazard')];
-    if (state.insults > 0) list.push(param(params, 'model.escalation.insult_gain'));
+    const list = [param(params, 'base.physical_escalation_per_run'), param(params, 'model.ladder.cross_to_threat')];
     rationale = rationaleFrom(
-      'His anger tipped over into grabbing at her: this is rare, and it came from his temper, not from anything she chose.',
+      'His anger tipped over into reaching for her: this is rare, and it came from his temper, not from anything she chose.',
       list,
     );
     drivers = list.map((p) => p.key);
@@ -852,28 +838,32 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
     rationale = rationaleFrom('He ran out of steam: after this long with nothing to show for it, he gave up.', [p]);
     drivers = [p.key];
   } else {
-    const c = CLASS_OF[next] as ReactionClass;
-    const cell = param(params, ROW_KEYS[strategy][c]);
-    const list: Param[] = [cell];
-    drivers = [cell.key];
+    const row = param(params, ladderKey(strategy, step));
+    const list: Param[] = [row];
+    drivers = [row.key, `model.ladder.disposition.${state.disposition}.${step === 'stay' ? 'up' : step}`];
     if (next === 'follow') {
       list.push(param(params, 'base.incident_involves_following'));
       drivers.push('base.incident_involves_following');
     } else if (next === 'block') {
-      list.push(param(params, 'model.persist.share_block'));
-      drivers.push('model.persist.share_block');
-    } else if (next === 'guilt') {
-      drivers.push('model.persist.share_guilt');
+      list.push(param(params, 'base.incident_involves_path_interference'));
+      drivers.push('base.incident_involves_path_interference');
     }
-    const dispKey = `model.disposition.${state.disposition}.${c}`;
-    drivers.push(dispKey);
-    if ((c === 'hostile' || c === 'intimidate') && state.frustration - gain > 0.2) drivers.push('model.dynamics.frustration_gain');
-    if (c === 'back_off' && state.exchanges === 1) drivers.push('model.scenario.pushiness_first_response');
-    rationale = rationaleFrom(rationaleText(next, herPhrase(event, strategy)), list);
+    rationale = rationaleFrom(
+      floored
+        ? `After ${herPhrase(event, strategy)}, he ignored her no and kept going: that alone makes him pushy (level ${levelFrom} → ${level}).`
+        : ladderText(step, herPhrase(event, strategy), levelFrom, level),
+      list,
+    );
   }
   state.lastDriver = drivers[0] ?? null;
 
   const followSilent = next === 'follow' && event !== 'speech' && rng.chance(val(params, 'model.persist.follow_silent'));
+  const stanceProbs: Partial<Record<ManStance, number>> = {};
+  for (const st of ['down', 'stay', 'up', 'jump', 'leave'] as Step[]) {
+    if (!stepProbs[st]) continue;
+    const k = st === 'leave' ? 'back_off' : stanceForLevel(applyStep(levelFrom, st), ph, canBlock);
+    stanceProbs[k] = (stanceProbs[k] ?? 0) + stepProbs[st];
+  }
 
   return {
     state,
@@ -883,19 +873,56 @@ export function decideWoman(state0: WomanState, input: WomanInput, rng: Rng, par
       emotion: face.emotion,
       emotionIntensity: face.intensity,
       proximity,
+      level,
     },
     fear: round3(state.fear),
     tension: round3(state.tension),
     rationale,
     strategy,
     strategyProbs,
-    stanceProbs: roundProbs(posterior),
-    priorProbs: roundProbs(prior),
+    stanceProbs: roundProbs(stanceProbs),
+    priorProbs: roundProbs(stanceProbs),
     outcome: next === 'escalate' ? 'escalated' : undefined,
     speak: !followSilent,
     delivery,
     drivers,
+    level,
+    levelFrom,
+    step,
+    stepProbs: roundStep(stepProbs),
   };
+}
+
+/** Ignoring a no is level 2 by the ladder's own definition. */
+const REFUSAL_FLOOR = 2;
+
+/** How sure the reading is that she refused him (in any way, from polite to insulting). */
+function refusalShare(p: Record<WomanStrategy, number>): number {
+  return p.polite_deflect + p.firm_boundary + p.hostile + p.excuse + p.threaten_attention + p.seek_help + p.plead;
+}
+
+/** Her fear at each of his levels (before closeness and wear are added). */
+const LEVEL_FEAR = [0.3, 0.4, 0.5, 0.58, 0.74, 0.88, 1];
+
+/** One plain sentence for the debrief: what she did, what he did, and where that left him on the ladder. */
+export function ladderText(step: Step, phrase: string, from: number, to: number): string {
+  const where = step === 'leave' ? '' : ` (${LEVELS[from].name.toLowerCase()} → ${LEVELS[to].name.toLowerCase()}, level ${from} → ${to})`;
+  switch (step) {
+    case 'leave':
+      return `After ${phrase}, he gave up and turned away.`;
+    case 'down':
+      return `After ${phrase}, he eased off a little${where}.`;
+    case 'stay':
+      return `After ${phrase}, he kept on as he was${where}.`;
+    case 'up':
+      return `After ${phrase}, he pushed harder${where}.`;
+    case 'jump':
+      return `After ${phrase}, he was set off and jumped two levels${where}.`;
+  }
+}
+
+function roundStep(p: Record<Step, number>): Record<Step, number> {
+  return { down: round3(p.down), stay: round3(p.stay), up: round3(p.up), jump: round3(p.jump), leave: round3(p.leave) };
 }
 
 function roundProbs(p: Partial<Record<ManStance, number>>): Partial<Record<ManStance, number>> {

@@ -18,6 +18,7 @@ import type {
   ManDecision,
   ManStance,
   OutcomeKind,
+  SpeechSource,
   TurnEvent,
   TurnRequest,
   WomanStrategy,
@@ -32,6 +33,7 @@ import {
   buildBystanderRead,
   buildWomanRead,
   heuristicBystanderRead,
+  applyWomanRules,
   heuristicWomanRead,
   parseBystanderRead,
   parseWomanRead,
@@ -39,6 +41,8 @@ import {
   type BystanderRead,
   type WomanRead,
 } from './read';
+import { cleanInterrupted, markCutOff } from './cutoff';
+import { askedIn, emptyStory, noteHer, noteHim, noteOther, storyBrief, type Story } from './story';
 import { transcribe } from './stt';
 import { buildSummary } from './summary';
 import { LiveAudio, startTts, type AudioSpec } from './tts';
@@ -71,6 +75,8 @@ interface Persisted {
   thoughts: string[];
   lastMan: ManDecision | null;
   outcome: OutcomeKind | null;
+  /** The whole encounter in one place: every line, what she told him, what he has asked (worker/story.ts). */
+  story?: Story;
 }
 
 const CLIENT_EVENTS: ClientEventType[] = [
@@ -117,6 +123,7 @@ class DeferredFields {
 
 interface LineJob {
   stance: ManStance;
+  level?: number;
   fields: DeferredFields;
   result: Promise<WriteResult>;
   abort: AbortController;
@@ -156,6 +163,8 @@ export class SessionDO extends DurableObject<Env> {
   private s: Persisted | null = null;
   private audio = new Map<string, LiveAudio>();
   private queue: Promise<void> = Promise.resolve();
+  /** How the current turn's words arrived. Turns run one at a time, so a field is enough. */
+  private turnVia: { via: SpeechSource; interrupted?: { line: string; heard: string } } | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -182,6 +191,8 @@ export class SessionDO extends DurableObject<Env> {
   }
 
   private log(entry: LogEntry): void {
+    // Exact record of how her words arrived (and whether she cut him off), attached to the player row.
+    if (entry.kind === 'player' && entry.event === 'speech' && this.turnVia) entry = { ...entry, ...this.turnVia };
     this.ctx.storage.sql.exec('INSERT INTO log (data) VALUES (?)', JSON.stringify(entry));
   }
 
@@ -219,11 +230,12 @@ export class SessionDO extends DurableObject<Env> {
     const seed = typeof body.seed === 'number' && Number.isFinite(body.seed) ? Math.floor(Math.abs(body.seed)) >>> 0 : (hashSeed(id) ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
     const rng = new Rng(seed);
     const meta: SessionMeta = { id, pov, seed, createdAt: Date.now() };
-    const s: Persisted = { meta, rng: 0, turn: 0, transcript: [], usedBank: [], hisLines: [], thoughts: [], lastMan: null, outcome: null };
+    const s: Persisted = { meta, rng: 0, turn: 0, transcript: [], usedBank: [], hisLines: [], thoughts: [], lastMan: null, outcome: null, story: emptyStory() };
     if (pov === 'woman') {
       const disposition = drawDisposition(rng);
       meta.disposition = disposition;
-      s.woman = initialWomanState(disposition);
+      s.woman = initialWomanState(disposition, { golden: body.run === 'golden' });
+      if (body.run === 'golden') meta.run = 'golden';
     } else {
       s.bystander = initialBystanderState();
     }
@@ -302,7 +314,14 @@ export class SessionDO extends DurableObject<Env> {
     }
     if (!req || !CLIENT_EVENTS.includes(req.event)) return json({ error: 'Unknown event' }, 400);
     if (clip && clip.size > MAX_CLIP_BYTES) return json({ error: 'Audio clip too large' }, 413);
-    const turnReq: TurnRequest = { event: req.event, ctx: normaliseCtx(req.ctx), text: typeof req.text === 'string' ? req.text.slice(0, 600) : undefined, data: req.data };
+    const turnReq: TurnRequest = {
+      event: req.event,
+      ctx: normaliseCtx(req.ctx),
+      text: typeof req.text === 'string' ? req.text.slice(0, 600) : undefined,
+      data: req.data,
+      source: clip ? 'ptt' : req.source === 'typed' ? 'typed' : undefined,
+      interrupted: cleanInterrupted(req.interrupted),
+    };
 
     const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
     const writer = writable.getWriter();
@@ -362,6 +381,11 @@ export class SessionDO extends DurableObject<Env> {
       // An empty transcript is silence.
       if (!text) event = 'silence';
     }
+    if (event === 'speech' && req.interrupted) {
+      markCutOff(s.transcript, req.interrupted);
+      if (s.story) markCutOff(s.story.lines, req.interrupted);
+    }
+    this.turnVia = event === 'speech' ? { via: req.source ?? 'typed', ...(req.interrupted ? { interrupted: req.interrupted } : {}) } : null;
 
     if (s.meta.pov === 'woman') await this.womanTurn(s, event, text, req.ctx, turn, ms, emit, received);
     else await this.bystanderTurn(s, event, text, req.ctx, turn, ms, emit, received);
@@ -391,8 +415,9 @@ export class SessionDO extends DurableObject<Env> {
     let early: LineJob | null = null;
     if (event === 'speech') {
       s.transcript.push(`HER: ${text}`);
+      s.story = noteHer(s.story ?? emptyStory(), text);
       if (this.env.AI) {
-        const guess = heuristicWomanRead(text);
+        const guess = applyWomanRules(text, heuristicWomanRead(text));
         const trial = decideWoman(state, { event, ctx, strategyProbs: guess.strategyProbs, signals: guess.signals }, new Rng(s.rng));
         if (trial.decision && trial.speak && !FIXED_COPY_STANCES.includes(trial.decision.stance)) {
           early = this.startWomanLine(s, trial.decision, trial.strategy, event, text, ctx, copy);
@@ -414,6 +439,7 @@ export class SessionDO extends DurableObject<Env> {
         read = heuristicWomanRead(text);
         ms.fallbackRead = 1;
       }
+      read = applyWomanRules(text, read);
       ms.read = Date.now() - t0;
       emit({ type: 'read', strategy: read.strategy, confidence: round(read.confidence), probs: roundAll(read.strategyProbs) });
     }
@@ -439,7 +465,7 @@ export class SessionDO extends DurableObject<Env> {
       source: read ? read.source : 'event',
     });
 
-    const usable = early !== null && out.decision !== null && out.speak && out.decision.stance === early.stance;
+    const usable = early !== null && out.decision !== null && out.speak && out.decision.stance === early.stance && out.decision.level === early.level;
     if (early && !usable) {
       early.abort.abort();
       ms.specMiss = 1;
@@ -454,7 +480,7 @@ export class SessionDO extends DurableObject<Env> {
 
       const thoughtEmotion: Emotion = d.stance === 'back_off' ? 'worried' : out.fear >= 0.6 ? 'afraid' : 'worried';
       const fromBank = (fallback: boolean) => {
-        const entry = pickBank('woman', d.stance, copy, s.usedBank);
+        const entry = pickBank('woman', d.stance, copy, s.usedBank, this.reasks(s));
         if (fallback) ms.fallbackLine = 1;
         else ms.bankLine = 1;
         if (out.speak) this.emitBankLine(s, entry, 'man', d.emotion, out.delivery, turn, t, emit);
@@ -489,7 +515,7 @@ export class SessionDO extends DurableObject<Env> {
         try {
           const res = await job.result;
           if (res.attempts > 1) ms.hedged = 1;
-          if (!('thought' in res.fields)) this.emitBankThought(s, pickBank('woman', d.stance, copy, s.usedBank), out.fear, turn, t, emit);
+          if (!('thought' in res.fields)) this.emitBankThought(s, pickBank('woman', d.stance, copy, s.usedBank, this.reasks(s)), out.fear, turn, t, emit);
         } catch {
           if (!wrote) fromBank(true);
         }
@@ -520,13 +546,15 @@ export class SessionDO extends DurableObject<Env> {
       system: WOMAN_SYSTEM,
       user: womanUserPrompt({
         stance: d.stance,
+        level: d.level,
         emotion: d.emotion,
         event,
         herWords: text,
         strategy,
         ctx,
         action: d.action,
-        recent: s.transcript,
+        recent: s.story?.lines ?? s.transcript,
+        memory: s.story ? storyBrief(s.story, d.level ?? 1) : undefined,
         avoidLines: s.hisLines,
         avoidThoughts: s.thoughts,
         dice: [copy.next(), copy.next()],
@@ -537,7 +565,7 @@ export class SessionDO extends DurableObject<Env> {
       signal: abort.signal,
     });
     result.catch(() => {});
-    return { stance: d.stance, fields, result, abort, started };
+    return { stance: d.stance, level: d.level, fields, result, abort, started };
   }
 
   /* ------------------------------------------------------------------ bystander POV */
@@ -595,7 +623,10 @@ export class SessionDO extends DurableObject<Env> {
         probs: roundAll(out.strategyProbs),
       });
     }
-    if (event === 'speech') s.transcript.push(`BYSTANDER: ${text}`);
+    if (event === 'speech') {
+      s.transcript.push(`BYSTANDER: ${text}`);
+      s.story = noteOther(s.story ?? emptyStory(), 'BYSTANDER', text);
+    }
     if (event !== 'silence' || out.man || out.outcome) {
       this.log({
         kind: 'player',
@@ -761,11 +792,21 @@ export class SessionDO extends DurableObject<Env> {
     const who = speaker === 'man' ? 'HIM' : speaker === 'woman' ? 'HER' : 'SHOPKEEPER';
     s.transcript.push(`${who}: ${text}`);
     if (s.transcript.length > 10) s.transcript = s.transcript.slice(-10);
+    const story = s.story ?? emptyStory();
+    s.story = speaker === 'man' ? noteHim(story, text) : noteOther(story, who, text);
     if (speaker === 'man') {
       s.hisLines.push(text);
-      if (s.hisLines.length > 8) s.hisLines = s.hisLines.slice(-8);
+      if (s.hisLines.length > 20) s.hisLines = s.hisLines.slice(-20);
     }
     this.log({ kind: 'line', t, turn, speaker, text, source });
+  }
+
+  /** A bank line that would ask something he has already asked (or she already answered) does not fit the story. */
+  private reasks(s: Persisted): (text: string) => boolean {
+    const story = s.story;
+    if (!story) return () => false;
+    return (text) =>
+      askedIn(text).some((t) => story.asked.includes(t) || (t === 'name' && !!story.facts.name) || (t === 'where' && !!story.facts.destination));
   }
 
   private noteThought(s: Persisted, text: string, turn: number, t: number): void {

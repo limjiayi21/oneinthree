@@ -346,6 +346,8 @@ export interface Hud {
   hint(text: string | null, ms?: number): void;
   /** Top-left one-line objective ("Get home."). null clears. */
   objective(text: string | null): void;
+  /** His escalation meter, 0 (calm) to 6 (threatening), with the level's name. null hides it. */
+  setLevel(level: number | null, name?: string): void;
   setMic(state: MicState, level?: number): void;
   /** 0..1: DOM-side fear cues (pulsing edge darkness). */
   setFear(level: number): void;

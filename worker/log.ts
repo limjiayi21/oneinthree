@@ -5,6 +5,7 @@ import type {
   OutcomeKind,
   Pov,
   Rationale,
+  SpeechSource,
   SpeechTarget,
   Strategy,
   WomanDecision,
@@ -25,6 +26,10 @@ export type LogEntry =
       /** Bystander POV: the tactic the model resolved, and what came of it. */
       tactic?: string | null;
       result?: string | null;
+      /** Speech only: how the words arrived (exact transcript is `text`). */
+      via?: SpeechSource;
+      /** Speech only: she talked over this line of his; `heard` is roughly what he got out. */
+      interrupted?: { line: string; heard: string };
     }
   | {
       kind: 'decision';
@@ -49,4 +54,6 @@ export interface SessionMeta {
   createdAt: number;
   /** Woman POV: the disposition drawn for this session's man. */
   disposition?: string;
+  /** 'golden' for the scripted reference playthrough; absent for a normal game. */
+  run?: 'golden';
 }

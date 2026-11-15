@@ -106,6 +106,16 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
   );
 
   const objectiveEl = h('div', { class: 'oit-objective', role: 'status' });
+  // His escalation meter: seven segments, 0 (calm) .. 6 (threatening), and the level's name.
+  const levelSegs = Array.from({ length: 7 }, (_, i) => h('i', { 'data-i': String(i) }));
+  const levelName = h('span', { class: 'oit-level-name' });
+  const levelEl = h(
+    'div',
+    { class: 'oit-level', role: 'status', 'aria-live': 'polite' },
+    h('span', { class: 'oit-level-label' }, 'His level'),
+    h('span', { class: 'oit-level-bar', 'aria-hidden': 'true' }, ...levelSegs),
+    levelName,
+  );
   const reticleEl = h('div', { class: 'oit-reticle', 'aria-hidden': 'true' });
   const promptEl = h('div', { class: 'oit-prompt', role: 'status' });
   const hintEl = h('div', { class: 'oit-hint', role: 'status' });
@@ -141,7 +151,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     phoneEl.classList.toggle('is-on', lost);
   });
 
-  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, reticleEl, promptEl, hintEl, micEl, micStatus, phoneEl);
+  const worldLayer = h('div', { class: 'oit-hud-world' }, fearEl, filmEl, objectiveEl, levelEl, reticleEl, promptEl, hintEl, micEl, micStatus, phoneEl);
 
   /** Guided replay: dims the frozen scene, optionally leaving a pool of light around one person. */
   const freezeEl = h('div', { class: 'oit-freeze', 'aria-hidden': 'true' });
@@ -279,6 +289,27 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     }
     objectiveEl.textContent = text;
     objectiveEl.classList.add('is-on');
+  }
+
+  let shownLevel = -1;
+  function setLevel(level: number | null, name = ''): void {
+    if (level === null || !Number.isFinite(level)) {
+      levelEl.classList.remove('is-on');
+      shownLevel = -1;
+      return;
+    }
+    const lv = Math.max(0, Math.min(6, Math.round(level)));
+    levelEl.dataset.level = String(lv);
+    levelSegs.forEach((seg, i) => seg.classList.toggle('is-lit', i <= lv));
+    levelName.textContent = `${lv} · ${name}`;
+    levelEl.setAttribute('aria-label', `His level: ${lv} of 6, ${name}`);
+    if (shownLevel >= 0 && lv !== shownLevel) {
+      levelEl.classList.remove('is-up', 'is-down');
+      void levelEl.offsetWidth; // restart the pulse
+      levelEl.classList.add(lv > shownLevel ? 'is-up' : 'is-down');
+    }
+    shownLevel = lv;
+    levelEl.classList.add('is-on');
   }
 
   function prompt(text: string | null): void {
@@ -810,6 +841,7 @@ export function createHud(root: HTMLElement, phone?: PhoneLink): Hud {
     hint,
     objective,
     setMic,
+    setLevel,
     setFear,
     fade,
     card,
