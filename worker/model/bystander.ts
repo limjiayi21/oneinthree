@@ -106,6 +106,12 @@ export interface BystanderInput {
   signals?: { threat?: number; insult?: number };
   /** Clef's distribution over his immediate reaction. */
   reaction?: Partial<Record<InterventionResult, number>>;
+  /**
+   * 'physical': when nobody stepped in, the scene always ends with him grabbing her. A training
+   * choice made for the live game, to show the cost of doing nothing; the research rate
+   * (base.physical_escalation_per_run) still applies everywhere else, simulations and tests included.
+   */
+  inactionEnding?: 'physical';
 }
 
 export interface BystanderOutput {
@@ -344,7 +350,8 @@ function decide(state0: BystanderState, input: BystanderInput, rng: Rng, params:
     }
     const p = param(params, 'base.physical_escalation_per_run');
     const worse = param(params, 'bystander.nothing.target_distress_increase');
-    if (rng.chance(clamp01(p.value))) {
+    const forced = input.inactionEnding === 'physical';
+    if (forced || rng.chance(clamp01(p.value))) {
       state.manStance = 'escalate';
       state.tension = 1;
       state.fear = 1;
@@ -353,7 +360,9 @@ function decide(state0: BystanderState, input: BystanderInput, rng: Rng, params:
       out.man = { stance: 'escalate', action: 'grab', emotion: grabbed.emotion, emotionIntensity: grabbed.emotionIntensity, proximity: 0.6 };
       out.woman = { emotion: 'afraid', action: 'freeze' };
       out.rationale = rationaleFrom(
-        'Nobody stepped in and his anger tipped over into grabbing at her: rare, and it came from his temper, not from anything she or anyone chose.',
+        forced
+          ? 'Nobody stepped in, and he grabbed her. This simulation always ends that way when no one acts, to show what silence can cost. In real life this is rarer: most incidents stay verbal, and it is never her fault.'
+          : 'Nobody stepped in and his anger tipped over into grabbing at her: rare, and it came from his temper, not from anything she or anyone chose.',
         [p],
       );
       out.drivers = [p.key];

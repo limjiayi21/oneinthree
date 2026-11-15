@@ -59,7 +59,7 @@ async function debrief(result: SceneResult, pov: Pov): Promise<SummaryData> {
 
 async function main(): Promise<void> {
   const params = new URLSearchParams(location.search);
-  // Dev shortcuts: ?skip=intro,part1,film,part2 (skipping part1 still plays the film; skipping part2 goes straight to the guided replay)
+  // Dev shortcuts: ?skip=intro,part1,film,part2 (skipping part1 still plays the film)
   const skip = new Set((params.get('skip') ?? '').split(',').filter(Boolean));
   const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
   const phone = createPhoneLink();
@@ -123,13 +123,15 @@ async function main(): Promise<void> {
   if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__oit = deps;
 
   screens.loading(null);
+  // Keyboard or body, asked once (?mode=immersive when the intro is skipped).
   if (!skip.has('intro')) {
-    await screens.intro({ voiceAvailable: health.voice, requestMic: () => mic.init() });
+    deps.mode = await screens.intro({ voiceAvailable: health.voice, requestMic: () => mic.init() });
   } else {
     void mic.init();
+    deps.mode = params.get('mode') === 'immersive' ? 'immersive' : 'analog';
   }
-  if (params.get('eyes') === '1') void eyes.enable();
-  if (params.get('hands') === '1') void hands.enable();
+  if (params.get('eyes') === '1' || deps.mode === 'immersive') void eyes.enable();
+  if (params.get('hands') === '1' || deps.mode === 'immersive') void hands.enable();
   await audio.resume();
   await audio.load((f) => screens.loading('Preparing the street…', f));
   screens.loading(null);
@@ -187,14 +189,20 @@ async function main(): Promise<void> {
       }
     }
 
-    // Teaching replay: Part 2 again, frozen at five moments, then the recap. Skipped if the player left the simulation.
-    if (!exited) {
-      await audio.resume();
-      world.setDoorOpen('home', false);
-      const guided = await runGuidedWalkHome(deps);
-      hud.setVisible(false);
-      if (part2?.sessionId && Object.keys(guided.firstChoices).length) void postGuided(part2.sessionId, guided.firstChoices, part2.outcome);
-      if (!guided.exited) await screens.recap(recapFor(guided.firstChoices));
+    // The recap of the 5 Ds after Part 2 (its tips replace the separate teaching replay).
+    // ?replay=1 still plays the replay (Part 2 again, frozen at five moments) first, and ticks the Ds picked there.
+    if (!exited && part2) {
+      let picks: Record<string, string> = {};
+      if (params.get('replay') === '1') {
+        await audio.resume();
+        world.setDoorOpen('home', false);
+        const guided = await runGuidedWalkHome(deps);
+        hud.setVisible(false);
+        exited = guided.exited;
+        picks = guided.firstChoices;
+      }
+      if (part2.sessionId && Object.keys(picks).length) void postGuided(part2.sessionId, picks, part2.outcome);
+      if (!exited) await screens.recap(recapFor(picks));
     }
 
     audio.stopAmbience(1);
