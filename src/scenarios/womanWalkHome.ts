@@ -13,6 +13,7 @@ import { createHuman } from '../characters/human';
 import { createNpc } from '../characters/npc';
 import { SceneKit, clamp01, inRect, pick, pickSide, type SceneDeps, type SceneResult } from './common';
 import { bindEchoSteps, laggedTarget } from './echoSteps';
+import { walkCorridor } from '../world/layout';
 
 const GESTURE_FOR: Partial<Record<ManStance, Gesture[]>> = {
   opening: ['beckon', 'wave'],
@@ -45,6 +46,10 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     requireLock: deps.requireLock,
     eyes: deps.eyes,
     extraMove: () => deps.phone?.move(performance.now()) ?? null,
+    // Only the walk home: this street, her building at the end, the shop if she needs it.
+    corridor: walkCorridor(P.subwayExit.z),
+    onCorridorEdge: (edge) =>
+      hud.hint(edge === 'back' ? 'Home is the other way.' : edge === 'ahead' ? 'This is your building.' : 'Home is down this street.', 3000),
   });
   const kit = new SceneKit(deps, player, 'woman');
 
