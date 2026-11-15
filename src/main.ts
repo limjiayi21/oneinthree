@@ -135,6 +135,10 @@ async function main(): Promise<void> {
     // ?run=golden: the scripted reference playthrough (docs/golden-run.md).
     run: params.get('run') === 'golden' ? 'golden' : undefined,
     eyes: headLook,
+    recentreLook: () => {
+      eyes.recalibrate();
+      airpods.recalibrate();
+    },
     hands,
     phone,
     demo: params.get('demo') === '1',

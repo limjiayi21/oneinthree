@@ -47,6 +47,8 @@ export interface SceneDeps {
   seed?: number;
   /** Optional webcam head look (G toggles it). */
   eyes?: EyeLookSource;
+  /** Takes "straight ahead" again for head look (AirPods and webcam), as Shift+G does. */
+  recentreLook?: () => void;
   /** Optional webcam hand gestures (H toggles it). */
   hands?: HandGestureSource;
   /** Optional paired phone; adds walking to the keyboard. */
