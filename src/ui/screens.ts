@@ -19,6 +19,7 @@ import type { CaseStudy, Evidence, EvidenceSource, EvidenceStat, SupportResource
 import { add, clamp01, ensureFonts, focusables, h, keycap, nextId, reflow, type Child } from './dom';
 import { bundledEvidence, headlineStat, hostOf, normaliseEvidence, resolveSources, resolveStats, safeUrl } from './evidence';
 import { createFilmPlayer, type FilmOptions, type FilmResult } from './film';
+import { phonePairUrl, qrSvg } from './qr';
 
 export interface ScreensOptions {
   /**
@@ -416,10 +417,18 @@ export function createScreens(root: HTMLElement, options: ScreensOptions = {}): 
             phoneBtn.hidden = true;
             const label = { waiting: 'Waiting for your phone', connected: 'Phone connected', lost: 'Phone lost, reconnecting' }[phone.status];
             const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            const url = phonePairUrl(location.origin, phone.code);
+            // Scan to pair: the phone's camera opens the phone page with the code filled in.
+            let qr: HTMLElement | null = null;
+            if (phone.status !== 'connected' && phone.code) {
+              qr = h('div', { class: 'oit-phone-qr', role: 'img', 'aria-label': 'QR code: scan it with your phone to pair' });
+              qr.innerHTML = qrSvg(url);
+            }
             add(
               phoneBox,
+              qr,
               h('p', { class: 'oit-phone-code', 'aria-label': `Code ${phone.code.split('').join(' ')}` }, phone.code),
-              h('p', { class: 'oit-mic-status' }, `On your phone, open ${location.origin}/phone.html?code=${phone.code}`),
+              h('p', { class: 'oit-mic-status' }, qr ? `Scan the code with your phone's camera, or open ${url}` : `On your phone, open ${url}`),
               local
                 ? h('p', { class: 'oit-mic-status' }, 'A phone cannot reach localhost. Open the game from the dev server’s tunnel address (press t then Enter in the dev server terminal).')
                 : null,

@@ -477,17 +477,22 @@
 .oit-tips {
   position: absolute;
   left: 50%;
-  bottom: calc(92px + var(--hud-u) * 5);
+  /* clear of the subtitle box (bottom 40px + 6u, about 3u tall with the speaker's name) */
+  bottom: calc(64px + var(--hud-u) * 10);
   transform: translateX(-50%);
   display: grid;
   justify-items: center;
-  gap: 14px;
-  width: min(52rem, 94vw);
+  gap: 18px;
+  width: min(76rem, 96vw);
   opacity: 0;
   transition: opacity 0.5s ease;
 }
 .oit-tips.is-on {
   opacity: 1;
+}
+/* While a moment's options are up they fill the lower middle of the screen: her thoughts move above them. */
+body:has(.oit-tips.is-on) .oit-thought-zone {
+  top: 16vh;
 }
 .oit-tip {
   position: relative;
@@ -508,22 +513,22 @@
 }
 .oit-opts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 16px;
   width: 100%;
 }
 .oit-opt {
   display: grid;
   align-content: start;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid rgba(233, 228, 218, 0.22);
-  border-radius: 6px;
+  gap: 10px;
+  padding: 18px 22px;
+  border: 1px solid rgba(233, 228, 218, 0.28);
+  border-radius: 10px;
   background: rgba(7, 8, 11, 0.62);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   color: var(--oit-ink);
-  font: 500 calc(var(--hud-u) * 1.02) / 1.35 var(--oit-sans);
+  font: 500 calc(var(--hud-u) * 1.55) / 1.3 var(--oit-sans);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
   transition: opacity 0.3s ease, border-color 0.3s ease;
 }
@@ -534,10 +539,10 @@
   color: var(--oit-ink-2);
 }
 .oit-opt .oit-key {
-  height: 1.9em;
-  min-width: 1.9em;
-  padding: 0 0.5em;
-  font-size: 0.9em;
+  height: 2em;
+  min-width: 2em;
+  padding: 0 0.55em;
+  font-size: 0.95em;
   background: rgba(233, 228, 218, 0.12);
 }
 .oit-opt-how {
@@ -566,8 +571,8 @@
 }
 .oit-opt-timer {
   width: 100%;
-  height: 4px;
-  border-radius: 2px;
+  height: 6px;
+  border-radius: 3px;
   background: rgba(233, 228, 218, 0.15);
   overflow: hidden;
 }
@@ -576,7 +581,7 @@
   height: 100%;
   background: var(--oit-accent);
   transform-origin: left;
-  animation: oit-drain var(--secs, 8s) linear forwards, oit-warn 0.3s linear var(--warn, 6s) forwards;
+  animation: oit-drain var(--secs, 15s) linear forwards, oit-warn 0.3s linear var(--warn, 13s) forwards;
 }
 .oit-tips.is-held .oit-opt-timer i,
 .oit-opt-timer.is-done i {

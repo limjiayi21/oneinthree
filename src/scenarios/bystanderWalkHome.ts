@@ -13,16 +13,21 @@ import { createHuman } from '../characters/human';
 import { createNpc } from '../characters/npc';
 import { SCRIPT, SceneKit, clamp01, inRect, voUrl, type SceneDeps, type SceneResult } from './common';
 import { bindHandActions } from './handActions';
-import { LINE, ROAD_HALF, SHOP, rect, shopPocket } from '../world/layout';
+import { HOME, LINE, ROAD_HALF, rect, shopPocket } from '../world/layout';
 import { DEMO } from './womanDemo';
 import type { MomentOption } from '../contracts';
 import { LEVELS } from '../../shared/levels';
 import { reducedMotion } from '../ui/dom';
+import { runKeyTutorial } from './keyTutorial';
 
-/** While a moment is open the street slows to this fraction of real time. */
-const SLOW = 0.3;
 /** How long a moment stays open, in real seconds, if the player does nothing. */
-const TIP_SECONDS = 8;
+const TIP_SECONDS = 15;
+/**
+ * While a moment is open the street slows to this fraction of real time. Set so an open moment
+ * covers the same 2.4 s of story it always did (0.3 x 8 s), however long the timer is: the scripted
+ * beats around each moment are timed in story seconds.
+ */
+const SLOW = 2.4 / TIP_SECONDS;
 /** When a moment opens the view eases this many degrees tighter (70 to 63, about 10% closer). */
 const ZOOM_DEG = 7;
 
@@ -92,8 +97,8 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
     eyes: deps.eyes,
     extraMove: () => deps.phone?.move(performance.now()) ?? null,
     // Only this street, where it happens: not back the way you came, not off down a side street.
-    // Her sidewalk only, from just behind your start to the shop's far wall, plus the shop.
-    corridor: [rect(ROAD_HALF, LINE, SHOP.iz1, STAGE.player.z + 1.5), shopPocket()],
+    // Her sidewalk only, from just behind your start on past the shop to just beyond her building, plus the shop.
+    corridor: [rect(ROAD_HALF, LINE, HOME.z1 - 1.5, STAGE.player.z + 1.5), shopPocket()],
     onCorridorEdge: (edge) => hud.hint(edge === 'back' ? 'Stay with her.' : edge === 'ahead' ? 'The street ends here.' : 'Stay on the sidewalk.', 3000),
   });
   const kit = new SceneKit(deps, player, 'bystander');
@@ -767,6 +772,7 @@ export async function runBystanderWalkHome(deps: SceneDeps): Promise<SceneResult
   await hud.fade(false, 2000);
   player.inputEnabled = true;
   hud.objective(null);
+  runKeyTutorial(kit, hud, 'bystander', { mode: deps.mode, phoneWalks: deps.phone?.status === 'connected' });
   woman.setBehaviour({ type: 'goTo', target: P.homeStoop, speed: 1.35 });
   setLevel(0);
 

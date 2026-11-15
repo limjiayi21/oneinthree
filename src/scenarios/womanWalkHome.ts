@@ -13,7 +13,10 @@ import { createHuman } from '../characters/human';
 import { createNpc } from '../characters/npc';
 import { SceneKit, clamp01, inRect, pick, pickSide, type SceneDeps, type SceneResult } from './common';
 import { bindEchoSteps, laggedTarget } from './echoSteps';
-import { walkCorridor } from '../world/layout';
+import { LINE, walkCorridor } from '../world/layout';
+import { runKeyTutorial } from './keyTutorial';
+import { createWayfinder, wayfinderLevel } from '../ui/wayfinder';
+import { damp, wrapAngle, yawOf } from '../player/mathx';
 import { DEMO, demoCorridor } from './womanDemo';
 
 const GESTURE_FOR: Partial<Record<ManStance, Gesture[]>> = {
@@ -422,7 +425,12 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   function demoCrash(): void {
     if (kit.ended || finishing || !first('alley')) return;
     world.triggerCatDash(DEMO.catDash); // the alley's own cat is ~40 m behind her start
-    alleyScare(DEMO.crashSource, DEMO.crashSource, DEMO.reactAfter);
+    // The crash is behind her; her head snaps round to the cat as it bolts across in front, and follows it to the curb.
+    const crashAt = new THREE.Vector3(DEMO.crashX, DEMO.crashY, player.position.z + DEMO.crashBehind);
+    const [, catFrom, , , catTo] = DEMO.catDash;
+    alleyScare(crashAt, catFrom, DEMO.reactAfter);
+    kit.after(DEMO.reactAfter, () => !kit.ended && player.glanceAt(catFrom.clone().setY(0.3), 0.7, 0.8));
+    kit.after(DEMO.reactAfter + 0.45, () => !kit.ended && player.glanceAt(catTo.clone().setY(0.2), 1.2, 0.8));
     kit.after(DEMO.noticeDelay, () => {
       if (kit.ended || !first('notice')) return;
       // demo: she is already close, so the encounter starts at once and her first
@@ -433,8 +441,41 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
 
   /* ---------------------------------------------------- per-frame logic */
 
+  /* --------------------------------------------- the way to the shop */
+
+  // A soft arrow toward the shop door, then in through it: faint going the right way, obvious going the wrong way.
+  const way = createWayfinder();
+  let wayLevel = 0;
+  let wayApproach = 0;
+  let wayDist = -1;
+  function updateWay(dt: number): void {
+    const pos = player.position;
+    const inShop = pos.x > LINE - 0.3 && Math.abs(pos.z - P.shopDoor.z) < 5;
+    if (!player.inputEnabled || inShop || dt <= 0) {
+      way.hide();
+      wayDist = -1;
+      return;
+    }
+    const nearDoor = Math.hypot(P.shopDoor.x - pos.x, P.shopDoor.z - pos.z) < 1.6;
+    const target = nearDoor ? P.shopInside : P.shopDoor;
+    const dx = target.x - pos.x;
+    const dz = target.z - pos.z;
+    const dist = Math.hypot(dx, dz);
+    if (wayDist >= 0) wayApproach = damp(wayApproach, (wayDist - dist) / dt, 4, dt);
+    wayDist = dist;
+    const relYaw = wrapAngle(yawOf(dx, dz) - player.yaw);
+    wayLevel = damp(wayLevel, wayfinderLevel(relYaw, wayApproach), 3, dt);
+    way.update(relYaw, wayLevel);
+  }
+
+  let tutorialEnds = 0; // scene time the controls tutorial finishes (set when she gains control)
+
   kit.onFrame((dt) => {
-    if (kit.ended || finishing) return;
+    if (kit.ended || finishing) {
+      way.hide();
+      return;
+    }
+    updateWay(dt);
     const pos = player.position;
     player.getEyePosition(eye);
 
@@ -442,7 +483,6 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
     if (first('start') ) {
       // demo: no "Long day" line; the keys thought opens the scene instead (see the run section).
       if (!deps.demo) kit.after(1.6, () => kit.think('w_start_1', { intensity: 0.1 }));
-      kit.after(2.2, () => hud.hint('W A S D to walk  ·  mouse to look  ·  Shift to hurry', 7000));
     }
     if (!deps.demo && pos.z < P.subwayExit.z - 7 && first('keys')) {
       audio.play('keys_jingle', { volume: 0.5 });
@@ -473,7 +513,8 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
         kit.refreshMic();
         hud.objective(deps.demo ? 'Get to the shop.' : 'Get home.');
         kit.event('begin');
-        kit.after(3.5, () => hud.hint('Hold SPACE to speak.  Or say nothing.', 8000));
+        // After the controls tutorial if it is still running, so the two do not talk over each other.
+        kit.after(Math.max(3.5, tutorialEnds - kit.time + 0.3), () => !kit.ended && hud.hint('Hold SPACE to speak.  Or say nothing.', 8000));
         // demo: if she stops to deal with him, point her at the way out once, so the demo cannot stall.
         if (deps.demo) kit.after(DEMO.nudgeAfter, () => !kit.ended && !finishing && hud.hint('The shop is still open.', 5000));
       }
@@ -597,6 +638,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   await hud.fade(false, deps.demo ? 1000 : 2200);
   player.inputEnabled = true;
   hud.objective('Walk home.');
+  tutorialEnds = runKeyTutorial(kit, hud, 'woman', { mode: deps.mode, phoneWalks: deps.phone?.status === 'connected' });
   if (deps.demo) {
     // demo: a few calm seconds first. Keys, then the crash (sooner if she hurries: see onFrame).
     kit.after(DEMO.keysDelay, () => {
@@ -622,6 +664,7 @@ export async function runWomanWalkHome(deps: SceneDeps): Promise<SceneResult> {
   const sessionId = kit.sessionId;
   offBump();
   await hud.fade(true, 400);
+  way.dispose();
   kit.dispose();
   player.dispose();
   return { sessionId, outcome };
