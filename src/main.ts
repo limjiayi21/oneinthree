@@ -159,7 +159,7 @@ async function main(): Promise<void> {
     let part2: SceneResult | null = null;
     /** Part 1's debrief, fetched while the film plays and offered from the Part 2 brief ("See full details"). */
     let part1Details: Promise<SummaryData> | null = null;
-    /** Part 1's session, for the coach (?coach=1). */
+    /** Part 1's session, for the coach (Part 3). */
     let part1Session: string | null = null;
 
     if (!skip.has('part1')) {
